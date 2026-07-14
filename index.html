@@ -1569,6 +1569,7 @@ async function initApp(user,sid,name){
   updateDday();renderTimetable();loadMeal();loadNotices();renderNews();initCalc();renderFavorites();
   loadFreeBoard();loadQnaBoard();
   subjects=buildSubjectsFromMeta(meta);
+  await closeOrphanSessions();
   await loadTodaySessions();
   await loadSubjectsFromDB();
   updatePlannerDate();
@@ -1808,6 +1809,18 @@ function updatePlannerDate(){
 }
 
 // ── LOAD SESSIONS FROM DB ──
+// 앱을 새로 켤 때는 activeTimer가 항상 null(진행 중인 타이머가 없는 상태)이므로,
+// 그 시점에 DB에 ended_at이 비어있는 세션이 남아있다면 전 세션에서 새로고침/탭 종료 등으로
+// 정상 종료되지 못하고 고아가 된 것이다. 방치하면 친구 랭킹 등에서 실시간 경과 시간 계산 시
+// 중복으로 합산돼 시간이 실제보다 빠르게 올라가 보이는 문제가 생기므로 로그인 시점에 정리한다.
+// 실제로 얼마나 공부했는지는 알 수 없으므로 시간을 부풀리지 않게 0으로 마감한다.
+async function closeOrphanSessions(){
+  const today=new Date().toISOString().slice(0,10);
+  const {data}=await sb.from('study_sessions').select('id').eq('user_id',currentUser.id).eq('date',today).is('ended_at',null);
+  if(!data||!data.length)return;
+  await sb.from('study_sessions').update({ended_at:new Date().toISOString(),duration_seconds:0}).in('id',data.map(r=>r.id));
+}
+
 async function loadTodaySessions(){
   const today=new Date().toISOString().slice(0,10);
   const {data}=await sb.from('study_sessions').select('*').eq('user_id',currentUser.id).eq('date',today).order('started_at');

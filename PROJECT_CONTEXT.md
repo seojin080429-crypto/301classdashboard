@@ -52,6 +52,11 @@
   계산해야 함(친구 랭킹 로직 참고). 타이머를 켠 채 새로고침/탭 종료하면 `ended_at`이 영영 안
   채워지는 고아 row가 생길 수 있어서, 로그인 시점(`initApp`→`closeOrphanSessions()`)에 본인의
   안 끝난 세션을 자동 마감함(`duration_seconds=0`으로, 시간을 부풀리지 않음).
+- `study_tasks` — 플래너의 하루 할 일(투두) 목록. `user_id`/`subject`/`task_name`/`is_done`/
+  `date`. **student_id 컬럼이 없다** — 다른 학생 걸 조회하려면 `/api/users` 응답의 uuid(`id`
+  필드)로 `user_id`를 알아내야 함. RLS는 원래 본인만 SELECT 가능했는데(`study_sessions`와
+  다르게 "전체 공개" 정책이 없었음), 선생님 학생 상세 학습현황 기능 때문에 `study_sessions`와
+  동일하게 "class can view all"(SELECT는 `true`) 정책을 추가함 — 쓰기는 여전히 본인만.
 - `user_roles` — `student_id`(PK) / `role`(student/admin/owner) / `is_teacher` /
   `can_appoint_teacher` / `cam_allowed`. RLS는 SELECT/ALL 모두 `true`(사실상 프론트 role
   체크로만 게이팅되는, 이 프로젝트의 기존 컨벤션 — `study_sessions`처럼 `auth.uid()` 기반으로
@@ -93,6 +98,21 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-07-14: 선생님 학생 상세 학습현황 + 학생 본인 주간 계획 이수 캘린더 추가.
+  - 선생님 탭 학생 카드를 클릭하면 모달(`student-detail-modal`)로 주간 캘린더(요일별 계획
+    목록 + 완료 체크, 과목은 이름 해시 기반 색상 점) + 요일별 공부시간/계획이수 표를 볼 수
+    있음. 이전/다음주 이동 가능(`openStudentDetail`/`shiftStudentDetailWeek`).
+  - 학생 본인도 학습 플래너 하단에 동일한 형태의 "이번주 계획 이수 현황"을 볼 수 있음(읽기전용,
+    `renderMyWeekCalendar`/`shiftMyPlannerWeek`).
+  - 공용 렌더 함수 `renderWeekCalendar(prefix,userId,weekStart)` 하나를 두 곳에서 재사용
+    (prefix로 DOM id만 분리 — 학생용은 `pw-`, 선생님용은 `sd-`).
+  - `study_tasks`가 `study_sessions`와 달리 "본인만 조회 가능" RLS였어서 선생님이 다른 학생
+    계획을 못 보는 문제가 있었음 → "class can view all" SELECT 정책 추가로 해결(위 스키마
+    섹션 참고).
+  - `/api/users`(bugwang-server) 응답에 `id`(uuid)를 추가 — `study_tasks`/`study_sessions`가
+    `student_id`가 아닌 `user_id`로만 연결되어 있어서 필요했음. 겸사겸사 `/api/create-user`가
+    role 개편 때 `req.callerIsOwnerTier`로 안 바뀌고 예전 `role==='teacher'` 체크가 남아있던
+    버그(owner가 아닌 is_teacher 조합 계정은 계정 생성이 막혀있었음)도 같이 수정.
 - 2026-07-14: 대규모 업데이트 묶음 (프론트 `index.html` + 백엔드 `bugwang-server/server.js`,
   Supabase 스키마) — 자세한 스키마는 위 "Supabase 스키마" 섹션 참고.
   - **role 체계 개편**: `is_teacher`/`can_appoint_teacher` 플래그 분리로 owner+선생님 동시 보유

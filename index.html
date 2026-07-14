@@ -1533,6 +1533,7 @@ function navigate(page){
   document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
   closeSidebar();window.scrollTo(0,0);
   if(page==='admin')loadAdminList();
+  if(page==='report')loadReportData();
 }
 function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sidebar-overlay').classList.add('visible')}
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-overlay').classList.remove('visible')}
@@ -2128,28 +2129,71 @@ async function refreshStats(){
 }
 
 // REPORT
-function renderReport(){
-  const WEEK_MINS=[480,390,510,320,365,420,280];
-  const weekTotalSeconds = WEEK_MINS.reduce((a, b) => a + b, 0) * 60;
-  const weekAvgSeconds = weekTotalSeconds > 0 ? weekTotalSeconds / 7 : 0;
+async function loadReportData(){
+  // 주간 데이터 로드
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // 0(일) ~ 6(토)
+  const startOfWeek = new Date(today);
+  // 월요일을 주의 시작으로 설정
+  startOfWeek.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  const { data: weekData, error: weekError } = await sb.from('study_sessions')
+    .select('date, duration_seconds')
+    .eq('user_id', currentUser.id)
+    .gte('date', startOfWeek.toISOString().slice(0, 10));
+
+  const weekMins = Array(7).fill(0); // 월~일
+  if (weekData) {
+    weekData.forEach(session => {
+      const sessionDate = new Date(session.date);
+      const sessionDay = sessionDate.getDay(); // 0(일) ~ 6(토)
+      const index = sessionDay === 0 ? 6 : sessionDay - 1; // 월요일(0) ~ 일요일(6)
+      weekMins[index] += session.duration_seconds / 60;
+    });
+  }
+
+  // 랭킹 데이터 로드
+  const todayStr = new Date().toISOString().slice(0,10);
+  const { data: rankData, error: rankError } = await sb.from('study_sessions')
+    .select('student_id, duration_seconds')
+    .eq('date', todayStr);
+
+  const rankByStudent = {};
+  if (rankData) {
+    rankData.forEach(r => {
+      rankByStudent[r.student_id] = (rankByStudent[r.student_id] || 0) + r.duration_seconds;
+    });
+  }
+
+  renderReport(weekMins, rankByStudent);
+}
+
+function renderReport(weekMins = [], rankByStudent = {}){
+  const weekTotalSeconds = weekMins.reduce((a, b) => a + b, 0) * 60;
+  const weekAvgSeconds = weekTotalSeconds > 0 ? weekTotalSeconds / (new Date().getDay() || 7) : 0;
   document.getElementById('rep-week-total').textContent = fmtHM(weekTotalSeconds);
   document.getElementById('rep-week-avg').textContent = fmtHM(weekAvgSeconds);
-  const max=Math.max(...WEEK_MINS);const today=new Date().getDay();
+  const max=Math.max(...weekMins, 1);const today=new Date().getDay();
   const el=document.getElementById('week-chart');el.innerHTML=WEEK_MINS.map((m,i)=>{
     const h=Math.round((m/max)*56);const isToday=(i+1)%7===today||(today===0&&i===6);
     return`<div class="week-bar-wrap"><div class="week-bar${m>0?' has-data':''}${isToday?' today':''}" style="height:${h}px"></div></div>`;
-  }).join('');
+  }).join('') || '<div style="text-align:center;padding:16px;color:var(--ink-48);font-size:13px">이번 주 기록 없음</div>';
   const total=subjects.reduce((s,sub)=>s+sub.tasks.reduce((a,t)=>a+t.seconds,0),0)||1;
   document.getElementById('subject-progress').innerHTML=subjects.map(sub=>{
     const sec=sub.tasks.reduce((s,t)=>s+t.seconds,0);const pct=Math.round((sec/total)*100);
     return`<div class="progress-item"><div class="progress-meta"><span class="progress-label">${sub.name}</span><span class="progress-val">${fmtHM(sec)}</span></div><div class="progress-track"><div class="progress-fill" style="width:${pct}%;background:${sub.color}"></div></div></div>`;
   }).join('')||'<div style="text-align:center;padding:16px;color:var(--ink-48);font-size:13px">기록 없음</div>';
-  const RANK=[{name:'김민준',min:522,me:false},{name:'이서연',min:441,me:false},{name:currentName,min:Math.floor(totalTodaySec/60),me:true},{name:'박지훈',min:323,me:false},{name:'최예린',min:281,me:false}];
-  const maxR=RANK[0].min||1;const medals=['🥇','🥈','🥉'];
-  document.getElementById('rank-list').innerHTML=RANK.map((r,i)=>{
-    const pct=Math.round((r.min/maxR)*100);const h=Math.floor(r.min/60),m=r.min%60;
-    return`<div class="rank-row${r.me?' me':''}"><span class="rank-pos">${medals[i]||i+1}</span><span class="rank-name">${r.name}</span><div class="rank-bar-track"><div class="rank-bar-fill" style="width:${pct}%"></div></div><span class="rank-time">${h}h ${String(m).padStart(2,'0')}m</span></div>`;
-  }).join('');
+  
+  const sortedRank = Object.entries(rankByStudent).sort((a, b) => b[1] - a[1]);
+  const maxR = sortedRank[0]?.[1] || 1;
+  const medals=['🥇','🥈','🥉'];
+  document.getElementById('rank-list').innerHTML=sortedRank.map(([sid, sec], i) => {
+    const isMe = sid === currentStudentId;
+    const name = allAccounts.find(a => a.student_id === sid)?.name || `${sid}번`;
+    const pct = Math.round((sec / maxR) * 100);
+    return`<div class="rank-row${isMe?' me':''}"><span class="rank-pos">${medals[i]||i+1}</span><span class="rank-name">${name}</span><div class="rank-bar-track"><div class="rank-bar-fill" style="width:${pct}%"></div></div><span class="rank-time">${fmtHM(sec)}</span></div>`;
+  }).join('') || '<div style="text-align:center;padding:16px;color:var(--ink-48);font-size:13px">오늘 공부한 학생이 아직 없어요</div>';
 }
 
 // ── BOARDS ──
@@ -3000,20 +3044,39 @@ async function renderNews(){
 
 function renderNewsList(data){
   const el = document.getElementById('news-list');
+  el.innerHTML = ''; // Clear previous list
   if(!data.length){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">해당 카테고리 뉴스가 없습니다</div>';return}
   const isAdmin = currentRole==='admin'||currentRole==='owner';
-  el.innerHTML=data.map(n=>{
+  
+  const fragment = document.createDocumentFragment();
+  data.forEach(n => {
     const date=new Date(n.published_at).toLocaleDateString('ko-KR',{month:'numeric',day:'numeric'});
-    const delBtn=isAdmin?`<button onclick="deleteNews('${n.id}',event)" style="margin-left:8px;font-size:11px;color:var(--ink-48);background:none;border:none;cursor:pointer;flex-shrink:0;padding:2px 6px;border-radius:4px;transition:all .15s" onmouseover="this.style.color='#c00'" onmouseout="this.style.color='var(--ink-48)'">✕</button>`:'';
-    return`<div class="news-item" id="news-${n.id}">
+
+    const item = document.createElement('div');
+    item.className = 'news-item';
+    item.id = `news-${n.id}`;
+
+    item.innerHTML = `
       <span class="news-tag" style="cursor:default">${n.category}</span>
-      <div style="flex:1;cursor:pointer" onclick="window.open('${n.url}','_blank')">
+      <div style="flex:1;cursor:pointer">
         <div class="news-title">${n.title}</div>
         <div class="news-date">${date}</div>
-      </div>
-      ${delBtn}
-    </div>`;
-  }).join('');
+      </div>`;
+    
+    item.querySelector('div[style^="flex:1"]').addEventListener('click', () => window.open(n.url, '_blank'));
+
+    if (isAdmin) {
+      const delBtn = document.createElement('button');
+      delBtn.innerHTML = '✕';
+      delBtn.style.cssText = "margin-left:8px;font-size:11px;color:var(--ink-48);background:none;border:none;cursor:pointer;flex-shrink:0;padding:2px 6px;border-radius:4px;transition:all .15s";
+      delBtn.onmouseover = () => delBtn.style.color = '#c00';
+      delBtn.onmouseout = () => delBtn.style.color = 'var(--ink-48)';
+      delBtn.addEventListener('click', (event) => deleteNews(n.id, event));
+      item.appendChild(delBtn);
+    }
+    fragment.appendChild(item);
+  });
+  el.appendChild(fragment);
 }
 
 async function deleteNews(id, event){

@@ -2477,15 +2477,16 @@ async function loadAdminList(){
   const roleMap={}, camMap={};
   (rolesRes.data||[]).forEach(r=>{roleMap[r.student_id]=r.role;camMap[r.student_id]=!!r.cam_allowed});
 
-  // 서버에서 받은 유저 + 없는 학번은 기본값으로 채우기
+  // 서버에서 받은 유저 + 아직 계정이 없는 301xx 학번은 기본값으로 채우기
   const serverMap={};
   (usersData.users||[]).forEach(u=>serverMap[u.student_id]=u);
 
-  allAccounts=[];
-  for(let i=30101;i<=30128;i++){
-    const sid=String(i);
+  const sids=new Set(Object.keys(serverMap));
+  for(let i=30101;i<=30128;i++)sids.add(String(i));
+
+  allAccounts=Array.from(sids).map(sid=>{
     const u=serverMap[sid];
-    allAccounts.push({
+    return{
       student_id:sid,
       name:u?.name||'—',
       suneung_kor:u?.suneung_kor||'—',
@@ -2494,8 +2495,8 @@ async function loadAdminList(){
       suneung_exp2:u?.suneung_exp2||'—',
       role:roleMap[sid]||'student',
       cam_allowed:camMap[sid]||false
-    });
-  }
+    };
+  }).sort((a,b)=>a.student_id.localeCompare(b.student_id));
   renderAdminTable(allAccounts);
 }
 

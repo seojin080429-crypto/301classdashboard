@@ -2474,11 +2474,17 @@ async function refreshStats(){
   data.forEach(r=>{byStudent[r.student_id]=(byStudent[r.student_id]||0)+r.duration_seconds});
   const myTotal=byStudent[currentStudentId]||0;
   const participants=Object.keys(byStudent).length;
+  // 오늘 기록이 하나도 없으면(byStudent에 내가 없으면) participants에는 내가 안 잡히는데
+  // 등수는 꼴찌(participants+1)로 매겨져서 "3/2등" 처럼 분자가 분모보다 커지는 문제가 있었음.
+  // 그런 경우엔 나를 포함한 인원수를 분모로 써서 분수가 항상 앞<=뒤가 되게 함.
+  const totalForRank=(currentStudentId in byStudent)?participants:participants+1;
   const sorted=Object.values(byStudent).sort((a,b)=>b-a);
-  const rank=sorted.findIndex(v=>v<=myTotal)+1||participants+1;
-  const pct=participants>1?Math.round((1-(rank-1)/participants)*100):100;
+  const rank=sorted.findIndex(v=>v<=myTotal)+1||totalForRank;
+  // "상위 X%"는 값이 작을수록 잘하는 것이어야 하는데(1등이면 상위 1%에 가깝게),
+  // 기존 식은 반대로 1등일 때 100%가 나오는 부호 오류가 있어서 같이 바로잡음.
+  const pct=totalForRank>0?Math.round((rank/totalForRank)*100):100;
   document.getElementById('stat-participants').textContent=participants+'명';
-  document.getElementById('stat-rank').textContent=`${rank}/${participants}등`;
+  document.getElementById('stat-rank').textContent=`${rank}/${totalForRank}등`;
   document.getElementById('stat-percent').textContent=pct+'%';
   document.getElementById('dash-rank-text').textContent=`반 ${rank}위 · ${fmtHM(myTotal)}`;
 }

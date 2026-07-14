@@ -102,7 +102,8 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .sidebar-footer{border-top:1px solid var(--hairline);padding:12px 20px calc(12px + env(safe-area-inset-bottom));flex-shrink:0}
 .user-row{display:flex;align-items:center;gap:10px;cursor:pointer;padding:6px 8px;border-radius:var(--radius-sm);transition:background var(--t)}
 .user-row:hover{background:var(--parchment)}
-.user-avatar{width:30px;height:30px;border-radius:50%;background:var(--ink);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;flex-shrink:0}
+.user-avatar{width:30px;height:30px;border-radius:50%;background:#1d1d1f;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;flex-shrink:0}
+.user-avatar img,.qna-avatar img,.student-avatar img,.comment-avatar img,.tf-rank-avatar img,#mp-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
 .user-info{flex:1;min-width:0}
 .user-name{font-size:13px;font-weight:600;color:var(--ink);letter-spacing:-.013em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .user-id{font-size:11px;color:var(--ink-48)}
@@ -188,7 +189,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .study-cmsg .who{font-weight:600;color:var(--blue);margin-right:6px}
 .study-chat-input{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--hairline)}
 .study-chat-input input{flex:1;padding:9px 12px;border:1px solid var(--hairline);border-radius:var(--radius-md);font-size:13px;background:var(--canvas);color:var(--ink)}
-.study-privacy{position:fixed;inset:0;background:var(--ink);z-index:200;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--on-dark)}
+.study-privacy{position:fixed;inset:0;background:#000;z-index:200;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--on-dark)}
 .study-privacy.open{display:flex}
 .study-privacy-timer{font-size:32px;font-weight:600;letter-spacing:.02em}
 
@@ -225,7 +226,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .section-hd-link:hover{text-decoration:underline}
 
 /* TOAST */
-#toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--ink);color:#fff;font-size:13px;padding:10px 20px;border-radius:var(--radius-pill);box-shadow:0 4px 24px rgba(0,0,0,.2);z-index:999;transition:transform .3s ease,opacity .3s ease;opacity:0;pointer-events:none;white-space:nowrap}
+#toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:#1d1d1f;color:#fff;font-size:13px;padding:10px 20px;border-radius:var(--radius-pill);box-shadow:0 4px 24px rgba(0,0,0,.4);z-index:999;transition:transform .3s ease,opacity .3s ease;opacity:0;pointer-events:none;white-space:nowrap}
 #toast.show{transform:translateX(-50%) translateY(0);opacity:1}
 
 /* MODAL */
@@ -428,7 +429,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .qna-list{display:flex;flex-direction:column;gap:10px}
 .qna-card{background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--radius-lg);padding:16px 18px}
 .qna-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-.qna-avatar{width:26px;height:26px;border-radius:50%;background:var(--ink);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#fff;flex-shrink:0}
+.qna-avatar{width:26px;height:26px;border-radius:50%;background:#1d1d1f;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#fff;flex-shrink:0}
 .qna-author{font-size:12px;font-weight:600;color:var(--ink)}
 .qna-time{font-size:11px;color:var(--ink-48)}
 .qna-subject-pill{font-size:10px;font-weight:600;padding:2px 7px;border-radius:var(--radius-pill);background:rgba(0,102,204,.1);color:var(--blue);margin-left:auto}
@@ -515,7 +516,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .student-card{background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--radius-lg);padding:16px;transition:border-color var(--t)}
 .student-card.studying{border-color:var(--green)}
 .student-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
-.student-avatar{width:36px;height:36px;border-radius:50%;background:var(--ink);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:#fff;flex-shrink:0}
+.student-avatar{width:36px;height:36px;border-radius:50%;background:#1d1d1f;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:#fff;flex-shrink:0}
 .student-name{font-size:15px;font-weight:600;color:var(--ink)}
 .student-id{font-size:12px;color:var(--ink-48)}
 .student-status{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--green-dark);margin-left:auto}
@@ -531,6 +532,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .admin-role-badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:var(--radius-pill);letter-spacing:.02em}
 .admin-role-badge.owner{background:rgba(236,72,189,.12);color:#c026a8}
 .admin-role-badge.admin{background:rgba(0,102,204,.1);color:var(--blue)}
+.admin-role-badge.teacher{background:rgba(46,204,113,.12);color:#1a9c53}
 .admin-table-wrap{overflow-x:auto}
 .admin-table{width:100%;border-collapse:collapse;font-size:13px}
 .admin-table th{padding:9px 12px;text-align:left;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-48);border-bottom:1px solid var(--hairline);white-space:nowrap}
@@ -558,7 +560,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .comment-toggle-btn:hover{text-decoration:underline}
 .comment-list{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
 .comment-item{display:flex;gap:8px;align-items:flex-start;padding:8px 10px;background:var(--parchment);border-radius:var(--radius-sm)}
-.comment-avatar{width:22px;height:22px;border-radius:50%;background:var(--ink);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:#fff;flex-shrink:0;margin-top:1px}
+.comment-avatar{width:22px;height:22px;border-radius:50%;background:#1d1d1f;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:#fff;flex-shrink:0;margin-top:1px}
 .comment-body{flex:1;min-width:0}
 .comment-meta{display:flex;align-items:center;gap:6px;margin-bottom:2px}
 .comment-author{font-size:12px;font-weight:600;color:var(--ink)}
@@ -634,61 +636,63 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
       <label class="auth-label" for="setup-name">이름</label>
       <input class="auth-input" id="setup-name" type="text" placeholder="예: 홍길동" maxlength="10">
     </div>
-    <div class="auth-divider"></div>
-    <div class="auth-section-title">수능 선택과목</div>
-    <div class="auth-row">
+    <div class="auth-divider" id="setup-electives-divider"></div>
+    <div id="setup-electives-section">
+      <div class="auth-section-title">수능 선택과목</div>
+      <div class="auth-row">
+        <div class="auth-field">
+          <label class="auth-label">국어 선택</label>
+          <select class="auth-select" id="setup-kor">
+            <option value="화법과작문">화법과작문</option>
+            <option value="언어와매체">언어와매체</option>
+          </select>
+        </div>
+        <div class="auth-field">
+          <label class="auth-label">수학 선택</label>
+          <select class="auth-select" id="setup-math">
+            <option value="확률과통계">확률과통계</option>
+            <option value="미적분">미적분</option>
+            <option value="기하">기하</option>
+          </select>
+        </div>
+      </div>
       <div class="auth-field">
-        <label class="auth-label">국어 선택</label>
-        <select class="auth-select" id="setup-kor">
-          <option value="화법과작문">화법과작문</option>
-          <option value="언어와매체">언어와매체</option>
+        <label class="auth-label">탐구 과목 1</label>
+        <select class="auth-select" id="setup-exp1">
+          <option value="생활과윤리">생활과윤리</option>
+          <option value="윤리와사상">윤리와사상</option>
+          <option value="한국지리">한국지리</option>
+          <option value="세계지리">세계지리</option>
+          <option value="동아시아사">동아시아사</option>
+          <option value="세계사">세계사</option>
+          <option value="경제">경제</option>
+          <option value="정치와법">정치와법</option>
+          <option value="사회문화">사회문화</option>
+          <option value="물리학I">물리학I</option>
+          <option value="화학I">화학I</option>
+          <option value="생명과학I">생명과학I</option>
+          <option value="지구과학I">지구과학I</option>
+          <option value="물리학II">물리학II</option>
+          <option value="화학II">화학II</option>
+          <option value="생명과학II">생명과학II</option>
+          <option value="지구과학II">지구과학II</option>
         </select>
       </div>
       <div class="auth-field">
-        <label class="auth-label">수학 선택</label>
-        <select class="auth-select" id="setup-math">
-          <option value="확률과통계">확률과통계</option>
-          <option value="미적분">미적분</option>
-          <option value="기하">기하</option>
+        <label class="auth-label">탐구 과목 2</label>
+        <select class="auth-select" id="setup-exp2">
+          <option value="사회문화">사회문화</option>
+          <option value="생활과윤리">생활과윤리</option>
+          <option value="물리학I">물리학I</option>
+          <option value="화학I">화학I</option>
+          <option value="생명과학I">생명과학I</option>
+          <option value="지구과학I">지구과학I</option>
+          <option value="한국지리">한국지리</option>
+          <option value="세계지리">세계지리</option>
+          <option value="경제">경제</option>
+          <option value="정치와법">정치와법</option>
         </select>
       </div>
-    </div>
-    <div class="auth-field">
-      <label class="auth-label">탐구 과목 1</label>
-      <select class="auth-select" id="setup-exp1">
-        <option value="생활과윤리">생활과윤리</option>
-        <option value="윤리와사상">윤리와사상</option>
-        <option value="한국지리">한국지리</option>
-        <option value="세계지리">세계지리</option>
-        <option value="동아시아사">동아시아사</option>
-        <option value="세계사">세계사</option>
-        <option value="경제">경제</option>
-        <option value="정치와법">정치와법</option>
-        <option value="사회문화">사회문화</option>
-        <option value="물리학I">물리학I</option>
-        <option value="화학I">화학I</option>
-        <option value="생명과학I">생명과학I</option>
-        <option value="지구과학I">지구과학I</option>
-        <option value="물리학II">물리학II</option>
-        <option value="화학II">화학II</option>
-        <option value="생명과학II">생명과학II</option>
-        <option value="지구과학II">지구과학II</option>
-      </select>
-    </div>
-    <div class="auth-field">
-      <label class="auth-label">탐구 과목 2</label>
-      <select class="auth-select" id="setup-exp2">
-        <option value="사회문화">사회문화</option>
-        <option value="생활과윤리">생활과윤리</option>
-        <option value="물리학I">물리학I</option>
-        <option value="화학I">화학I</option>
-        <option value="생명과학I">생명과학I</option>
-        <option value="지구과학I">지구과학I</option>
-        <option value="한국지리">한국지리</option>
-        <option value="세계지리">세계지리</option>
-        <option value="경제">경제</option>
-        <option value="정치와법">정치와법</option>
-      </select>
     </div>
     <button class="btn-primary full" id="setup-btn" onclick="saveName()">시작하기</button>
     <div class="auth-error" id="setup-error"></div>
@@ -1091,7 +1095,8 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
             </div>
             <!-- 아바타 + 이름 -->
             <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--hairline)">
-              <div style="width:56px;height:56px;border-radius:50%;background:var(--ink);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;color:#fff;flex-shrink:0" id="mp-avatar">?</div>
+              <div style="width:56px;height:56px;border-radius:50%;background:#1d1d1f;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;color:#fff;flex-shrink:0;cursor:pointer" id="mp-avatar" onclick="document.getElementById('mp-avatar-input').click()" title="클릭해서 프로필 사진 변경">?</div>
+              <input type="file" id="mp-avatar-input" accept="image/*" style="display:none" onchange="uploadMyAvatar(this.files[0])">
               <div>
                 <div style="font-size:17px;font-weight:600;color:var(--ink)" id="mp-name">—</div>
                 <div style="font-size:13px;color:var(--ink-48)" id="mp-id">—</div>
@@ -1100,12 +1105,13 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
             <!-- 정보 리스트 -->
             <div style="display:flex;flex-direction:column;gap:0">
               <div class="mp-info-row"><span class="mp-info-label">학교</span><span class="mp-info-val">부광고등학교</span></div>
-              <div class="mp-info-row"><span class="mp-info-label">학년</span><span class="mp-info-val">고3</span></div>
-              <div class="mp-info-row"><span class="mp-info-label">반</span><span class="mp-info-val">1반</span></div>
-              <div class="mp-info-row"><span class="mp-info-label">국어 선택</span><span class="mp-info-val" id="mp-kor">—</span></div>
-              <div class="mp-info-row"><span class="mp-info-label">수학 선택</span><span class="mp-info-val" id="mp-math">—</span></div>
-              <div class="mp-info-row"><span class="mp-info-label">탐구 1</span><span class="mp-info-val" id="mp-exp1">—</span></div>
-              <div class="mp-info-row"><span class="mp-info-label">탐구 2</span><span class="mp-info-val" id="mp-exp2">—</span></div>
+              <div class="mp-info-row" id="mp-row-grade"><span class="mp-info-label">학년</span><span class="mp-info-val">고3</span></div>
+              <div class="mp-info-row" id="mp-row-class"><span class="mp-info-label">반</span><span class="mp-info-val">1반</span></div>
+              <div class="mp-info-row" id="mp-row-homeroom" style="display:none"><span class="mp-info-label">담임반</span><span class="mp-info-val">3-1</span></div>
+              <div class="mp-info-row" id="mp-row-kor"><span class="mp-info-label">국어 선택</span><span class="mp-info-val" id="mp-kor">—</span></div>
+              <div class="mp-info-row" id="mp-row-math"><span class="mp-info-label">수학 선택</span><span class="mp-info-val" id="mp-math">—</span></div>
+              <div class="mp-info-row" id="mp-row-exp1"><span class="mp-info-label">탐구 1</span><span class="mp-info-val" id="mp-exp1">—</span></div>
+              <div class="mp-info-row" id="mp-row-exp2"><span class="mp-info-label">탐구 2</span><span class="mp-info-val" id="mp-exp2">—</span></div>
             </div>
           </div>
 
@@ -1481,6 +1487,11 @@ async function checkDeviceLimit(sid){
 
 // ── STATE ──
 let currentUser = null, currentStudentId = '', currentName = '', currentRole = 'student';
+let currentIsTeacher = false, currentCanAppointTeacher = false, currentAvatarUrl = null;
+let pendingIsTeacher = false; // 이름 설정 화면에서 선택과목 질문을 생략할지 판단용
+// role(student/admin/owner)과 is_teacher 플래그는 동시에 가질 수 있으므로 권한 체크는 이 헬퍼로 통일한다.
+function isStaffRole(){return ['admin','owner'].includes(currentRole)||currentIsTeacher}
+function isOwnerTier(){return currentRole==='owner'||currentIsTeacher}
 let subjects = []; // [{name, color, tasks:[{id,name,done,seconds,taskId}]}]
 let activeTimer = null; // {subjectIdx, taskIdx, interval, startedAt, sessionId}
 let todaySessions = []; // [{subject,task,seconds,startedAt,endedAt}]
@@ -1510,8 +1521,20 @@ async function doLogin(){
   }
   document.getElementById('auth-error').style.display='none';
   const meta=data.user.user_metadata;
-  if(!meta?.display_name){currentUser=data.user;currentStudentId=id;document.getElementById('auth-screen').style.display='none';document.getElementById('name-setup-screen').classList.add('visible');document.getElementById('setup-name').focus()}
+  if(!meta?.display_name){
+    currentUser=data.user;currentStudentId=id;
+    const {data:roleRow}=await sb.from('user_roles').select('is_teacher').eq('student_id',id).single();
+    pendingIsTeacher=!!roleRow?.is_teacher;
+    showNameSetupScreen();
+  }
   else initApp(data.user,id,meta.display_name);
+}
+function showNameSetupScreen(){
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('name-setup-screen').classList.add('visible');
+  document.getElementById('setup-name').focus();
+  document.getElementById('setup-electives-divider').style.display=pendingIsTeacher?'none':'';
+  document.getElementById('setup-electives-section').style.display=pendingIsTeacher?'none':'';
 }
 function showAuthErr(msg){const e=document.getElementById('auth-error');e.textContent=msg;e.style.display='block'}
 
@@ -1519,11 +1542,13 @@ async function saveName(){
   const name=document.getElementById('setup-name').value.trim();
   if(!name){showSetupErr('이름을 입력해주세요.');return}
   document.getElementById('setup-btn').textContent='저장 중...';
-  const meta={display_name:name,student_id:currentStudentId,
-    suneung_kor:document.getElementById('setup-kor').value,
-    suneung_math:document.getElementById('setup-math').value,
-    suneung_exp1:document.getElementById('setup-exp1').value,
-    suneung_exp2:document.getElementById('setup-exp2').value};
+  const meta={display_name:name,student_id:currentStudentId};
+  if(!pendingIsTeacher){
+    meta.suneung_kor=document.getElementById('setup-kor').value;
+    meta.suneung_math=document.getElementById('setup-math').value;
+    meta.suneung_exp1=document.getElementById('setup-exp1').value;
+    meta.suneung_exp2=document.getElementById('setup-exp2').value;
+  }
   const {error}=await sb.auth.updateUser({data:meta});
   if(error){showSetupErr(error.message);document.getElementById('setup-btn').textContent='시작하기';return}
   document.getElementById('name-setup-screen').classList.remove('visible');
@@ -1548,7 +1573,12 @@ async function restoreSession(){
   if(session?.user){
     const meta=session.user.user_metadata;
     const sid=meta?.student_id||session.user.email.split('@')[0];
-    if(!meta?.display_name){currentUser=session.user;currentStudentId=sid;document.getElementById('auth-screen').style.display='none';document.getElementById('name-setup-screen').classList.add('visible')}
+    if(!meta?.display_name){
+      currentUser=session.user;currentStudentId=sid;
+      const {data:roleRow}=await sb.from('user_roles').select('is_teacher').eq('student_id',sid).single();
+      pendingIsTeacher=!!roleRow?.is_teacher;
+      showNameSetupScreen();
+    }
     else initApp(session.user,sid,meta.display_name);
   }
 }
@@ -1559,12 +1589,12 @@ async function initApp(user,sid,name){
   document.getElementById('auth-screen').style.display='none';
   document.getElementById('name-setup-screen').classList.remove('visible');
   document.getElementById('app-shell').classList.add('visible');
-  document.getElementById('user-avatar-txt').textContent=name?name[0]:sid.slice(-2);
   document.getElementById('user-display-name').textContent=name||`${sid}번`;
   document.getElementById('user-display-id').textContent=`${sid}번 · 3학년 1반`;
   const h=new Date().getHours();
   const g=h<12?'좋은 아침이에요':h<18?'안녕하세요':'수고하세요';
   document.getElementById('dash-greeting').textContent=`${g}, ${name||sid+'번'}!`;
+  await syncMyProfile();
   populateMypage(meta,name,sid);
   updateDday();renderTimetable();loadMeal();loadNotices();renderNews();initCalc();renderFavorites();
   loadFreeBoard();loadQnaBoard();
@@ -1581,7 +1611,7 @@ async function initApp(user,sid,name){
 }
 
 function populateMypage(meta,name,sid){
-  document.getElementById('mp-avatar').textContent=name?name[0]:sid.slice(-2);
+  renderAvatarEl(document.getElementById('mp-avatar'),currentAvatarUrl,name,sid);
   document.getElementById('mp-name').textContent=name||sid+'번';
   document.getElementById('mp-id').textContent=sid+'번 · 3학년 1반';
   document.getElementById('mp-kor').textContent=meta.suneung_kor||'—';
@@ -1595,6 +1625,55 @@ function populateMypage(meta,name,sid){
   });
   // resolution
   if(meta.resolution)document.getElementById('mp-resolution').value=meta.resolution;
+  applyMypageRoleView();
+}
+
+// 선생님 권한자는 학년/반/선택과목 대신 담임반만 표시
+function applyMypageRoleView(){
+  const show=(id,visible)=>{const el=document.getElementById(id);if(el)el.style.display=visible?'flex':'none'};
+  show('mp-row-grade',!currentIsTeacher);
+  show('mp-row-class',!currentIsTeacher);
+  show('mp-row-homeroom',currentIsTeacher);
+  show('mp-row-kor',!currentIsTeacher);
+  show('mp-row-math',!currentIsTeacher);
+  show('mp-row-exp1',!currentIsTeacher);
+  show('mp-row-exp2',!currentIsTeacher);
+}
+
+// 아바타 자리에 프로필 사진(있으면) 또는 이니셜을 렌더링
+function renderAvatarEl(el,avatarUrl,name,sid){
+  if(!el)return;
+  if(avatarUrl)el.innerHTML=`<img src="${avatarUrl}" alt="프로필 사진">`;
+  else el.textContent=name?name[0]:sid.slice(-2);
+}
+
+// 이름을 학급 전체가 볼 수 있는 곳(user_profiles)에도 동기화하고, 저장된 프로필 사진을 불러온다.
+// 친구 랭킹 등에서 학번 대신 실명/사진을 보여주려면 이 테이블이 항상 최신 이름을 갖고 있어야 한다.
+async function syncMyProfile(){
+  await sb.from('user_profiles').upsert({student_id:currentStudentId,user_id:currentUser.id,display_name:currentName});
+  const {data}=await sb.from('user_profiles').select('avatar_url').eq('student_id',currentStudentId).single();
+  currentAvatarUrl=data?.avatar_url||null;
+  renderAvatarEl(document.getElementById('user-avatar-txt'),currentAvatarUrl,currentName,currentStudentId);
+}
+
+async function uploadMyAvatar(file){
+  if(!file)return;
+  if(!file.type.startsWith('image/')){toast('이미지 파일만 업로드할 수 있어요');return}
+  if(file.size>5*1024*1024){toast('5MB 이하 이미지만 업로드할 수 있어요');return}
+  const ext=(file.name.split('.').pop()||'jpg').toLowerCase();
+  const path=`${currentUser.id}/avatar.${ext}`;
+  const {error:upErr}=await sb.storage.from('avatars').upload(path,file,{upsert:true});
+  if(upErr){toast('업로드 실패: '+upErr.message);return}
+  const {data:urlData}=sb.storage.from('avatars').getPublicUrl(path);
+  const avatarUrl=`${urlData.publicUrl}?t=${Date.now()}`; // 캐시 무력화
+  const {error}=await sb.from('user_profiles').upsert({
+    student_id:currentStudentId,user_id:currentUser.id,avatar_url:avatarUrl,updated_at:new Date().toISOString()
+  });
+  if(error){toast('저장 실패: '+error.message);return}
+  currentAvatarUrl=avatarUrl;
+  renderAvatarEl(document.getElementById('mp-avatar'),currentAvatarUrl,currentName,currentStudentId);
+  renderAvatarEl(document.getElementById('user-avatar-txt'),currentAvatarUrl,currentName,currentStudentId);
+  toast('프로필 사진이 변경되었습니다 ✓');
 }
 
 // ── MYPAGE ──
@@ -1661,9 +1740,11 @@ function navigate(page){
   document.getElementById('page-'+page).classList.add('active');
   document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
   closeSidebar();window.scrollTo(0,0);
-  if(page==='admin')loadAdminList();
+  // 관리자/선생님 탭은 들어갈 때마다 권한을 새로 조회해서, 방금 권한이 바뀐 경우
+  // 재로그인 없이도 즉시 반영되도록 한다.
+  if(page==='admin')loadMyRole().then(loadAdminList);
   if(page==='report')loadReportData();
-  if(page==='teacher')loadTeacherView();
+  if(page==='teacher')loadMyRole().then(loadTeacherView);
 }
 function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sidebar-overlay').classList.add('visible')}
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-overlay').classList.remove('visible')}
@@ -1696,7 +1777,7 @@ async function loadMeal(){
   document.getElementById('meal-date-label').textContent=`${today.getMonth()+1}/${today.getDate()}`;
   const {data,error}=await sb.from('meals').select('*').eq('date',todayStr).order('meal_type');
   if(error||!data||!data.length){
-    el.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--ink-48);font-size:13px">오늘 급식 정보가 아직 없어요.${(currentRole==='admin'||currentRole==='owner')?' 관리자 페이지에서 수집할 수 있어요.':''}</div>`;
+    el.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--ink-48);font-size:13px">오늘 급식 정보가 아직 없어요.${isStaffRole()?' 관리자 페이지에서 수집할 수 있어요.':''}</div>`;
     return;
   }
   const order=['중식'];
@@ -1723,7 +1804,7 @@ async function loadNotices(){
     if(dashEl)dashEl.innerHTML=msg;if(pageEl)pageEl.innerHTML=msg;
     return;
   }
-  const canManage=currentRole==='admin'||currentRole==='owner'||currentRole==='teacher';
+  const canManage=isStaffRole();
   const renderList=(list,prefix)=>list.map(n=>{
     const created=new Date(n.created_at);
     const isNew=(Date.now()-created.getTime())<1000*60*60*24*3; // 3일 이내
@@ -1760,7 +1841,7 @@ function openNoticeModal(){
 function closeNoticeModal(){document.getElementById('notice-modal').classList.remove('open')}
 
 async function submitNotice(){
-  if(!['admin','owner','teacher'].includes(currentRole)){toast('권한이 없습니다');return}
+  if(!isStaffRole()){toast('권한이 없습니다');return}
   const title=document.getElementById('notice-title-input').value.trim();
   const content=document.getElementById('notice-content-input').value.trim();
   const errEl=document.getElementById('notice-error');
@@ -1776,7 +1857,7 @@ async function submitNotice(){
 
 async function deleteNotice(event,id){
   event.stopPropagation();
-  if(!['admin','owner','teacher'].includes(currentRole)){toast('권한이 없습니다');return}
+  if(!isStaffRole()){toast('권한이 없습니다');return}
   if(!confirm('이 공지를 삭제할까요?'))return;
   const {error}=await sb.from('notices').delete().eq('id',id);
   if(error){toast('삭제 실패: '+error.message);return}
@@ -2110,10 +2191,16 @@ async function tfStop(){
   renderSubjects();
 }
 
+let tfProfileMap={};
 async function fetchTfRankData(){
   const today=new Date().toISOString().slice(0,10);
-  const {data}=await sb.from('study_sessions').select('student_id,duration_seconds,started_at,ended_at').eq('date',today);
-  tfRankData=data||[];
+  const [{data:sessions},{data:profiles}]=await Promise.all([
+    sb.from('study_sessions').select('student_id,duration_seconds,started_at,ended_at').eq('date',today),
+    sb.from('user_profiles').select('student_id,display_name,avatar_url')
+  ]);
+  tfRankData=sessions||[];
+  tfProfileMap={};
+  (profiles||[]).forEach(p=>{tfProfileMap[p.student_id]={name:p.display_name,avatar:p.avatar_url}});
   renderTfRankGrid();
 }
 
@@ -2131,10 +2218,13 @@ function renderTfRankGrid(){
   el.innerHTML=sorted.map(([sid,sec],i)=>{
     const isMe=sid===currentStudentId;
     const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;
-    const initial=isMe?(currentName?currentName[0]:sid.slice(-2)):sid.slice(-2);
+    const profile=tfProfileMap[sid];
+    const name=profile?.name||(isMe?currentName:null)||sid+'번';
+    const avatarUrl=profile?.avatar||(isMe?currentAvatarUrl:null);
+    const avatarInner=avatarUrl?`<img src="${avatarUrl}" alt="">`:(isMe?(currentName?currentName[0]:sid.slice(-2)):sid.slice(-2));
     return`<div class="tf-rank-card${isMe?' me':''}">
-      <div class="tf-rank-avatar">${initial}</div>
-      <div class="tf-rank-name">${isMe?currentName||sid+'번':sid+'번'}</div>
+      <div class="tf-rank-avatar">${avatarInner}</div>
+      <div class="tf-rank-name">${name}</div>
       <div class="tf-rank-time">${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}</div>
     </div>`;
   }).join('')||'<div style="color:rgba(255,255,255,.3);font-size:13px;grid-column:1/-1;text-align:center;padding:20px">아직 공부 중인 친구가 없어요</div>';
@@ -2579,38 +2669,36 @@ function closeLightbox(){document.getElementById('img-lightbox').classList.remov
 
 // ── ADMIN ──
 async function loadMyRole(){
-  const {data}=await sb.from('user_roles').select('role').eq('student_id',currentStudentId).single();
+  const {data}=await sb.from('user_roles').select('role,is_teacher,can_appoint_teacher').eq('student_id',currentStudentId).single();
   currentRole=data?.role||'student';
-  const isStaff = ['admin','owner','teacher'].includes(currentRole);
-  if(isStaff){
-    document.getElementById('nav-admin').style.display='flex';
-    const noticeBtn=document.getElementById('notice-write-btn-page');
-    if(noticeBtn)noticeBtn.style.display='inline';
-    const mealCard=document.getElementById('admin-meal-card');
-    if(mealCard)mealCard.style.display='block';
-  }
-  if(currentRole==='owner'||currentRole==='teacher'){
-    const card=document.getElementById('admin-create-card');
-    if(card)card.style.display='block';
-    const newsCard=document.getElementById('admin-news-card');
-    if(newsCard)newsCard.style.display='block';
-  }
-  if(currentRole==='teacher'){
-    document.getElementById('nav-teacher').style.display='flex';
-  }
+  currentIsTeacher=!!data?.is_teacher;
+  currentCanAppointTeacher=!!data?.can_appoint_teacher;
+  const isStaff = ['admin','owner'].includes(currentRole) || currentIsTeacher;
+  const setVisible=(id,visible,display)=>{const el=document.getElementById(id);if(el)el.style.display=visible?display:'none'};
+  setVisible('nav-admin',isStaff,'flex');
+  const noticeBtn=document.getElementById('notice-write-btn-page');
+  if(noticeBtn)noticeBtn.style.display=isStaff?'inline':'none';
+  setVisible('admin-meal-card',isStaff,'block');
+  const canCreateAccounts = currentRole==='owner' || currentIsTeacher;
+  setVisible('admin-create-card',canCreateAccounts,'block');
+  setVisible('admin-news-card',canCreateAccounts,'block');
+  setVisible('nav-teacher',currentIsTeacher,'flex');
   const badge=document.getElementById('admin-role-badge');
   if(badge){
-    if(currentRole==='teacher'){badge.textContent='선생님';badge.className='admin-role-badge teacher';}
-    else if(currentRole==='owner'){badge.textContent='운영자';badge.className='admin-role-badge owner';}
-    else if(currentRole==='admin'){badge.textContent='관리자';badge.className='admin-role-badge admin';}
+    let label='',cls='';
+    if(currentRole==='owner'){label='운영자';cls='owner';}
+    else if(currentRole==='admin'){label='관리자';cls='admin';}
+    if(currentIsTeacher){label=label?label+' · 선생님':'선생님';cls=cls||'teacher';}
+    if(label){badge.textContent=label;badge.className='admin-role-badge '+cls;badge.style.display='';}
     else{badge.style.display='none';}
   }
+  applyMypageRoleView();
 }
 
 let allAccounts=[];
 
 async function loadAdminList(){
-  if(!['admin','owner','teacher'].includes(currentRole)){toast('권한이 없습니다');return}
+  if(!isStaffRole()){toast('권한이 없습니다');return}
   document.getElementById('admin-table-body').innerHTML='<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">로딩 중...</td></tr>';
 
   // 서버 API로 전체 계정 목록 가져오기 (이름 포함)
@@ -2627,8 +2715,11 @@ async function loadAdminList(){
   const usersData = await usersRes.json();
   if(!usersRes.ok){toast('계정 목록 로드 실패: '+(usersData.error||''));return}
 
-  const roleMap={}, camMap={};
-  (rolesRes.data||[]).forEach(r=>{roleMap[r.student_id]=r.role;camMap[r.student_id]=!!r.cam_allowed});
+  const roleMap={}, camMap={}, teacherMap={}, appointMap={};
+  (rolesRes.data||[]).forEach(r=>{
+    roleMap[r.student_id]=r.role;camMap[r.student_id]=!!r.cam_allowed;
+    teacherMap[r.student_id]=!!r.is_teacher;appointMap[r.student_id]=!!r.can_appoint_teacher;
+  });
   const deviceCountMap={};
   (devicesRes.data||[]).forEach(d=>{deviceCountMap[d.student_id]=(deviceCountMap[d.student_id]||0)+1});
 
@@ -2650,7 +2741,9 @@ async function loadAdminList(){
       suneung_exp2:u?.suneung_exp2||'—',
       role:roleMap[sid]||'student',
       cam_allowed:camMap[sid]||false,
-      device_count:deviceCountMap[sid]||0
+      device_count:deviceCountMap[sid]||0,
+      is_teacher:teacherMap[sid]||false,
+      can_appoint_teacher:appointMap[sid]||false
     };
   }).sort((a,b)=>a.student_id.localeCompare(b.student_id));
   renderAdminTable(allAccounts);
@@ -2665,15 +2758,16 @@ function filterAdminList(){
 }
 
 function renderAdminTable(list){
-  const isOwner = currentRole==='owner'||currentRole==='teacher';
+  const isOwner = isOwnerTier();
   const tbody=document.getElementById('admin-table-body');
   if(!list.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">결과 없음</td></tr>';return}
-  const canManageCam=['admin','owner','teacher'].includes(currentRole);
+  const canManageCam=isStaffRole();
   tbody.innerHTML=list.map(a=>{
     const isMe=a.student_id===currentStudentId;
-    const rolePill=`<span class="role-pill ${a.role}">${a.role==='owner'?'운영자':a.role==='teacher'?'선생님':a.role==='admin'?'관리자':'학생'}</span>`;
-    const subjectInfo=a.suneung_kor!=='—'?`${a.suneung_kor} / ${a.suneung_math} / ${a.suneung_exp1} · ${a.suneung_exp2}`:'—';
-    const isStaff=['admin','owner','teacher'].includes(a.role);
+    const rolePill=`<span class="role-pill ${a.role}">${a.role==='owner'?'운영자':a.role==='admin'?'관리자':'학생'}</span>`
+      +(a.is_teacher?` <span class="role-pill teacher">선생님</span>`:'');
+    const subjectInfo=a.is_teacher?'—':(a.suneung_kor!=='—'?`${a.suneung_kor} / ${a.suneung_math} / ${a.suneung_exp1} · ${a.suneung_exp2}`:'—');
+    const isStaff=['admin','owner'].includes(a.role)||a.is_teacher;
     let camCell;
     if(isStaff){
       camCell=`<span class="cam-pill allowed">항상 허용</span>`;
@@ -2693,8 +2787,17 @@ function renderAdminTable(list){
       if(isOwner){
         if(a.role==='student')actions+=`<button class="admin-btn promote" onclick="setRole('${a.student_id}','admin')">관리자 임명</button>`;
         if(a.role==='admin')actions+=`<button class="admin-btn demote" onclick="setRole('${a.student_id}','student')">관리자 박탈</button>`;
-        if(a.role==='student')actions+=`<button class="admin-btn promote" style="background-color:var(--green-light);color:var(--green-dark);border-color:var(--green-dark)" onclick="setRole('${a.student_id}','teacher')">교사 임명</button>`;
         actions+=`<button class="admin-btn demote" onclick="deleteAccount('${a.student_id}')">계정 삭제</button>`;
+      }
+      if(currentCanAppointTeacher){
+        actions+=a.is_teacher
+          ? `<button class="admin-btn demote" onclick="setTeacherFlag('${a.student_id}',false)">선생님 해제</button>`
+          : `<button class="admin-btn promote" style="background-color:var(--green-light);color:var(--green-dark);border-color:var(--green-dark)" onclick="setTeacherFlag('${a.student_id}',true)">선생님 지정</button>`;
+        if(a.role==='owner'){
+          actions+=a.can_appoint_teacher
+            ? `<button class="admin-btn demote" onclick="setCanAppointTeacher('${a.student_id}',false)">교사임명권한 회수</button>`
+            : `<button class="admin-btn promote" onclick="setCanAppointTeacher('${a.student_id}',true)">교사임명권한 부여</button>`;
+        }
       }
     }else{
       actions=`<span style="font-size:11px;color:var(--ink-48)">본인</span>`;
@@ -2712,7 +2815,7 @@ function renderAdminTable(list){
 }
 
 async function resetDevices(sid){
-  if(!['admin','owner','teacher'].includes(currentRole)){toast('권한이 없습니다');return}
+  if(!isStaffRole()){toast('권한이 없습니다');return}
   if(!confirm(`${sid}번의 등록된 기기를 모두 초기화할까요? (다음 로그인 시 새 기기로 다시 등록됩니다)`))return;
   const {error}=await sb.from('user_devices').delete().eq('student_id',sid);
   if(error){toast('초기화 실패: '+error.message);return}
@@ -2721,11 +2824,31 @@ async function resetDevices(sid){
 }
 
 async function toggleCamAllowed(sid,allowed){
-  if(!['admin','owner','teacher'].includes(currentRole)){toast('권한이 없습니다');return}
+  if(!isStaffRole()){toast('권한이 없습니다');return}
   if(!confirm(`${sid}번의 캠스터디 이용을 ${allowed?'허용':'차단'}할까요?`))return;
   const {error}=await sb.from('user_roles').upsert({student_id:sid,cam_allowed:allowed});
   if(error){toast('변경 실패: '+error.message);return}
   toast(`${sid}번 캠스터디 ${allowed?'허용':'차단'} 완료 ✓`);
+  loadAdminList();
+}
+
+async function setTeacherFlag(sid,flag){
+  if(!currentCanAppointTeacher){toast('교사 임명 권한이 없습니다');return}
+  if(!confirm(`${sid}번을 ${flag?'선생님으로 지정':'선생님에서 해제'}할까요?`))return;
+  const {error}=await sb.from('user_roles').upsert({
+    student_id:sid,is_teacher:flag,assigned_by:currentStudentId,assigned_at:new Date().toISOString()
+  });
+  if(error){toast('변경 실패: '+error.message);return}
+  toast(`${sid}번 ${flag?'선생님 지정':'선생님 해제'} 완료 ✓`);
+  loadAdminList();
+}
+
+async function setCanAppointTeacher(sid,flag){
+  if(!currentCanAppointTeacher){toast('권한이 없습니다');return}
+  if(!confirm(`${sid}번에게 교사임명 권한을 ${flag?'부여':'회수'}할까요?`))return;
+  const {error}=await sb.from('user_roles').upsert({student_id:sid,can_appoint_teacher:flag});
+  if(error){toast('변경 실패: '+error.message);return}
+  toast(`${sid}번 교사임명 권한 ${flag?'부여':'회수'} 완료 ✓`);
   loadAdminList();
 }
 
@@ -2949,7 +3072,7 @@ async function createAccount(){
 }
 
 async function deleteAccount(sid){
-  if(!['owner','teacher'].includes(currentRole)){toast('운영자/교사만 계정을 삭제할 수 있습니다');return}
+  if(!isOwnerTier()){toast('운영자/교사만 계정을 삭제할 수 있습니다');return}
   if(!confirm(`${sid}번 계정을 완전히 삭제할까요?\n이 작업은 되돌릴 수 없습니다.`))return;
   const res=await fetch(`${SERVER_URL}/api/delete-user`,{
     method:'POST',
@@ -2963,9 +3086,9 @@ async function deleteAccount(sid){
 }
 
 async function setRole(sid,newRole){
-  if(!['owner','teacher'].includes(currentRole)){toast('운영자/교사만 권한을 변경할 수 있습니다');return}
+  if(!isOwnerTier()){toast('운영자/교사만 권한을 변경할 수 있습니다');return}
   if(allAccounts.find(a => a.student_id === sid)?.role === 'owner' && currentRole !== 'owner'){toast('운영자(owner)의 역할은 다른 운영자만 변경할 수 있습니다.'); return}
-  const label=newRole==='admin'?'관리자로 임명':newRole==='teacher'?'교사로 임명':'학생으로 변경';
+  const label=newRole==='admin'?'관리자로 임명':'학생으로 변경';
   if(!confirm(`${sid}번을 ${label}할까요?`))return;
   const {error}=await sb.from('user_roles').upsert({
     student_id:sid,role:newRole,
@@ -2978,7 +3101,7 @@ async function setRole(sid,newRole){
 }
 
 async function resetPassword(sid){
-  if(!['admin','owner','teacher'].includes(currentRole)){toast('권한이 없습니다');return}
+  if(!isStaffRole()){toast('권한이 없습니다');return}
   if(!confirm(`${sid}번의 비밀번호를 1234로 초기화할까요?`))return;
   const res=await fetch(`${SERVER_URL}/api/reset-password`,{
     method:'POST',
@@ -2994,7 +3117,7 @@ async function resetPassword(sid){
 let teacherViewInterval = null;
 
 async function loadTeacherView(){
-  if(currentRole !== 'teacher'){
+  if(!currentIsTeacher){
     document.getElementById('teacher-grid').innerHTML = '<div style="text-align:center;padding:32px;color:var(--ink-48);font-size:13px;grid-column:1/-1">접근 권한이 없습니다.</div>';
     return;
   }
@@ -3006,7 +3129,7 @@ async function loadTeacherView(){
 }
 
 async function updateTeacherViewData(){
-  if(currentRole !== 'teacher') {
+  if(!currentIsTeacher) {
     clearInterval(teacherViewInterval);
     return;
   }
@@ -3357,7 +3480,7 @@ function renderNewsList(data){
   const el = document.getElementById('news-list');
   el.innerHTML = ''; // Clear previous list
   if(!data.length){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">해당 카테고리 뉴스가 없습니다</div>';return}
-  const isAdmin = ['admin','owner','teacher'].includes(currentRole);
+  const isAdmin = isStaffRole();
   
   const fragment = document.createDocumentFragment();
   data.forEach(n => {

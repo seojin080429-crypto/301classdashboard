@@ -1538,7 +1538,7 @@ const SERVER_URL = 'https://bugwang-server-production.up.railway.app';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 const MAX_DEVICES = 2;
 
-// ── 기기제한 (계정당 등록 가능 기기 수 제한) ──
+// ── 기기제한 (계정당 캠스터디 입장 가능 기기 수 제한 — 로그인 자체는 무제한) ──
 function getDeviceId(){
   let id=localStorage.getItem('bugwang_device_id');
   if(!id){
@@ -1553,11 +1553,11 @@ function getDeviceLabel(){
   const browser=/Edg\//.test(ua)?'Edge':/Chrome\//.test(ua)?'Chrome':/Safari\//.test(ua)?'Safari':/Firefox\//.test(ua)?'Firefox':'브라우저';
   return `${os} · ${browser}`;
 }
-// 로그인 중인 학번이 이 기기로 이미 등록돼있거나, 등록 대수가 아직 안 찼으면 로그인 허용
+// 이 학번이 이 기기로 이미 등록돼있거나, 등록 대수가 아직 안 찼으면 캠스터디 입장 허용
 async function checkDeviceLimit(sid){
   const deviceId=getDeviceId();
   const {data,error}=await sb.from('user_devices').select('device_id').eq('student_id',sid);
-  if(error)return true; // 조회 실패 시 로그인을 막지 않음
+  if(error)return true; // 조회 실패 시 입장을 막지 않음
   const rows=data||[];
   if(rows.some(r=>r.device_id===deviceId)){
     sb.from('user_devices').update({last_seen:new Date().toISOString()}).eq('student_id',sid).eq('device_id',deviceId).then(()=>{});
@@ -1595,13 +1595,6 @@ async function doLogin(){
   document.getElementById('login-btn').textContent='로그인 중...';
   const {data,error}=await sb.auth.signInWithPassword({email:`${id}@bugwang3-1.app`,password:pw});
   if(error){showAuthErr('학번 또는 비밀번호가 올바르지 않습니다.');document.getElementById('login-btn').textContent='로그인';return}
-  const deviceOk=await checkDeviceLimit(id);
-  if(!deviceOk){
-    await sb.auth.signOut();
-    showAuthErr(`이미 등록된 기기가 ${MAX_DEVICES}대입니다. 선생님/관리자에게 기기 초기화를 요청하세요.`);
-    document.getElementById('login-btn').textContent='로그인';
-    return;
-  }
   document.getElementById('auth-error').style.display='none';
   const meta=data.user.user_metadata;
   if(!meta?.display_name){
@@ -3003,6 +2996,11 @@ function connectStudySocket(token){
 function toggleStudy(){inStudy?leaveStudy():joinStudy()}
 
 async function joinStudy(){
+  const deviceOk=await checkDeviceLimit(currentStudentId);
+  if(!deviceOk){
+    toast(`캠스터디는 계정당 최대 ${MAX_DEVICES}대까지만 입장할 수 있어요. 선생님/관리자에게 기기 초기화를 요청하세요.`);
+    return;
+  }
   const token=await getStudyToken();
   if(!token){toast('로그인이 필요합니다');return}
   const btn=document.getElementById('study-btn-join');

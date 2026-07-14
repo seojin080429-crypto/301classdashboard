@@ -68,14 +68,25 @@
   학급 전체에 실명·프로필사진을 보여주기 위한 테이블. RLS는 SELECT는 전체 공개(`true`), 쓰기는
   `study_sessions`처럼 `auth.uid() = user_id`로 본인만 가능하게 제한(진짜 보안 정책). 로그인
   시(`syncMyProfile()`)마다 본인 이름을 이 테이블에 upsert해서 최신 상태 유지.
+- `simo_members` — 실모반(신청제) 가입 상태. `student_id`(PK) / `status`(pending/approved/
+  rejected) / `applied_at` / `decided_by` / `decided_at`. RLS는 `user_roles`와 동일하게
+  permissive(SELECT/ALL `true`), 프론트에서만 게이팅.
+- `simo_notices`, `simo_materials` — 실모반 전용 공지/자료(자료는 `file_url`로 Storage 파일
+  링크). `notices`처럼 **RLS 자체가 없음(비활성)** — 승인 안 된 학생이 개발자도구로 API를
+  직접 두드리면 볼 수 있음. 사용자에게 이 트레이드오프를 확인받고 의도적으로 이렇게 함
+  (2026-07-15, "UI에서만 가리고 개발자도구까지 막지는 말자"는 요청).
 - Storage 버킷: `board-photos`(자유/질문 게시판 첨부, 공개), `avatars`(프로필 사진, 공개 —
-  업로드/수정/삭제는 `storage.foldername(name)[1] = auth.uid()`인 본인 uid 폴더에만 가능).
-- ⚠️ `notices`/`meals`/`teacher_messages` 테이블은 RLS가 아예 꺼져 있음(anon key로 누구나
-  읽기/쓰기 가능) — Supabase 어드바이저가 critical로 표시하는 항목. 정책 추가 전에는 끄면 안
-  되므로(전체 접근 차단됨) 방치 중, 필요시 사용자와 상의 후 정책 설계.
+  업로드/수정/삭제는 `storage.foldername(name)[1] = auth.uid()`인 본인 uid 폴더에만 가능),
+  `simo-materials`(실모반 자료 파일, 공개 — 업로드/삭제는 로그인 사용자면 누구나 가능한
+  단순 정책이고 실제 업로드 버튼은 프론트에서 운영자/선생님에게만 노출).
+- ⚠️ `notices`/`meals`/`teacher_messages`/`simo_notices`/`simo_materials` 테이블은 RLS가
+  아예 꺼져 있음(anon key로 누구나 읽기/쓰기 가능) — Supabase 어드바이저가 critical로
+  표시하는 항목. 정책 추가 전에는 끄면 안 되므로(전체 접근 차단됨) 방치 중, 필요시 사용자와
+  상의 후 정책 설계.
 
 ## 주요 기능 (커밋 이력 기반)
 - 로그인 / 사용자 관리 (관리자 탭에서 계정 생성·삭제·비밀번호 초기화·등록기기 초기화)
+- 실모반(신청제 전용 그룹) — 신청/승인, 전용 공지사항, 전용 자료(파일 업로드)
 - 시간표 (학생별 A/B/C 그룹 적용)
 - 급식 정보 표시
 - 뉴스 가져오기
@@ -99,6 +110,12 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-07-15: 실모반(신청제) 기능 추가. 사이드바 "실모반" 탭에서 학생이 신청하면
+  `simo_members`에 pending으로 등록되고, 운영자/선생님(`isOwnerTier()`)이 관리자 탭
+  "실모반 신청 관리" 카드에서 승인/거절. 승인된 학생(+운영자/선생님은 신청 없이도)만
+  실모반 전용 공지사항(`simo_notices`, 기존 공지사항 UI 재사용)과 자료(`simo_materials`,
+  파일 업로드/다운로드, `simo-materials` 버킷)를 볼 수 있음. 접근 제한은 프론트 조건부
+  렌더링으로만 처리(RLS는 미적용) — 자세한 내용은 위 스키마 섹션 참고.
 - 2026-07-15: 시간표 교시 번호 버그 + 다크모드 재생버튼 버그 수정.
   - `renderTimetable()`이 교시 번호를 배열 인덱스(`i+1`)로 매겨서, 점심이 배열 한 칸을
     차지하는 바람에 점심 이후 교시가 "4, 점심, 6, 7"처럼 5교시 없이 밀려 보이던 버그.

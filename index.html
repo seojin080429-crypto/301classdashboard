@@ -132,7 +132,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .period-badge.move{background:var(--ink-48)}
 
 /* MEAL */
-.meal-cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:14px}
+.meal-cols{display:grid;grid-template-columns:1fr;gap:10px;margin-top:14px}
 .meal-col{background:var(--parchment);border-radius:var(--radius-sm);padding:12px 14px}
 .meal-col-label{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-48);margin-bottom:7px}
 .meal-col ul{list-style:none}
@@ -1457,7 +1457,7 @@ async function loadMeal(){
     el.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--ink-48);font-size:13px">오늘 급식 정보가 아직 없어요.${(currentRole==='admin'||currentRole==='owner')?' 관리자 페이지에서 수집할 수 있어요.':''}</div>`;
     return;
   }
-  const order=['조식','중식','석식'];
+  const order=['중식'];
   const byType={};data.forEach(m=>byType[m.meal_type]=m);
   el.innerHTML=order.map(label=>{
     const m=byType[label];

@@ -398,9 +398,13 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .progress-val{font-size:12px;font-weight:600;color:var(--ink-48)}
 .progress-track{height:4px;background:var(--hairline);border-radius:2px;overflow:hidden}
 .progress-fill{height:100%;border-radius:2px;transition:width .4s ease}
-.band-graph{display:flex;width:100%;height:28px;border-radius:var(--radius-sm);overflow:hidden;background:var(--hairline)}
-.band-segment{height:100%;transition:width .4s ease}
-.band-legend{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.subject-pie-row{display:flex;align-items:center;gap:28px;flex-wrap:wrap}
+.pie-chart-wrap{position:relative;width:130px;height:130px;flex-shrink:0}
+.pie-chart{width:100%;height:100%;border-radius:50%;background:var(--hairline);transition:background .5s ease}
+.pie-chart-hole{position:absolute;inset:20px;border-radius:50%;background:var(--canvas);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.pie-chart-hole-val{font-size:13px;font-weight:700;color:var(--ink)}
+.pie-chart-hole-label{font-size:10px;color:var(--ink-48);margin-top:2px}
+.band-legend{display:flex;flex-direction:column;gap:10px;flex:1;min-width:140px}
 .band-legend-item{display:flex;align-items:center;gap:8px}
 .band-legend-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
 .band-legend-name{font-size:13px;color:var(--ink);flex:1}
@@ -829,7 +833,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
       <div class="dday-tile">
         <div class="dday-label">2027학년도 수능까지</div>
         <div class="dday-num" id="dash-dday">—</div>
-        <div class="dday-sub">2026년 11월 19일 (목)</div>
+        <div class="dday-sub" id="dash-today-date">—</div>
       </div>
       <div class="grid-2 spacer" style="margin-bottom:16px">
         <div class="stat-tile"><div class="stat-label">오늘 공부</div><div class="stat-num blue" id="dash-today-time">0h 0m</div><div class="stat-detail" id="dash-rank-text">반 랭킹 —</div></div>
@@ -963,8 +967,16 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 
         <div>
             <div class="section-hd"><div class="section-hd-title" style="font-size: 16px;">과목별 비율</div></div>
-            <div class="band-graph" id="subject-band"></div>
-            <div class="band-legend" id="subject-band-legend"></div>
+            <div class="subject-pie-row">
+              <div class="pie-chart-wrap">
+                <div class="pie-chart" id="subject-pie"></div>
+                <div class="pie-chart-hole">
+                  <div class="pie-chart-hole-val" id="subject-pie-total">0h</div>
+                  <div class="pie-chart-hole-label">총합</div>
+                </div>
+              </div>
+              <div class="band-legend" id="subject-band-legend"></div>
+            </div>
         </div>
       </div>
       <div class="spacer">
@@ -1832,6 +1844,9 @@ function updateDday(){
   const diff=Math.max(0,Math.ceil((target-now)/86400000));
   document.getElementById('dash-dday').textContent=`D-${diff}`;
   document.getElementById('dash-dday2').textContent=diff;
+  const days=['일','월','화','수','목','금','토'];
+  const today=new Date();
+  document.getElementById('dash-today-date').textContent=`${today.getFullYear()}년 ${today.getMonth()+1}월 ${today.getDate()}일 (${days[today.getDay()]})`;
 }
 
 // ── TIMETABLE ──
@@ -2540,18 +2555,22 @@ function renderReport(weekMins = [], rankByStudent = {}){
     const h=Math.round((m/max)*56);const isToday=(i+1)%7===today||(today===0&&i===6);
     return`<div class="week-bar-wrap"><div class="week-bar${m>0?' has-data':''}${isToday?' today':''}" style="height:${h}px"></div></div>`;
   }).join('') || '<div style="text-align:center;padding:16px;color:var(--ink-48);font-size:13px">이번 주 기록 없음</div>';
-  const total=subjects.reduce((s,sub)=>s+sub.tasks.reduce((a,t)=>a+t.seconds,0),0)||1;
-  const bandEl=document.getElementById('subject-band');
+  const totalSecRaw=subjects.reduce((s,sub)=>s+sub.tasks.reduce((a,t)=>a+t.seconds,0),0);
+  const total=totalSecRaw||1;
+  const pieEl=document.getElementById('subject-pie');
   const legendEl=document.getElementById('subject-band-legend');
+  document.getElementById('subject-pie-total').textContent=fmtHM(totalSecRaw);
   const subjWithTime=subjects.map(sub=>({name:sub.name,color:sub.color,sec:sub.tasks.reduce((s,t)=>s+t.seconds,0)})).filter(s=>s.sec>0);
   if(!subjWithTime.length){
-    bandEl.innerHTML='';
+    pieEl.style.background='var(--hairline)';
     legendEl.innerHTML='<div style="text-align:center;padding:16px;color:var(--ink-48);font-size:13px">기록 없음</div>';
   }else{
-    bandEl.innerHTML=subjWithTime.map(s=>{
-      const pct=(s.sec/total)*100;
-      return`<div class="band-segment" style="width:${pct}%;background:${s.color}" title="${s.name} ${Math.round(pct)}%"></div>`;
-    }).join('');
+    let acc=0;
+    const stops=subjWithTime.map(s=>{
+      const start=acc;acc+=(s.sec/total)*100;
+      return `${s.color} ${start}% ${acc}%`;
+    }).join(', ');
+    pieEl.style.background=`conic-gradient(${stops})`;
     legendEl.innerHTML=subjWithTime.map(s=>{
       const pct=Math.round((s.sec/total)*100);
       return`<div class="band-legend-item"><span class="band-legend-dot" style="background:${s.color}"></span><span class="band-legend-name">${s.name}</span><span class="band-legend-val">${fmtHM(s.sec)} · ${pct}%</span></div>`;

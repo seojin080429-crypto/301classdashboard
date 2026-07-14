@@ -1565,9 +1565,9 @@ async function loadTodaySessions(){
 // ── BUILD SUBJECTS FROM SUNEUNG ──
 function buildSubjectsFromMeta(meta) {
   const base = ['국어', '수학', '영어', '한국사'];
+  // 국어/수학 선택과목(화법과작문·언어와매체, 확률과통계·미적분·기하)은
+  // 별도 과목으로 만들지 않고 국어/수학 공부에 합산한다. 탐구1·탐구2는 서로 다른 과목이므로 그대로 유지.
   const extras = [
-    meta?.suneung_kor,
-    meta?.suneung_math,
     meta?.suneung_exp1,
     meta?.suneung_exp2
   ].filter(Boolean);

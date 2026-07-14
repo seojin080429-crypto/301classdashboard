@@ -114,6 +114,11 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-07-15: 실모반 탭을 nav-admin/nav-teacher와 동일하게 권한 없으면 사이드바에서 아예
+  숨김(`updateSimoNavVisibility()`, `canSeeSimoContent()`일 때만 표시). 신청 UI는 실모반
+  페이지에서 빼고 공지사항 페이지 상단 고정 카드(`#simo-pinned-notice`)로 옮김 — 상태별로
+  안내문과 신청 버튼을 보여주고, `loadNotices()` 호출 시마다 갱신됨. 실모반 페이지 자체는
+  이제 권한자만 도달 가능하므로 자료 목록만 표시.
 - 2026-07-15: 실모반 공지를 별도 "실모반 공지" 섹션/테이블(`simo_notices`) 대신 기존
   공지사항에 통합. `notices.audience`('all'/'simo') 컬럼 추가, 공지 작성 모달에 운영자/
   선생님만 보이는 "대상" 선택 추가, 공지 목록에서 실모반 전용 공지는 "실모반" 배지로 표시

@@ -1259,11 +1259,12 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
                 <th>선택과목</th>
                 <th>역할</th>
                 <th>캠스터디</th>
+                <th>등록기기</th>
                 <th>작업</th>
               </tr>
             </thead>
             <tbody id="admin-table-body">
-              <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">로딩 중...</td></tr>
+              <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">로딩 중...</td></tr>
             </tbody>
           </table>
         </div>
@@ -1446,6 +1447,37 @@ const SUPABASE_URL  = 'https://pvrgwvfjnebsxnlxaxhc.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2cmd3dmZqbmVic3hubHhheGhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2NjU2ODUsImV4cCI6MjA5OTI0MTY4NX0.P_ppJzUgzHQDb1dfAuD1Erdq30AMUARwRa8Lp8ylPjo';
 const SERVER_URL = 'https://bugwang-server-production.up.railway.app';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const MAX_DEVICES = 2;
+
+// ── 기기제한 (계정당 등록 가능 기기 수 제한) ──
+function getDeviceId(){
+  let id=localStorage.getItem('bugwang_device_id');
+  if(!id){
+    id=(crypto.randomUUID?crypto.randomUUID():'dev_'+Date.now()+'_'+Math.random().toString(36).slice(2));
+    localStorage.setItem('bugwang_device_id',id);
+  }
+  return id;
+}
+function getDeviceLabel(){
+  const ua=navigator.userAgent;
+  const os=/Android/i.test(ua)?'Android':/iPhone|iPad|iPod/i.test(ua)?'iOS':/Windows/i.test(ua)?'Windows':/Macintosh/i.test(ua)?'Mac':'기타';
+  const browser=/Edg\//.test(ua)?'Edge':/Chrome\//.test(ua)?'Chrome':/Safari\//.test(ua)?'Safari':/Firefox\//.test(ua)?'Firefox':'브라우저';
+  return `${os} · ${browser}`;
+}
+// 로그인 중인 학번이 이 기기로 이미 등록돼있거나, 등록 대수가 아직 안 찼으면 로그인 허용
+async function checkDeviceLimit(sid){
+  const deviceId=getDeviceId();
+  const {data,error}=await sb.from('user_devices').select('device_id').eq('student_id',sid);
+  if(error)return true; // 조회 실패 시 로그인을 막지 않음
+  const rows=data||[];
+  if(rows.some(r=>r.device_id===deviceId)){
+    sb.from('user_devices').update({last_seen:new Date().toISOString()}).eq('student_id',sid).eq('device_id',deviceId).then(()=>{});
+    return true;
+  }
+  if(rows.length>=MAX_DEVICES)return false;
+  await sb.from('user_devices').insert({student_id:sid,device_id:deviceId,device_label:getDeviceLabel()});
+  return true;
+}
 
 // ── STATE ──
 let currentUser = null, currentStudentId = '', currentName = '', currentRole = 'student';
@@ -1469,6 +1501,13 @@ async function doLogin(){
   document.getElementById('login-btn').textContent='로그인 중...';
   const {data,error}=await sb.auth.signInWithPassword({email:`${id}@bugwang3-1.app`,password:pw});
   if(error){showAuthErr('학번 또는 비밀번호가 올바르지 않습니다.');document.getElementById('login-btn').textContent='로그인';return}
+  const deviceOk=await checkDeviceLimit(id);
+  if(!deviceOk){
+    await sb.auth.signOut();
+    showAuthErr(`이미 등록된 기기가 ${MAX_DEVICES}대입니다. 선생님/관리자에게 기기 초기화를 요청하세요.`);
+    document.getElementById('login-btn').textContent='로그인';
+    return;
+  }
   document.getElementById('auth-error').style.display='none';
   const meta=data.user.user_metadata;
   if(!meta?.display_name){currentUser=data.user;currentStudentId=id;document.getElementById('auth-screen').style.display='none';document.getElementById('name-setup-screen').classList.add('visible');document.getElementById('setup-name').focus()}
@@ -2559,16 +2598,17 @@ let allAccounts=[];
 
 async function loadAdminList(){
   if(!['admin','owner','teacher'].includes(currentRole)){toast('권한이 없습니다');return}
-  document.getElementById('admin-table-body').innerHTML='<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">로딩 중...</td></tr>';
+  document.getElementById('admin-table-body').innerHTML='<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">로딩 중...</td></tr>';
 
   // 서버 API로 전체 계정 목록 가져오기 (이름 포함)
-  const [usersRes, rolesRes] = await Promise.all([
+  const [usersRes, rolesRes, devicesRes] = await Promise.all([
     fetch(`${SERVER_URL}/api/users`, {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({student_id:currentStudentId})
     }),
-    sb.from('user_roles').select('*')
+    sb.from('user_roles').select('*'),
+    sb.from('user_devices').select('student_id')
   ]);
 
   const usersData = await usersRes.json();
@@ -2576,6 +2616,8 @@ async function loadAdminList(){
 
   const roleMap={}, camMap={};
   (rolesRes.data||[]).forEach(r=>{roleMap[r.student_id]=r.role;camMap[r.student_id]=!!r.cam_allowed});
+  const deviceCountMap={};
+  (devicesRes.data||[]).forEach(d=>{deviceCountMap[d.student_id]=(deviceCountMap[d.student_id]||0)+1});
 
   // 서버에서 받은 유저 + 아직 계정이 없는 301xx 학번은 기본값으로 채우기
   const serverMap={};
@@ -2594,7 +2636,8 @@ async function loadAdminList(){
       suneung_exp1:u?.suneung_exp1||'—',
       suneung_exp2:u?.suneung_exp2||'—',
       role:roleMap[sid]||'student',
-      cam_allowed:camMap[sid]||false
+      cam_allowed:camMap[sid]||false,
+      device_count:deviceCountMap[sid]||0
     };
   }).sort((a,b)=>a.student_id.localeCompare(b.student_id));
   renderAdminTable(allAccounts);
@@ -2611,7 +2654,7 @@ function filterAdminList(){
 function renderAdminTable(list){
   const isOwner = currentRole==='owner'||currentRole==='teacher';
   const tbody=document.getElementById('admin-table-body');
-  if(!list.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">결과 없음</td></tr>';return}
+  if(!list.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">결과 없음</td></tr>';return}
   const canManageCam=['admin','owner','teacher'].includes(currentRole);
   tbody.innerHTML=list.map(a=>{
     const isMe=a.student_id===currentStudentId;
@@ -2627,6 +2670,10 @@ function renderAdminTable(list){
         ? `${pill} <button class="admin-btn ${a.cam_allowed?'demote':'promote'}" style="margin-left:6px" onclick="toggleCamAllowed('${a.student_id}',${!a.cam_allowed})">${a.cam_allowed?'차단':'허용'}</button>`
         : pill;
     }
+    const devicePill=`<span class="cam-pill ${a.device_count>=MAX_DEVICES?'blocked':'allowed'}">${a.device_count}/${MAX_DEVICES}</span>`;
+    const deviceCell=canManageCam&&a.device_count>0
+      ? `${devicePill} <button class="admin-btn demote" style="margin-left:6px" onclick="resetDevices('${a.student_id}')">초기화</button>`
+      : devicePill;
     let actions='';
     if(!isMe){
       actions+=`<button class="admin-btn reset" onclick="resetPassword('${a.student_id}')">비번 초기화</button>`;
@@ -2645,9 +2692,19 @@ function renderAdminTable(list){
       <td style="font-size:12px;color:var(--ink-48)">${subjectInfo}</td>
       <td>${rolePill}</td>
       <td>${camCell}</td>
+      <td>${deviceCell}</td>
       <td><div class="admin-actions">${actions}</div></td>
     </tr>`;
   }).join('');
+}
+
+async function resetDevices(sid){
+  if(!['admin','owner','teacher'].includes(currentRole)){toast('권한이 없습니다');return}
+  if(!confirm(`${sid}번의 등록된 기기를 모두 초기화할까요? (다음 로그인 시 새 기기로 다시 등록됩니다)`))return;
+  const {error}=await sb.from('user_devices').delete().eq('student_id',sid);
+  if(error){toast('초기화 실패: '+error.message);return}
+  toast(`${sid}번 기기 초기화 완료 ✓`);
+  loadAdminList();
 }
 
 async function toggleCamAllowed(sid,allowed){

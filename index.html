@@ -527,6 +527,29 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .student-info-val{font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .student-info-val.time{font-variant-numeric:tabular-nums}
 .student-info-val.placeholder{color:var(--ink-48);font-weight:400}
+.student-card{cursor:pointer}
+.student-card:hover{border-color:var(--blue)}
+
+/* WEEKLY PLAN CALENDAR (선생님 학생 상세 + 학생 본인 플래너 공용) */
+.wk-cal-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin:18px 0 12px}
+.wk-cal-nav{display:flex;align-items:center;gap:10px}
+.wk-cal-nav button{width:26px;height:26px;border-radius:50%;border:1px solid var(--hairline);background:var(--canvas);color:var(--ink-80);font-size:13px;display:flex;align-items:center;justify-content:center}
+.wk-cal-nav button:hover{border-color:var(--blue);color:var(--blue)}
+.wk-cal-range{font-size:13px;font-weight:600;color:var(--ink);min-width:110px;text-align:center}
+.wk-cal-grid{display:grid;grid-template-columns:repeat(7,minmax(118px,1fr));gap:8px;overflow-x:auto;padding-bottom:4px}
+.wk-day{background:var(--parchment);border-radius:var(--radius-md);padding:9px;min-height:70px}
+.wk-day.today{outline:1.5px solid var(--blue)}
+.wk-day-num{font-size:11px;font-weight:700;color:var(--ink-48);margin-bottom:6px}
+.wk-day.today .wk-day-num{color:var(--blue)}
+.wk-task{display:flex;align-items:center;gap:5px;padding:3px 0;font-size:11.5px}
+.wk-task-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.wk-task-name{flex:1;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wk-task-name.done{color:var(--ink-48);text-decoration:line-through}
+.wk-task-check{width:13px;height:13px;flex-shrink:0;accent-color:var(--blue)}
+.wk-task-empty{font-size:11px;color:var(--ink-48);padding:3px 0}
+.wk-stats-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:16px}
+.wk-stats-table th,.wk-stats-table td{padding:8px 6px;text-align:center;border-bottom:1px solid var(--hairline);white-space:nowrap}
+.wk-stats-table th{color:var(--ink-48);font-weight:600;font-size:11px}
 
 /* ADMIN */
 .admin-role-badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:var(--radius-pill);letter-spacing:.02em}
@@ -878,6 +901,20 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- 주간 계획 이수 현황 -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-title">이번주 계획 이수 현황</div>
+        <div class="wk-cal-head">
+          <div class="wk-cal-nav">
+            <button onclick="shiftMyPlannerWeek(-1)">‹</button>
+            <span class="wk-cal-range" id="pw-week-range">-</span>
+            <button onclick="shiftMyPlannerWeek(1)">›</button>
+          </div>
+        </div>
+        <div class="wk-cal-grid" id="pw-cal-grid"></div>
+        <table class="wk-stats-table" id="pw-stats-table"></table>
       </div>
     </div>
 
@@ -1399,6 +1436,23 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
   </div>
 </div>
 
+<!-- 선생님: 학생 상세 학습현황 (주간 캘린더 + 표) -->
+<div class="modal-overlay" id="student-detail-modal">
+  <div class="modal" style="max-width:920px">
+    <button class="modal-close" onclick="closeStudentDetail()">×</button>
+    <div class="modal-title" id="sd-title">학습현황</div>
+    <div class="wk-cal-head">
+      <div class="wk-cal-nav">
+        <button onclick="shiftStudentDetailWeek(-1)">‹</button>
+        <span class="wk-cal-range" id="sd-week-range">-</span>
+        <button onclick="shiftStudentDetailWeek(1)">›</button>
+      </div>
+    </div>
+    <div class="wk-cal-grid" id="sd-cal-grid"></div>
+    <table class="wk-stats-table" id="sd-stats-table"></table>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <!-- 이미지 라이트박스 -->
@@ -1745,6 +1799,7 @@ function navigate(page){
   if(page==='admin')loadMyRole().then(loadAdminList);
   if(page==='report')loadReportData();
   if(page==='teacher')loadMyRole().then(loadTeacherView);
+  if(page==='planner')renderMyWeekCalendar();
 }
 function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sidebar-overlay').classList.add('visible')}
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-overlay').classList.remove('visible')}
@@ -3113,6 +3168,91 @@ async function resetPassword(sid){
   toast(`${sid}번 비밀번호가 1234로 초기화되었습니다 ✓`);
 }
 
+// ── 주간 계획 이수 캘린더 (학생 본인 플래너 + 선생님 학생 상세 공용) ──
+function getMondayOf(d){
+  const x=new Date(d);const day=(x.getDay()+6)%7;x.setDate(x.getDate()-day);x.setHours(0,0,0,0);return x;
+}
+function ymdLocal(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function colorForSubject(name){
+  let hash=0;const s=name||'';
+  for(let i=0;i<s.length;i++)hash=(hash*31+s.charCodeAt(i))|0;
+  return SUBJECT_COLORS[Math.abs(hash)%SUBJECT_COLORS.length];
+}
+
+// prefix: DOM id 접두사(예: 'pw','sd') / userId: 조회 대상의 auth uuid / weekStart: 그 주 월요일(Date)
+async function renderWeekCalendar(prefix,userId,weekStart){
+  const days=Array.from({length:7},(_,i)=>{const d=new Date(weekStart);d.setDate(weekStart.getDate()+i);return d});
+  const startStr=ymdLocal(days[0]),endStr=ymdLocal(days[6]);
+  const [{data:tasks},{data:sessions}]=await Promise.all([
+    sb.from('study_tasks').select('subject,task_name,is_done,date').eq('user_id',userId).gte('date',startStr).lte('date',endStr),
+    sb.from('study_sessions').select('date,duration_seconds').eq('user_id',userId).gte('date',startStr).lte('date',endStr)
+  ]);
+  const tasksByDate={},secByDate={};
+  (tasks||[]).forEach(t=>{(tasksByDate[t.date]=tasksByDate[t.date]||[]).push(t)});
+  (sessions||[]).forEach(s=>{secByDate[s.date]=(secByDate[s.date]||0)+s.duration_seconds});
+
+  const todayStr=ymdLocal(new Date());
+  const rangeEl=document.getElementById(`${prefix}-week-range`);
+  if(rangeEl)rangeEl.textContent=`${days[0].getMonth()+1}.${days[0].getDate()} ~ ${days[6].getMonth()+1}.${days[6].getDate()}`;
+
+  const gridEl=document.getElementById(`${prefix}-cal-grid`);
+  if(gridEl){
+    gridEl.innerHTML=days.map(d=>{
+      const ds=ymdLocal(d);
+      const dayTasks=tasksByDate[ds]||[];
+      const isToday=ds===todayStr;
+      const taskHtml=dayTasks.length
+        ? dayTasks.map(t=>`<div class="wk-task"><span class="wk-task-dot" style="background:${colorForSubject(t.subject)}"></span><span class="wk-task-name${t.is_done?' done':''}">${escHtml(t.task_name)}</span><input type="checkbox" class="wk-task-check" ${t.is_done?'checked':''} disabled></div>`).join('')
+        : `<div class="wk-task-empty">계획 없음</div>`;
+      return `<div class="wk-day${isToday?' today':''}"><div class="wk-day-num">${d.getMonth()+1}/${d.getDate()}</div>${taskHtml}</div>`;
+    }).join('');
+  }
+
+  const statsEl=document.getElementById(`${prefix}-stats-table`);
+  if(statsEl){
+    const WD=['월','화','수','목','금','토','일'];
+    const totalSec=Object.values(secByDate).reduce((a,b)=>a+b,0);
+    const doneCounts=days.map(d=>{
+      const list=tasksByDate[ymdLocal(d)]||[];
+      return {done:list.filter(t=>t.is_done).length,total:list.length};
+    });
+    const doneSum=doneCounts.reduce((a,c)=>a+c.done,0),totalSum=doneCounts.reduce((a,c)=>a+c.total,0);
+    statsEl.innerHTML=`
+      <thead><tr><th></th>${WD.map(w=>`<th>${w}</th>`).join('')}<th>합계 / 평균</th></tr></thead>
+      <tbody>
+        <tr><td style="text-align:left;color:var(--ink-48)">공부 시간</td>${days.map(d=>`<td>${fmtHM(secByDate[ymdLocal(d)]||0)}</td>`).join('')}<td style="font-weight:600">${fmtHM(totalSec)} (일평균 ${fmtHM(Math.round(totalSec/7))})</td></tr>
+        <tr><td style="text-align:left;color:var(--ink-48)">계획 이수</td>${doneCounts.map(c=>`<td>${c.total?`${c.done}/${c.total}`:'—'}</td>`).join('')}<td style="font-weight:600">${doneSum}/${totalSum}${totalSum?` (${Math.round(doneSum/totalSum*100)}%)`:''}</td></tr>
+      </tbody>`;
+  }
+}
+
+// 학생 본인 플래너의 주간 캘린더
+let pwWeekStart=getMondayOf(new Date());
+function renderMyWeekCalendar(){
+  if(!currentUser)return;
+  renderWeekCalendar('pw',currentUser.id,pwWeekStart);
+}
+function shiftMyPlannerWeek(dir){
+  pwWeekStart.setDate(pwWeekStart.getDate()+dir*7);
+  renderMyWeekCalendar();
+}
+
+// 선생님: 학생 상세 학습현황 모달
+let sdState={userId:null,weekStart:null};
+function openStudentDetail(sid,name,userId){
+  if(!userId){toast('학생 정보를 찾을 수 없어요 (계정 미가입 상태일 수 있어요)');return}
+  sdState.userId=userId;
+  sdState.weekStart=getMondayOf(new Date());
+  document.getElementById('sd-title').textContent=`${name} (${sid}번) 학습현황`;
+  document.getElementById('student-detail-modal').classList.add('open');
+  renderWeekCalendar('sd',sdState.userId,sdState.weekStart);
+}
+function closeStudentDetail(){document.getElementById('student-detail-modal').classList.remove('open')}
+function shiftStudentDetailWeek(dir){
+  sdState.weekStart.setDate(sdState.weekStart.getDate()+dir*7);
+  renderWeekCalendar('sd',sdState.userId,sdState.weekStart);
+}
+
 // ── TEACHER VIEW ──
 let teacherViewInterval = null;
 
@@ -3150,7 +3290,7 @@ async function updateTeacherViewData(){
   // 3. 학생별로 데이터 정리
   const studentMap = {};
   students.forEach(s => {
-    studentMap[s.student_id] = { name: s.name, totalSec: 0, studying: null };
+    studentMap[s.student_id] = { name: s.name, id: s.id, totalSec: 0, studying: null };
   });
 
   (sessions || []).forEach(s => {
@@ -3430,7 +3570,7 @@ function renderTeacherGrid(studentMap){
     const isStudying = !!data.studying;
     const name = data.name || `${sid}번`;
     return `
-      <div class="student-card ${isStudying ? 'studying' : ''}">
+      <div class="student-card ${isStudying ? 'studying' : ''}" onclick="openStudentDetail('${sid}','${escAttr(name)}','${data.id||''}')">
         <div class="student-header">
           <div class="student-avatar">${name[0]}</div>
           <div>

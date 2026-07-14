@@ -210,6 +210,21 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .notice-del-btn{font-size:11px;color:var(--ink-48);background:none;border:none;cursor:pointer;margin-left:auto;transition:color var(--t)}
 .notice-del-btn:hover{color:#c00}
 
+/* 실모반 */
+.simo-material-list{display:flex;flex-direction:column}
+.simo-material-item{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--hairline)}
+.simo-material-item:last-child{border-bottom:none}
+.simo-material-icon{width:34px;height:34px;border-radius:var(--radius-sm);background:var(--parchment);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;border:1px solid var(--hairline)}
+.simo-material-body{flex:1;min-width:0}
+.simo-material-title{font-size:13px;color:var(--ink);font-weight:600}
+.simo-material-desc{font-size:12px;color:var(--ink-48);margin-top:2px;white-space:pre-wrap}
+.simo-material-meta{font-size:11px;color:var(--ink-48);margin-top:4px}
+.simo-material-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.simo-applicant-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--parchment);border-radius:var(--radius-sm);font-size:13px}
+.simo-applicant-name{font-weight:600;color:var(--ink)}
+.simo-applicant-id{font-size:12px;color:var(--ink-48)}
+.simo-applicant-actions{display:flex;gap:6px;margin-left:auto}
+
 /* NEWS */
 .news-list{display:flex;flex-direction:column}
 .news-item{display:flex;align-items:flex-start;gap:12px;padding:14px 0;border-bottom:1px solid var(--hairline);cursor:pointer}
@@ -777,6 +792,9 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         <div class="nav-item" data-page="report" onclick="navigate('report')">
           <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>학습 리포트
         </div>
+        <div class="nav-item" data-page="simo" onclick="navigate('simo')">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>실모반
+        </div>
       </div>
       <div class="nav-group">
         <div class="nav-group-label">실시간</div>
@@ -991,6 +1009,37 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
       <div class="spacer">
         <div class="section-hd"><div class="section-hd-title">반 랭킹</div></div>
         <div class="card" style="padding:14px 20px"><div class="rank-list" id="rank-list"></div></div>
+      </div>
+    </div>
+
+    <!-- 실모반 -->
+    <div class="page" id="page-simo">
+      <div class="page-title">실모반</div>
+      <div class="page-sub">실전 모의고사반 전용 공지와 자료를 확인하세요</div>
+
+      <!-- 미승인/신청 상태 카드 -->
+      <div class="card spacer" id="simo-apply-card" style="display:none">
+        <div class="card-title" id="simo-apply-title">실모반 신청</div>
+        <div class="card-sub" id="simo-apply-sub">신청하면 운영자/선생님 승인 후 실모반 전용 공지와 자료를 볼 수 있어요.</div>
+        <button class="btn-primary" id="simo-apply-btn" onclick="applySimo()" style="margin-top:10px">신청하기</button>
+      </div>
+
+      <!-- 승인된 사람/스태프에게만 보이는 콘텐츠 -->
+      <div id="simo-content" style="display:none">
+        <div class="spacer">
+          <div class="section-hd">
+            <div class="section-hd-title">실모반 공지</div>
+            <span class="section-hd-link" id="simo-notice-write-btn" style="display:none" onclick="openSimoNoticeModal()">+ 공지 작성</span>
+          </div>
+          <div class="card" style="padding:0 20px"><div class="notice-list" id="simo-notice-list"></div></div>
+        </div>
+        <div class="spacer">
+          <div class="section-hd">
+            <div class="section-hd-title">실모반 자료</div>
+            <span class="section-hd-link" id="simo-material-write-btn" style="display:none" onclick="openSimoMaterialModal()">+ 자료 업로드</span>
+          </div>
+          <div class="card" style="padding:0 20px"><div class="simo-material-list" id="simo-material-list"></div></div>
+        </div>
       </div>
     </div>
 
@@ -1324,6 +1373,15 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         </div>
       </div>
 
+      <!-- 실모반 신청 관리 (owner/teacher) -->
+      <div class="card" id="admin-simo-card" style="display:none;margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div class="card-title" style="margin-bottom:0">실모반 신청 관리</div>
+          <button class="btn-ghost" style="font-size:12px;padding:6px 14px" onclick="loadSimoApplicants()">↻ 새로고침</button>
+        </div>
+        <div id="simo-applicant-list" style="display:flex;flex-direction:column;gap:8px"></div>
+      </div>
+
       <!-- 계정 목록 -->
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
@@ -1445,6 +1503,52 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
     <div class="modal-actions">
       <button class="btn-ghost" onclick="closeNoticeModal()">취소</button>
       <button class="btn-primary" onclick="submitNotice()">게시하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 실모반 공지 작성 모달 -->
+<div class="modal-overlay" id="simo-notice-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeSimoNoticeModal()">×</button>
+    <div class="modal-title">실모반 공지 작성</div>
+    <div class="modal-field">
+      <label class="modal-label">제목</label>
+      <input class="modal-input" id="simo-notice-title-input" type="text" placeholder="공지 제목">
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">내용</label>
+      <textarea class="form-textarea" id="simo-notice-content-input" placeholder="공지 내용을 입력하세요" style="min-height:120px"></textarea>
+    </div>
+    <div class="auth-error" id="simo-notice-error"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeSimoNoticeModal()">취소</button>
+      <button class="btn-primary" onclick="submitSimoNotice()">게시하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 실모반 자료 업로드 모달 -->
+<div class="modal-overlay" id="simo-material-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeSimoMaterialModal()">×</button>
+    <div class="modal-title">실모반 자료 업로드</div>
+    <div class="modal-field">
+      <label class="modal-label">제목</label>
+      <input class="modal-input" id="simo-material-title-input" type="text" placeholder="자료 제목">
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">설명 (선택)</label>
+      <textarea class="form-textarea" id="simo-material-desc-input" placeholder="자료 설명을 입력하세요" style="min-height:80px"></textarea>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">파일</label>
+      <input class="modal-input" id="simo-material-file-input" type="file">
+    </div>
+    <div class="auth-error" id="simo-material-error"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeSimoMaterialModal()">취소</button>
+      <button class="btn-primary" id="simo-material-submit-btn" onclick="submitSimoMaterial()">업로드</button>
     </div>
   </div>
 </div>
@@ -1843,6 +1947,7 @@ function navigate(page){
   if(page==='report')loadReportData();
   if(page==='teacher')loadMyRole().then(loadTeacherView);
   if(page==='planner')renderMyMonthCalendar();
+  if(page==='simo')loadMyRole().then(renderSimoPage);
 }
 function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sidebar-overlay').classList.add('visible')}
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-overlay').classList.remove('visible')}
@@ -1966,6 +2071,225 @@ async function deleteNotice(event,id){
   if(error){toast('삭제 실패: '+error.message);return}
   toast('삭제되었습니다');
   await loadNotices();
+}
+
+// ── 실모반 (신청제 전용 공지/자료) ──
+// 승인 여부는 프론트에서만 걸러서 보여줌(이 프로젝트의 기존 컨벤션과 동일) — 승인 안 된
+// 학생이 개발자도구로 simo_notices/simo_materials를 직접 조회하는 것까지는 막지 않음.
+let currentSimoStatus='none'; // none|pending|approved|rejected
+
+async function loadSimoStatus(){
+  const {data}=await sb.from('simo_members').select('status').eq('student_id',currentStudentId).single();
+  currentSimoStatus=data?.status||'none';
+}
+
+function canSeeSimoContent(){return isOwnerTier()||currentSimoStatus==='approved'}
+
+async function renderSimoPage(){
+  await loadSimoStatus();
+  const applyCard=document.getElementById('simo-apply-card');
+  const contentEl=document.getElementById('simo-content');
+  if(canSeeSimoContent()){
+    applyCard.style.display='none';
+    contentEl.style.display='block';
+    await Promise.all([loadSimoNotices(),loadSimoMaterials()]);
+  }else{
+    contentEl.style.display='none';
+    applyCard.style.display='block';
+    const titleEl=document.getElementById('simo-apply-title');
+    const subEl=document.getElementById('simo-apply-sub');
+    const btnEl=document.getElementById('simo-apply-btn');
+    if(currentSimoStatus==='pending'){
+      titleEl.textContent='승인 대기 중';
+      subEl.textContent='신청이 접수됐어요. 운영자/선생님 승인을 기다려주세요.';
+      btnEl.style.display='none';
+    }else if(currentSimoStatus==='rejected'){
+      titleEl.textContent='신청이 거절되었어요';
+      subEl.textContent='다시 신청하려면 아래 버튼을 눌러주세요.';
+      btnEl.style.display='inline-flex';btnEl.textContent='다시 신청하기';
+    }else{
+      titleEl.textContent='실모반 신청';
+      subEl.textContent='신청하면 운영자/선생님 승인 후 실모반 전용 공지와 자료를 볼 수 있어요.';
+      btnEl.style.display='inline-flex';btnEl.textContent='신청하기';
+    }
+  }
+}
+
+async function applySimo(){
+  const {error}=await sb.from('simo_members').upsert({
+    student_id:currentStudentId,status:'pending',applied_at:new Date().toISOString(),decided_by:null,decided_at:null
+  });
+  if(error){toast('신청 실패: '+error.message);return}
+  toast('실모반 신청이 접수되었습니다 ✓');
+  await renderSimoPage();
+}
+
+async function loadSimoNotices(){
+  const el=document.getElementById('simo-notice-list');
+  const {data,error}=await sb.from('simo_notices').select('*').order('created_at',{ascending:false}).limit(30);
+  if(error){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">공지사항을 불러올 수 없습니다</div>';return}
+  if(!data||!data.length){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">등록된 실모반 공지가 없습니다</div>';return}
+  const canManage=isOwnerTier();
+  el.innerHTML=data.map(n=>{
+    const created=new Date(n.created_at);
+    const isNew=(Date.now()-created.getTime())<1000*60*60*24*3;
+    const dateStr=created.toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'}).replace(/\. /g,'.');
+    const delBtn=canManage?`<button class="notice-del-btn" onclick="deleteSimoNotice(event,'${n.id}')">삭제</button>`:'';
+    return`<div class="notice-item">
+      <div class="notice-item-row" onclick="toggleNotice('simo-${n.id}')">
+        <div class="notice-icon">📌</div>
+        <div class="notice-title">${n.title}${isNew?'<span class="badge-new">NEW</span>':''}</div>
+        <div class="notice-date">${dateStr}</div>
+      </div>
+      <div class="notice-content" id="notice-content-simo-${n.id}">
+        ${n.content}
+        <div class="notice-meta-row"><span class="notice-author">${n.author_name} 작성</span>${delBtn}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openSimoNoticeModal(){
+  document.getElementById('simo-notice-title-input').value='';
+  document.getElementById('simo-notice-content-input').value='';
+  document.getElementById('simo-notice-error').style.display='none';
+  document.getElementById('simo-notice-modal').classList.add('open');
+}
+function closeSimoNoticeModal(){document.getElementById('simo-notice-modal').classList.remove('open')}
+
+async function submitSimoNotice(){
+  if(!isOwnerTier()){toast('권한이 없습니다');return}
+  const title=document.getElementById('simo-notice-title-input').value.trim();
+  const content=document.getElementById('simo-notice-content-input').value.trim();
+  const errEl=document.getElementById('simo-notice-error');
+  if(!title||!content){errEl.textContent='제목과 내용을 모두 입력하세요.';errEl.style.display='block';return}
+  const {error}=await sb.from('simo_notices').insert({
+    title,content,author_name:currentName||currentStudentId+'번',student_id:currentStudentId
+  });
+  if(error){errEl.textContent='게시 실패: '+error.message;errEl.style.display='block';return}
+  closeSimoNoticeModal();
+  toast('실모반 공지가 게시되었습니다 ✓');
+  await loadSimoNotices();
+}
+
+async function deleteSimoNotice(event,id){
+  event.stopPropagation();
+  if(!isOwnerTier()){toast('권한이 없습니다');return}
+  if(!confirm('이 공지를 삭제할까요?'))return;
+  const {error}=await sb.from('simo_notices').delete().eq('id',id);
+  if(error){toast('삭제 실패: '+error.message);return}
+  toast('삭제되었습니다');
+  await loadSimoNotices();
+}
+
+async function loadSimoMaterials(){
+  const el=document.getElementById('simo-material-list');
+  const {data,error}=await sb.from('simo_materials').select('*').order('created_at',{ascending:false});
+  if(error){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">자료를 불러올 수 없습니다</div>';return}
+  if(!data||!data.length){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">등록된 실모반 자료가 없습니다</div>';return}
+  const canManage=isOwnerTier();
+  el.innerHTML=data.map(m=>{
+    const created=new Date(m.created_at);
+    const dateStr=created.toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'}).replace(/\. /g,'.');
+    const delBtn=canManage?`<button class="notice-del-btn" onclick="deleteSimoMaterial('${m.id}','${m.file_url}')">삭제</button>`:'';
+    return`<div class="simo-material-item">
+      <div class="simo-material-icon">📎</div>
+      <div class="simo-material-body">
+        <div class="simo-material-title">${escHtml(m.title)}</div>
+        ${m.description?`<div class="simo-material-desc">${escHtml(m.description)}</div>`:''}
+        <div class="simo-material-meta">${m.author_name} · ${dateStr}</div>
+      </div>
+      <div class="simo-material-actions">
+        <a class="btn-ghost" style="font-size:12px;padding:6px 14px" href="${m.file_url}" target="_blank" rel="noopener">다운로드</a>
+        ${delBtn}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openSimoMaterialModal(){
+  document.getElementById('simo-material-title-input').value='';
+  document.getElementById('simo-material-desc-input').value='';
+  document.getElementById('simo-material-file-input').value='';
+  document.getElementById('simo-material-error').style.display='none';
+  document.getElementById('simo-material-modal').classList.add('open');
+}
+function closeSimoMaterialModal(){document.getElementById('simo-material-modal').classList.remove('open')}
+
+async function submitSimoMaterial(){
+  if(!isOwnerTier()){toast('권한이 없습니다');return}
+  const title=document.getElementById('simo-material-title-input').value.trim();
+  const description=document.getElementById('simo-material-desc-input').value.trim();
+  const file=document.getElementById('simo-material-file-input').files[0];
+  const errEl=document.getElementById('simo-material-error');
+  if(!title||!file){errEl.textContent='제목과 파일을 모두 입력하세요.';errEl.style.display='block';return}
+  const btn=document.getElementById('simo-material-submit-btn');
+  btn.textContent='업로드 중...';btn.disabled=true;
+  const ext=file.name.split('.').pop();
+  const path=`${currentStudentId}_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+  const {error:upErr}=await sb.storage.from('simo-materials').upload(path,file);
+  if(upErr){errEl.textContent='업로드 실패: '+upErr.message;errEl.style.display='block';btn.textContent='업로드';btn.disabled=false;return}
+  const {data:urlData}=sb.storage.from('simo-materials').getPublicUrl(path);
+  const {error}=await sb.from('simo_materials').insert({
+    title,description:description||null,file_url:urlData.publicUrl,file_name:file.name,
+    author_name:currentName||currentStudentId+'번',student_id:currentStudentId
+  });
+  btn.textContent='업로드';btn.disabled=false;
+  if(error){errEl.textContent='저장 실패: '+error.message;errEl.style.display='block';return}
+  closeSimoMaterialModal();
+  toast('자료가 업로드되었습니다 ✓');
+  await loadSimoMaterials();
+}
+
+async function deleteSimoMaterial(id,fileUrl){
+  if(!isOwnerTier()){toast('권한이 없습니다');return}
+  if(!confirm('이 자료를 삭제할까요?'))return;
+  if(fileUrl){
+    const parts=fileUrl.split('/simo-materials/');
+    if(parts[1])await sb.storage.from('simo-materials').remove([parts[1]]);
+  }
+  const {error}=await sb.from('simo_materials').delete().eq('id',id);
+  if(error){toast('삭제 실패: '+error.message);return}
+  toast('삭제되었습니다');
+  await loadSimoMaterials();
+}
+
+// 관리자: 실모반 신청 승인/거절
+async function loadSimoApplicants(){
+  if(!isOwnerTier())return;
+  const el=document.getElementById('simo-applicant-list');
+  if(!el)return;
+  el.innerHTML='<div style="text-align:center;padding:16px;color:var(--ink-48);font-size:13px">로딩 중...</div>';
+  const {data,error}=await sb.from('simo_members').select('*').order('applied_at',{ascending:false});
+  if(error||!data||!data.length){el.innerHTML='<div style="text-align:center;padding:16px;color:var(--ink-48);font-size:13px">신청 내역이 없습니다</div>';return}
+  el.innerHTML=data.map(m=>{
+    const name=allAccounts.find(a=>a.student_id===m.student_id)?.name||m.student_id+'번';
+    const statusLabel=m.status==='pending'?'대기중':m.status==='approved'?'승인됨':'거절됨';
+    let actions='';
+    if(m.status==='pending'){
+      actions=`<button class="admin-btn promote" onclick="decideSimoApplication('${m.student_id}','approved')">승인</button>
+        <button class="admin-btn demote" onclick="decideSimoApplication('${m.student_id}','rejected')">거절</button>`;
+    }else if(m.status==='approved'){
+      actions=`<button class="admin-btn demote" onclick="decideSimoApplication('${m.student_id}','rejected')">제외</button>`;
+    }else{
+      actions=`<button class="admin-btn promote" onclick="decideSimoApplication('${m.student_id}','approved')">승인</button>`;
+    }
+    return`<div class="simo-applicant-row">
+      <span class="simo-applicant-name">${name}</span>
+      <span class="simo-applicant-id">${m.student_id}번 · ${statusLabel}</span>
+      <div class="simo-applicant-actions">${actions}</div>
+    </div>`;
+  }).join('');
+}
+
+async function decideSimoApplication(sid,status){
+  if(!isOwnerTier()){toast('권한이 없습니다');return}
+  const {error}=await sb.from('simo_members').update({
+    status,decided_by:currentStudentId,decided_at:new Date().toISOString()
+  }).eq('student_id',sid);
+  if(error){toast('처리 실패: '+error.message);return}
+  toast(`${sid}번 ${status==='approved'?'승인':'거절'} 완료 ✓`);
+  await loadSimoApplicants();
 }
 
 // ── FAVORITES (바로가기) ──
@@ -2795,6 +3119,9 @@ async function loadMyRole(){
   const canCreateAccounts = currentRole==='owner' || currentIsTeacher;
   setVisible('admin-create-card',canCreateAccounts,'block');
   setVisible('admin-news-card',canCreateAccounts,'block');
+  setVisible('admin-simo-card',canCreateAccounts,'block');
+  setVisible('simo-notice-write-btn',canCreateAccounts,'inline');
+  setVisible('simo-material-write-btn',canCreateAccounts,'inline');
   setVisible('nav-teacher',currentIsTeacher,'flex');
   const badge=document.getElementById('admin-role-badge');
   if(badge){
@@ -2860,6 +3187,7 @@ async function loadAdminList(){
     };
   }).sort((a,b)=>a.student_id.localeCompare(b.student_id));
   renderAdminTable(allAccounts);
+  if(isOwnerTier())loadSimoApplicants();
 }
 
 function filterAdminList(){

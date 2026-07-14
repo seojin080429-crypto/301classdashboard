@@ -1926,6 +1926,7 @@ async function editTask(si,ti){
 
 // ── FULLSCREEN TIMER ──
 let tfInterval=null;let tfPaused=false;let tfCurrentSi=-1;let tfCurrentTi=-1;
+let tfRankData=[];let tfRankTick=0;
 
 function openTimerView(si,ti){
   tfCurrentSi=si;tfCurrentTi=ti;
@@ -1942,12 +1943,17 @@ function openTimerView(si,ti){
   document.getElementById('tf-date-label').textContent=`${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
   // 렌더
   renderTfSubjectList();
-  renderTfRankGrid();
+  tfRankTick=0;
+  fetchTfRankData();
   // 1초 업데이트
   clearInterval(tfInterval);
   tfInterval=setInterval(()=>{
     updateTfDisplay();
     renderTfSubjectList();
+    // 랭킹: 5초마다 DB 재조회, 그 사이엔 진행 중인 세션만 로컬에서 초 단위로 갱신
+    tfRankTick++;
+    if(tfRankTick%5===0)fetchTfRankData();
+    else renderTfRankGrid();
   },1000);
 }
 
@@ -2052,11 +2058,21 @@ async function tfStop(){
   renderSubjects();
 }
 
-async function renderTfRankGrid(){
+async function fetchTfRankData(){
   const today=new Date().toISOString().slice(0,10);
-  const {data}=await sb.from('study_sessions').select('student_id,duration_seconds').eq('date',today);
+  const {data}=await sb.from('study_sessions').select('student_id,duration_seconds,started_at,ended_at').eq('date',today);
+  tfRankData=data||[];
+  renderTfRankGrid();
+}
+
+function renderTfRankGrid(){
+  const now=Date.now();
   const byStudent={};
-  (data||[]).forEach(r=>{byStudent[r.student_id]=(byStudent[r.student_id]||0)+r.duration_seconds});
+  tfRankData.forEach(r=>{
+    // 진행 중인 세션(ended_at 없음)은 started_at 기준 실시간 경과 시간으로 계산
+    const sec=r.ended_at?r.duration_seconds:Math.floor((now-new Date(r.started_at).getTime())/1000);
+    byStudent[r.student_id]=(byStudent[r.student_id]||0)+sec;
+  });
   const sorted=Object.entries(byStudent).sort((a,b)=>b[1]-a[1]);
   document.getElementById('tf-rank-sub').textContent=`${sorted.length}명 공부중`;
   const el=document.getElementById('tf-rank-grid');

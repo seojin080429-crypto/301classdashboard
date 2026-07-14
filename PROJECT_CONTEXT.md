@@ -31,10 +31,42 @@
   혼동하지 말 것. push하면 Railway에 자동 배포되는 것으로 보임.
 - 이 저장소와 마찬가지로 `bugwang-server` 로컬 저장소도 Windows에서 push 시
   `SEC_E_UNTRUSTED_ROOT` 오류가 나서 `http.sslbackend`를 로컬 설정으로 `openssl`로 바꿔둠.
-- 인증 관련 role은 3단계: `student`(기본) / `admin` / `owner`, 그리고 `teacher`가 추가로 있음.
-  `requireAdmin` 미들웨어(서버)가 `admin`/`owner`/`teacher` 모두 통과하도록 되어 있어야
-  프론트(관리자 탭, 선생님 탭)가 정상 동작함 — 과거에 `teacher`가 누락되어 있던 버그를 수정한 적
-  있음 (2026-07-14).
+- 인증 관련 role 체계 (2026-07-14 개편): `user_roles.role`은 `student`/`admin`/`owner` 3단계만
+  남았고, "선생님" 권한은 `is_teacher` boolean 플래그로 완전히 분리되어 role과 **동시에** 가질 수
+  있음(예: role=owner + is_teacher=true). 과거에는 `role='teacher'`라는 4번째 값으로 처리해서
+  owner와 teacher를 동시에 가질 수 없었는데, 이 한계를 없앤 것. 프론트에서 권한 체크는 반드시
+  `isStaffRole()`(admin/owner/is_teacher 중 하나라도) / `isOwnerTier()`(owner 또는 is_teacher)
+  헬퍼로 통일해서 쓸 것 — `currentRole==='teacher'` 같은 예전 패턴은 더 이상 없음. 백엔드
+  `requireAdmin`도 `role`과 `is_teacher`를 함께 조회해서 판단하고, `req.callerIsOwnerTier`로
+  owner 전용 액션(계정 삭제 등)을 구분함. 또한 `can_appoint_teacher` 플래그가 있어서 "선생님
+  지정" 액션 자체를 아무 owner나 할 수 있는 게 아니라 이 플래그를 가진 owner만 가능 — 기본으로는
+  30122(제작자) 계정에만 부여되어 있고, 다른 owner에게 위임(관리자 탭에서 부여/회수) 가능.
+  관리자/선생님 탭은 `navigate()`가 admin/teacher 페이지로 이동할 때마다 `loadMyRole()`을 다시
+  호출해서 새로고침하므로, 방금 권한이 바뀌어도 재로그인 없이 반영됨(예전에는 로그인 시점에만
+  로드돼서 재로그인이 필요했음).
+
+## Supabase 스키마 (주요 테이블, 2026-07-14 기준)
+- `study_sessions` — 공부 타이머 기록. `started_at`/`ended_at`/`duration_seconds`. **주의**:
+  `duration_seconds`는 타이머를 정지할 때만 기록되므로, 진행 중인 세션은 `ended_at IS NULL`이고
+  `duration_seconds`가 아직 0인 상태 — 실시간 경과 시간이 필요하면 `now() - started_at`으로
+  계산해야 함(친구 랭킹 로직 참고). 타이머를 켠 채 새로고침/탭 종료하면 `ended_at`이 영영 안
+  채워지는 고아 row가 생길 수 있어서, 로그인 시점(`initApp`→`closeOrphanSessions()`)에 본인의
+  안 끝난 세션을 자동 마감함(`duration_seconds=0`으로, 시간을 부풀리지 않음).
+- `user_roles` — `student_id`(PK) / `role`(student/admin/owner) / `is_teacher` /
+  `can_appoint_teacher` / `cam_allowed`. RLS는 SELECT/ALL 모두 `true`(사실상 프론트 role
+  체크로만 게이팅되는, 이 프로젝트의 기존 컨벤션 — `study_sessions`처럼 `auth.uid()` 기반으로
+  진짜 제한하는 테이블도 있으니 새 테이블 만들 때 어느 쪽이 맞는지 판단할 것).
+- `user_devices` — 계정당 등록 기기 수 제한(기본 2대) 기능용. `student_id`+`device_id`(브라우저
+  localStorage에 저장된 UUID) unique. 로그인 시 `checkDeviceLimit()`이 체크.
+- `user_profiles` — `student_id`(PK) / `user_id` / `display_name` / `avatar_url`. 친구 랭킹 등
+  학급 전체에 실명·프로필사진을 보여주기 위한 테이블. RLS는 SELECT는 전체 공개(`true`), 쓰기는
+  `study_sessions`처럼 `auth.uid() = user_id`로 본인만 가능하게 제한(진짜 보안 정책). 로그인
+  시(`syncMyProfile()`)마다 본인 이름을 이 테이블에 upsert해서 최신 상태 유지.
+- Storage 버킷: `board-photos`(자유/질문 게시판 첨부, 공개), `avatars`(프로필 사진, 공개 —
+  업로드/수정/삭제는 `storage.foldername(name)[1] = auth.uid()`인 본인 uid 폴더에만 가능).
+- ⚠️ `notices`/`meals`/`teacher_messages` 테이블은 RLS가 아예 꺼져 있음(anon key로 누구나
+  읽기/쓰기 가능) — Supabase 어드바이저가 critical로 표시하는 항목. 정책 추가 전에는 끄면 안
+  되므로(전체 접근 차단됨) 방치 중, 필요시 사용자와 상의 후 정책 설계.
 
 ## 주요 기능 (커밋 이력 기반)
 - 로그인 / 사용자 관리 (관리자 탭에서 계정 생성·삭제·비밀번호 초기화·등록기기 초기화)
@@ -61,6 +93,31 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-07-14: 대규모 업데이트 묶음 (프론트 `index.html` + 백엔드 `bugwang-server/server.js`,
+  Supabase 스키마) — 자세한 스키마는 위 "Supabase 스키마" 섹션 참고.
+  - **role 체계 개편**: `is_teacher`/`can_appoint_teacher` 플래그 분리로 owner+선생님 동시 보유
+    가능하게 함. 관리자 탭 진입 시 `loadMyRole()` 재호출로 재로그인 없이 권한 반영.
+    기존에 `role='owner'`인데 `is_teacher`가 없어서 선생님 탭이 안 보이던 "teacher" 계정
+    (이용휘)을 바로잡음. 계정 삭제 후 재생성 시 옛 권한이 남아있던 "test" 계정도 초기화함.
+  - **계정 삭제 시 연계 데이터 정리**: `/api/delete-user`가 auth 계정만 지우고 `user_roles`/
+    `user_devices`/`user_profiles`의 학번연결 기록은 안 지워서, 같은 학번으로 재생성하면 예전
+    권한이 부활하던 버그 수정 — 이제 세 테이블 모두 함께 삭제됨(단, 게시글/공부기록은 보존).
+  - **프로필 사진 + 친구 랭킹 실명 표시**: `user_profiles` 테이블 신설. 마이페이지에서 아바타
+    클릭 → 사진 업로드(Storage `avatars` 버킷) 가능해짐. 이전엔 친구 랭킹에 본인 이름만 뜨고
+    다른 학생은 전부 "학번+번"으로만 표시되던 문제도 이 테이블로 실명 표시하도록 수정.
+  - **선생님 계정 마이페이지**: `is_teacher`면 학년/반/선택과목 대신 "담임반: 3-1"만 표시,
+    최초 설정 화면에서도 선택과목 질문을 생략함.
+  - **다크모드 대비 수정**: 토스트 알림, 아바타 이니셜(사이드바/마이페이지/게시판/랭킹),
+    캠스터디 "화면 가리기" 오버레이가 다크모드에서 배경·글자색이 둘 다 흰색 계열로 겹쳐서 안
+    보이던 문제. 원인은 라이트/다크 테마에서 값이 뒤집히는 `--ink` CSS 변수를 배경색에 쓰면서
+    글자색은 고정 흰색으로 둔 것 — 배경을 고정 색상으로 바꿔 해결.
+  - **입시뉴스 연도 수정**: 검색어가 "2026 수능 입시"로 고정되어 있었는데, 현재 3학년이 치르는
+    수능은 2026년 11월 시행 "2027학년도" 입시라 한 학년도 어긋나 있었음. 검색어를 2027학년도로
+    바꾸고, 다른 학년도만 언급된 기사를 걸러내는 필터 추가.
+  - **뉴스 요약 글씨 깨짐 수정**: `bugwang-server`의 HTTP 응답 처리(`httpGet`/`httpPost`/Groq
+    호출)가 스트리밍 청크를 문자열로 바로 이어붙이고 있었음(`data += chunk`) — 멀티바이트 UTF-8
+    문자(한글)가 청크 경계에서 잘리면 깨지는 전형적인 Node.js 버그. 특히 길이가 긴 Groq 뉴스
+    요약에서 두드러졌음. Buffer로 모았다가 끝에서 한 번에 `toString('utf8')`하도록 수정.
 - 2026-07-14: 친구 랭킹(timer-fullscreen) 시간이 실시간보다 2배 이상 빠르게 올라가던 문제 수정.
   원인: 타이머를 켠 채로 새로고침/탭 종료하면 `stopCurrentTimer()`가 못 불려서
   `study_sessions`에 `ended_at`이 비어있는 세션이 고아로 남는데, 랭킹 로직(바로 위 항목)이

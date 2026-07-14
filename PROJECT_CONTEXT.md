@@ -61,6 +61,22 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-07-14: teacher role에 owner 수준 관리 권한 부여 (계정 생성/삭제 API가 owner로만
+  제한되어 있던 것을 teacher도 허용하도록 완화). role 컬럼이 단일값이라 "역할 두 개 동시 보유"는
+  불가능해서, teacher role은 유지한 채(학생 현황 탭 접근 유지) 백엔드 권한만 owner와 동등하게 맞춤.
+- 2026-07-14: role은 로그인 시점에만 로드됨(`loadMyRole()`이 `initApp()`에서 한 번만 호출) —
+  관리자 탭에서 역할을 방금 바꿨다면 해당 계정은 로그아웃 후 재로그인해야 반영됨. teacher 탭이
+  안 보인다는 문의가 있으면 재로그인부터 확인할 것.
+- ⚠️ 미해결 이슈 (조사 중, 2026-07-14): 플래너에서 타이머 재생 시 "친구 랭킹"(`renderTfRankGrid`,
+  timer-fullscreen 뷰)과 학습 리포트의 반 랭킹이 본인 데이터만 보이고 다른 학생 데이터가 안
+  보인다는 제보. 코드 로직(`study_sessions` 테이블에서 오늘자 전체 학생 데이터를 가져오는 쿼리)
+  자체는 정상으로 보임 — Supabase `study_sessions` 테이블의 RLS(Row Level Security) SELECT
+  정책이 "본인 행(row)만 조회 가능"하게 설정되어 있을 가능성이 유력한 원인으로 추정됨. 프론트는
+  anon key를 쓰므로 RLS의 영향을 그대로 받음. 확인 필요: Supabase 대시보드 > Table Editor >
+  study_sessions > RLS 정책에서 SELECT 정책이 `auth.uid() = user_id` 처럼 본인 행으로 제한되어
+  있는지 확인하고, 학급 전체가 서로의 오늘자 기록을 볼 수 있어야 하는 이 앱의 설계상
+  `to authenticated using (true)` 형태로 완화가 필요할 수 있음. Supabase 대시보드 접근 권한이
+  없어 직접 수정 불가 — 사용자가 정책 내용을 확인해서 공유하면 정확한 SQL을 제공하기로 함.
 - 2026-07-14: UI 개선 3건
   - 학습 리포트 "과목별 비율"을 개별 진행바 목록 → 띠그래프(하나의 누적 가로 막대) + 범례 형태로 변경
   - 공지사항을 대시보드 미리보기 전용에서 좌측 메뉴의 독립 페이지(`page-notice`)로 분리

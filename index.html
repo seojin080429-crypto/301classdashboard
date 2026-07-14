@@ -802,23 +802,30 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
     <div class="page" id="page-report">
       <div class="page-title">학습 리포트</div>
       <div class="page-sub">공부 시간 통계와 반 랭킹을 확인하세요</div>
-      <div class="grid-3 spacer" style="margin-bottom:16px">
+      <div class="grid-2 spacer" style="margin-bottom:16px">
         <div class="stat-tile"><div class="stat-label">오늘</div><div class="stat-num blue" id="rep-today">0h 0m</div><div class="stat-detail">누적 공부 시간</div></div>
-        <div class="stat-tile"><div class="stat-label">이번 주 평균</div><div class="stat-num" id="rep-week-avg">—</div></div>
         <div class="stat-tile"><div class="stat-label">연속 공부일</div><div class="stat-num" id="rep-streak">0</div><div class="stat-detail">일 연속 🔥</div></div>
       </div>
-      <div class="spacer">
-        <div class="section-hd"><div class="section-hd-title">이번 주 기록</div></div>
-        <div class="card">
-          <div class="week-chart" id="week-chart"></div>
-          <div style="display:flex;justify-content:space-around;padding:0 4px">
-            <span class="week-day">월</span><span class="week-day">화</span><span class="week-day">수</span><span class="week-day">목</span><span class="week-day">금</span><span class="week-day">토</span><span class="week-day">일</span>
-          </div>
+      <div class="card spacer">
+        <div class="section-hd" style="margin-bottom: 16px;"><div class="section-hd-title">주간 학습 현황</div></div>
+        
+        <div class="grid-2 spacer" style="margin-bottom: 20px;">
+            <div class="stat-tile"><div class="stat-label">이번주 총 공부시간</div><div class="stat-num" id="rep-week-total">—</div></div>
+            <div class="stat-tile"><div class="stat-label">하루 평균 공부시간</div><div class="stat-num" id="rep-week-avg">—</div></div>
         </div>
-      </div>
-      <div class="spacer">
-        <div class="section-hd"><div class="section-hd-title">과목별 비중</div></div>
-        <div class="card"><div class="progress-stack" id="subject-progress"></div></div>
+
+        <div class="spacer">
+            <div class="section-hd"><div class="section-hd-title" style="font-size: 16px;">일별 공부시간</div></div>
+            <div class="week-chart" id="week-chart"></div>
+            <div style="display:flex;justify-content:space-around;padding:0 4px">
+                <span class="week-day">월</span><span class="week-day">화</span><span class="week-day">수</span><span class="week-day">목</span><span class="week-day">금</span><span class="week-day">토</span><span class="week-day">일</span>
+            </div>
+        </div>
+
+        <div>
+            <div class="section-hd"><div class="section-hd-title" style="font-size: 16px;">과목별 비율</div></div>
+            <div class="progress-stack" id="subject-progress"></div>
+        </div>
       </div>
       <div class="spacer">
         <div class="section-hd"><div class="section-hd-title">반 랭킹</div></div>
@@ -2123,6 +2130,10 @@ async function refreshStats(){
 // REPORT
 function renderReport(){
   const WEEK_MINS=[480,390,510,320,365,420,280];
+  const weekTotalSeconds = WEEK_MINS.reduce((a, b) => a + b, 0) * 60;
+  const weekAvgSeconds = weekTotalSeconds > 0 ? weekTotalSeconds / 7 : 0;
+  document.getElementById('rep-week-total').textContent = fmtHM(weekTotalSeconds);
+  document.getElementById('rep-week-avg').textContent = fmtHM(weekAvgSeconds);
   const max=Math.max(...WEEK_MINS);const today=new Date().getDay();
   const el=document.getElementById('week-chart');el.innerHTML=WEEK_MINS.map((m,i)=>{
     const h=Math.round((m/max)*56);const isToday=(i+1)%7===today||(today===0&&i===6);

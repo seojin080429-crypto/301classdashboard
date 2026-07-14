@@ -67,16 +67,18 @@
 - 2026-07-14: role은 로그인 시점에만 로드됨(`loadMyRole()`이 `initApp()`에서 한 번만 호출) —
   관리자 탭에서 역할을 방금 바꿨다면 해당 계정은 로그아웃 후 재로그인해야 반영됨. teacher 탭이
   안 보인다는 문의가 있으면 재로그인부터 확인할 것.
-- ⚠️ 미해결 이슈 (조사 중, 2026-07-14): 플래너에서 타이머 재생 시 "친구 랭킹"(`renderTfRankGrid`,
-  timer-fullscreen 뷰)과 학습 리포트의 반 랭킹이 본인 데이터만 보이고 다른 학생 데이터가 안
-  보인다는 제보. 코드 로직(`study_sessions` 테이블에서 오늘자 전체 학생 데이터를 가져오는 쿼리)
-  자체는 정상으로 보임 — Supabase `study_sessions` 테이블의 RLS(Row Level Security) SELECT
-  정책이 "본인 행(row)만 조회 가능"하게 설정되어 있을 가능성이 유력한 원인으로 추정됨. 프론트는
-  anon key를 쓰므로 RLS의 영향을 그대로 받음. 확인 필요: Supabase 대시보드 > Table Editor >
-  study_sessions > RLS 정책에서 SELECT 정책이 `auth.uid() = user_id` 처럼 본인 행으로 제한되어
-  있는지 확인하고, 학급 전체가 서로의 오늘자 기록을 볼 수 있어야 하는 이 앱의 설계상
-  `to authenticated using (true)` 형태로 완화가 필요할 수 있음. Supabase 대시보드 접근 권한이
-  없어 직접 수정 불가 — 사용자가 정책 내용을 확인해서 공유하면 정확한 SQL을 제공하기로 함.
+- 2026-07-14: "다른 학생 데이터가 안 보이는" 문제는 RLS 정책 완화로 해결된 것으로 보임(다른
+  학생이 랭킹에 표시되기 시작). 다만 이어서 "친구 랭킹(timer-fullscreen 뷰)의 시간이 실시간으로
+  올라가지 않고 멈춰있다"는 후속 제보가 있어 아래 항목으로 별도 수정함.
+- 2026-07-14: 친구 랭킹(`renderTfRankGrid`, timer-fullscreen 뷰) 시간이 실시간 갱신 안 되던
+  버그 수정. 원인 두 가지: (1) `renderTfRankGrid()`가 전체화면 타이머를 열 때 한 번만 호출되고
+  이후 갱신 루프(매초 도는 `tfInterval`)에 포함돼 있지 않았음. (2) `study_sessions.duration_seconds`는
+  타이머를 정지할 때만 기록되므로, 진행 중인 세션(본인 포함)은 DB상 값이 계속 0으로 남아있어
+  재조회해도 시간이 안 올라가는 구조였음. 수정: `started_at`/`ended_at` 컬럼을 함께 select해서
+  `ended_at`이 없는(진행 중) 세션은 `now - started_at`으로 실시간 경과 시간을 계산하도록 변경.
+  DB 재조회는 5초마다, 화면 갱신(로컬 재계산)은 매초 수행 (`fetchTfRankData` / `renderTfRankGrid`
+  분리, `index.html` openTimerView 부근). 학습 리포트의 반 랭킹(`renderReport`)은 실시간 틱이
+  필요 없는 통계 페이지라 이번 수정 대상에서 제외함 — 필요시 별도 확인.
 - 2026-07-14: UI 개선 3건
   - 학습 리포트 "과목별 비율"을 개별 진행바 목록 → 띠그래프(하나의 누적 가로 막대) + 범례 형태로 변경
   - 공지사항을 대시보드 미리보기 전용에서 좌측 메뉴의 독립 페이지(`page-notice`)로 분리

@@ -6,7 +6,9 @@
 <title>부광고 3-1 대시보드</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script>(function(){try{var t=localStorage.getItem('theme');if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme:dark)').matches))document.documentElement.dataset.theme='dark';}catch(e){}})();</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <style>
 :root {
   --blue:#0066cc; --blue-focus:#0071e3; --blue-dark:#2997ff;
@@ -18,6 +20,14 @@
   --radius-sm:8px; --radius-md:11px; --radius-lg:18px; --radius-pill:9999px;
   --t:.18s ease;
 }
+:root[data-theme="dark"] {
+  --blue:#0a84ff; --blue-focus:#409cff; --blue-dark:#5ac8fa;
+  --ink:#f5f5f7; --ink-80:#d1d1d6; --ink-48:#98989d;
+  --canvas:#1c1c1e; --parchment:#131315; --pearl:#242426;
+  --tile-1:#2c2c2e; --hairline:#38383a; --divider:rgba(255,255,255,.08);
+  --on-dark:#fff; --muted-dark:#ccc;
+}
+html{background:var(--parchment)}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:17px;-webkit-font-smoothing:antialiased}
 body{font-family:'Inter','Noto Sans KR',system-ui,sans-serif;font-weight:400;line-height:1.47;letter-spacing:-.022em;color:var(--ink);background:var(--parchment);min-height:100vh}
@@ -62,7 +72,13 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 
 /* SIDEBAR */
 .sidebar{width:var(--sidebar-w);min-height:100vh;background:var(--canvas);border-right:1px solid var(--hairline);display:flex;flex-direction:column;position:fixed;left:0;top:0;bottom:0;z-index:50;transition:transform var(--t)}
-.sidebar-header{height:var(--nav-h);display:flex;align-items:center;padding:0 20px;border-bottom:1px solid var(--hairline);gap:10px;flex-shrink:0}
+.sidebar-header{height:var(--nav-h);display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid var(--hairline);gap:10px;flex-shrink:0}
+.theme-toggle-btn{display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:var(--radius-pill);color:var(--ink-48);transition:background var(--t),color var(--t)}
+.theme-toggle-btn:hover{background:var(--parchment);color:var(--ink)}
+.theme-toggle-btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.theme-toggle-btn .icon-sun{display:none}
+:root[data-theme="dark"] .theme-toggle-btn .icon-moon{display:none}
+:root[data-theme="dark"] .theme-toggle-btn .icon-sun{display:block}
 .sidebar-wordmark{font-size:15px;font-weight:600;letter-spacing:-.022em;color:var(--ink)}
 .sidebar-wordmark span{color:var(--blue)}
 .sidebar-nav{flex:1;padding:12px 0;overflow-y:auto}
@@ -138,6 +154,32 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .meal-col ul{list-style:none}
 .meal-col li{font-size:12px;color:var(--ink);padding:2px 0;border-bottom:1px solid var(--hairline)}
 .meal-col li:last-child{border-bottom:none}
+
+/* CAMSTUDY */
+.study-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+.study-count-pill{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink-80);background:var(--parchment);padding:7px 14px;border-radius:var(--radius-pill)}
+.study-live-dot{width:7px;height:7px;border-radius:50%;background:#2ecc71;flex-shrink:0}
+.study-ctrls{display:flex;gap:8px;flex-wrap:wrap}
+.study-ctrls button{padding:9px 16px;font-size:13px;border-radius:var(--radius-pill);border:1px solid var(--hairline);background:var(--canvas);color:var(--ink-80);transition:opacity var(--t)}
+.study-ctrls button:disabled{opacity:.4;cursor:default}
+.study-ctrls button.join{background:var(--blue);color:#fff;border-color:var(--blue)}
+.study-ctrls button.leave{background:rgba(200,0,0,.08);color:#c00;border-color:rgba(200,0,0,.2)}
+.study-grid{display:grid;grid-template-columns:1fr 300px;gap:14px;align-items:stretch}
+.video-area{position:relative;background:var(--tile-1);border-radius:var(--radius-lg);min-height:480px;overflow:hidden}
+.jitsi-container{position:absolute;inset:0}
+.study-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--muted-dark);font-size:14px;text-align:center;padding:20px}
+.study-empty small{color:var(--ink-48);font-size:12px}
+.study-chat{display:flex;flex-direction:column;background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--radius-lg);min-height:480px;max-height:480px}
+.study-chat-head{padding:14px 16px;border-bottom:1px solid var(--hairline);font-size:13px;font-weight:600;color:var(--ink)}
+.study-chat-log{flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.study-cmsg{font-size:13px;color:var(--ink);line-height:1.4}
+.study-cmsg.system{color:var(--ink-48);font-size:12px;text-align:center}
+.study-cmsg .who{font-weight:600;color:var(--blue);margin-right:6px}
+.study-chat-input{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--hairline)}
+.study-chat-input input{flex:1;padding:9px 12px;border:1px solid var(--hairline);border-radius:var(--radius-md);font-size:13px;background:var(--canvas);color:var(--ink)}
+.study-privacy{position:fixed;inset:0;background:var(--ink);z-index:200;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--on-dark)}
+.study-privacy.open{display:flex}
+.study-privacy-timer{font-size:32px;font-weight:600;letter-spacing:.02em}
 
 /* NOTICE */
 .notice-list{display:flex;flex-direction:column}
@@ -432,6 +474,8 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
   .planner-layout{grid-template-columns:1fr}
   .study-stats-bar{grid-template-columns:repeat(3,1fr)}
   .dday-num{font-size:52px}
+  .study-grid{grid-template-columns:1fr}
+  .video-area,.study-chat{min-height:340px;max-height:none}
 }
 
 /* ADMIN */
@@ -604,6 +648,10 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <div class="sidebar-wordmark">부광<span>3-1</span></div>
+      <button class="theme-toggle-btn" onclick="toggleTheme()" title="다크모드 전환">
+        <svg class="icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+        <svg class="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+      </button>
     </div>
     <nav class="sidebar-nav">
       <div class="nav-group">
@@ -618,6 +666,12 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         </div>
         <div class="nav-item" data-page="report" onclick="navigate('report')">
           <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>학습 리포트
+        </div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-label">실시간</div>
+        <div class="nav-item" data-page="camstudy" onclick="navigate('camstudy')">
+          <svg viewBox="0 0 24 24"><rect x="2" y="5" width="15" height="14" rx="2"/><path d="M22 8l-5 4 5 4V8z"/></svg>캠스터디
         </div>
       </div>
       <div class="nav-group">
@@ -826,6 +880,38 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         </div>
       </div>
       <div class="qna-list" id="qna-list"></div>
+    </div>
+
+    <!-- CAMSTUDY -->
+    <div class="page" id="page-camstudy">
+      <div class="page-title">캠스터디</div>
+      <div class="page-sub">친구들과 함께 화상으로 자습해요 (마이크는 꺼진 채로 시작해요)</div>
+      <div class="study-head">
+        <div class="study-count-pill"><span class="study-live-dot"></span>현재 <b id="study-count">0</b>명 참여중</div>
+        <div class="study-ctrls">
+          <button class="join" id="study-btn-join" onclick="toggleStudy()">참여하기</button>
+          <button id="study-btn-cam" onclick="toggleStudyCam()" disabled>카메라 켜기</button>
+          <button id="study-btn-flip" onclick="flipStudyCamera()" disabled>카메라 전환</button>
+          <button id="study-btn-privacy" onclick="openStudyPrivacy()" disabled>화면 가리기</button>
+        </div>
+      </div>
+      <div class="study-grid">
+        <div class="video-area" id="study-video-area">
+          <div class="jitsi-container" id="study-jitsi-container"></div>
+          <div class="study-empty" id="study-empty">
+            아직 참여하지 않았어요.<br>"참여하기"를 눌러 친구들과 함께 공부해요.
+            <small>마이크는 꺼진 채로 시작해요 · 카메라 없이도 참여 가능</small>
+          </div>
+        </div>
+        <div class="study-chat">
+          <div class="study-chat-head">채팅</div>
+          <div class="study-chat-log" id="study-chat-log"></div>
+          <div class="study-chat-input">
+            <input id="study-chat-input" placeholder="메시지 입력" onkeydown="if(event.key==='Enter')sendStudyChat()" disabled>
+            <button class="btn-primary" style="font-size:13px;padding:9px 14px" id="study-chat-send" onclick="sendStudyChat()" disabled>전송</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- SCORE CALC -->
@@ -1107,6 +1193,13 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
   <button class="timer-badge-stop" onclick="stopCurrentTimer()">
     <svg viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8" rx="1"/></svg>
   </button>
+</div>
+
+<!-- 캠스터디: 화면 가리기(집중모드) 오버레이 -->
+<div class="study-privacy" id="study-privacy">
+  <div style="font-size:15px">화면을 가리는 중이에요</div>
+  <div class="study-privacy-timer" id="study-privacy-timer">00:00</div>
+  <button class="btn-primary" onclick="closeStudyPrivacy()">돌아가기</button>
 </div>
 
 <!-- 계정 설정 모달 -->
@@ -1412,6 +1505,13 @@ async function saveSubjects(){
   subjects=buildSubjectsFromMeta(newMeta);
   await loadSubjectsFromDB();
   toast('선택과목이 변경되었습니다 ✓');
+}
+
+// ── THEME ──
+function toggleTheme(){
+  const dark=document.documentElement.dataset.theme==='dark';
+  if(dark){delete document.documentElement.dataset.theme;localStorage.setItem('theme','light')}
+  else{document.documentElement.dataset.theme='dark';localStorage.setItem('theme','dark')}
 }
 
 // ── NAVIGATION ──
@@ -2349,6 +2449,178 @@ async function fetchMealNow(){
   if(!res.ok){toast('수집 실패: '+(data.error||''));return}
   toast('급식 정보 수집 완료! 대시보드에서 확인하세요 ✓');
   loadMeal();
+}
+
+// ── CAMSTUDY (화상 자습방) ──
+let studySocket=null, studyJitsiApi=null, inStudy=false, studyPrivacyTimer=null, studyPrivacyStart=0, jitsiScriptAppId=null;
+
+function escHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+async function getStudyToken(){
+  const {data:{session}}=await sb.auth.getSession();
+  return session?.access_token||null;
+}
+
+function loadJitsiScript(appId){
+  return new Promise((resolve,reject)=>{
+    if(jitsiScriptAppId===appId && typeof JitsiMeetExternalAPI!=='undefined'){resolve();return}
+    const old=document.getElementById('jitsi-external-api');
+    if(old)old.remove();
+    const s=document.createElement('script');
+    s.id='jitsi-external-api';
+    s.src=`https://8x8.vc/${appId}/external_api.js`;
+    s.onload=()=>{jitsiScriptAppId=appId;resolve()};
+    s.onerror=()=>reject(new Error('영상 모듈을 불러오지 못했어요.'));
+    document.head.appendChild(s);
+  });
+}
+
+function connectStudySocket(token){
+  if(studySocket)return;
+  studySocket=io(SERVER_URL,{auth:{token}});
+  studySocket.on('participant-count',n=>{document.getElementById('study-count').textContent=n});
+  studySocket.on('chat',addStudyChat);
+  studySocket.on('chat-deleted',({id})=>{
+    const el=document.querySelector(`#study-chat-log [data-cid="${id}"]`);
+    if(el)el.remove();
+  });
+  studySocket.on('force-leave-study',({reason})=>{toast(reason||'다른 기기에서 입장했어요.');leaveStudy()});
+}
+
+function toggleStudy(){inStudy?leaveStudy():joinStudy()}
+
+async function joinStudy(){
+  const token=await getStudyToken();
+  if(!token){toast('로그인이 필요합니다');return}
+  const btn=document.getElementById('study-btn-join');
+  btn.textContent='입장 중...';btn.disabled=true;
+  try{
+    const res=await fetch(`${SERVER_URL}/api/study/join`,{method:'POST',headers:{Authorization:'Bearer '+token}});
+    const data=await res.json();
+    if(!res.ok)throw new Error(data.error||'입장에 실패했어요.');
+    connectStudySocket(token);
+    await startJitsi(data);
+    inStudy=true;
+    btn.textContent='나가기';btn.classList.remove('join');btn.classList.add('leave');btn.disabled=false;
+    document.getElementById('study-btn-cam').disabled=false;
+    document.getElementById('study-btn-flip').disabled=false;
+    document.getElementById('study-btn-privacy').disabled=false;
+    document.getElementById('study-chat-input').disabled=false;
+    document.getElementById('study-chat-send').disabled=false;
+    document.getElementById('study-empty').style.display='none';
+    studySocket.emit('join-study');
+  }catch(e){
+    toast(e.message||'입장에 실패했어요.');
+    btn.textContent='참여하기';btn.disabled=false;
+  }
+}
+
+async function startJitsi(cfg){
+  await loadJitsiScript(cfg.appId);
+  if(typeof JitsiMeetExternalAPI==='undefined'){toast('영상 모듈을 불러오지 못했어요. 새로고침해주세요.');return}
+  const options={
+    roomName:cfg.appId+'/'+cfg.room,
+    jwt:cfg.token,
+    parentNode:document.getElementById('study-jitsi-container'),
+    width:'100%', height:'100%', lang:'ko',
+    configOverwrite:{
+      startWithAudioMuted:true, startAudioOnly:false, startWithVideoMuted:true,
+      prejoinPageEnabled:false, prejoinConfig:{enabled:false}, requireDisplayName:false,
+      startTileView:true, disableTileView:false,
+      defaultBackground:'#f5f5f7', disableDeepLinking:true, disableSelfView:false,
+      disableReactions:true, disablePolls:true, hideConferenceSubject:true,
+      disableAddingBackgroundImages:true, hideConferenceTimer:false,
+      toolbarButtons:['camera','hangup','fullscreen','settings'], notifications:[],
+    },
+    interfaceConfigOverwrite:{
+      MOBILE_APP_PROMO:false, SHOW_JITSI_WATERMARK:false, SHOW_WATERMARK_FOR_GUESTS:false,
+      SHOW_CHROME_EXTENSION_BANNER:false, DEFAULT_BACKGROUND:'#f5f5f7',
+      DISABLE_VIDEO_BACKGROUND:false, TILE_VIEW_MAX_COLUMNS:7,
+      DISABLE_DOMINANT_SPEAKER_INDICATOR:true, DEFAULT_REMOTE_DISPLAY_NAME:'학생',
+      TOOLBAR_BUTTONS:['camera','hangup','fullscreen','settings'],
+    },
+    userInfo:{displayName:currentName||currentStudentId},
+  };
+  studyJitsiApi=new JitsiMeetExternalAPI('8x8.vc',options);
+  studyJitsiApi.addEventListener('readyToClose',()=>{if(inStudy)leaveStudy()});
+  studyJitsiApi.addEventListener('videoConferenceLeft',()=>{if(inStudy)leaveStudy()});
+  function forceTileView(){try{studyJitsiApi.executeCommand('setTileView',true)}catch(e){}}
+  studyJitsiApi.addEventListener('videoConferenceJoined',()=>{
+    forceTileView();setTimeout(forceTileView,800);setTimeout(forceTileView,2000);
+    try{studyJitsiApi.isAudioMuted().then(m=>{if(!m)studyJitsiApi.executeCommand('toggleAudio')})}catch(e){}
+  });
+  studyJitsiApi.addEventListener('tileViewChanged',e=>{if(e&&e.enabled===false)setTimeout(forceTileView,200)});
+  studyJitsiApi.addEventListener('videoMuteStatusChanged',({muted})=>{
+    const b=document.getElementById('study-btn-cam');
+    b.textContent=muted?'카메라 켜기':'카메라 끄기';
+  });
+}
+
+function toggleStudyCam(){
+  if(!studyJitsiApi)return;
+  try{studyJitsiApi.executeCommand('toggleVideo')}catch(e){}
+}
+
+let studyCamList=[],studyCamIdx=0;
+async function flipStudyCamera(){
+  if(!studyJitsiApi)return;
+  try{
+    const devices=await studyJitsiApi.getAvailableDevices();
+    const cams=(devices&&devices.videoInput)||[];
+    if(cams.length<2){toast('전환할 카메라가 없어요.');return}
+    studyCamList=cams;studyCamIdx=(studyCamIdx+1)%cams.length;
+    const next=cams[studyCamIdx];
+    studyJitsiApi.setVideoInputDevice(next.label,next.deviceId);
+    toast('카메라를 전환했어요.');
+  }catch(e){toast('카메라 전환에 실패했어요.')}
+}
+
+function leaveStudy(){
+  inStudy=false;
+  if(studySocket)studySocket.emit('leave-study');
+  if(studyJitsiApi){try{studyJitsiApi.dispose()}catch(e){} studyJitsiApi=null}
+  document.getElementById('study-jitsi-container').innerHTML='';
+  const btn=document.getElementById('study-btn-join');
+  btn.textContent='참여하기';btn.classList.add('join');btn.classList.remove('leave');btn.disabled=false;
+  document.getElementById('study-btn-cam').disabled=true;
+  document.getElementById('study-btn-cam').textContent='카메라 켜기';
+  document.getElementById('study-btn-flip').disabled=true;
+  document.getElementById('study-btn-privacy').disabled=true;
+  document.getElementById('study-chat-input').disabled=true;
+  document.getElementById('study-chat-send').disabled=true;
+  document.getElementById('study-empty').style.display='flex';
+  closeStudyPrivacy();
+}
+
+function sendStudyChat(){
+  const i=document.getElementById('study-chat-input');
+  const t=i.value.trim();
+  if(!t||!studySocket)return;
+  studySocket.emit('chat',{text:t});
+  i.value='';
+}
+
+function addStudyChat(m){
+  const log=document.getElementById('study-chat-log');
+  const d=document.createElement('div');
+  if(m.id)d.setAttribute('data-cid',m.id);
+  if(m.system){d.className='study-cmsg system';d.textContent=m.text}
+  else{d.className='study-cmsg';d.innerHTML=`<span class="who">${escHtml(m.nickname)}</span>${escHtml(m.text)}`}
+  log.appendChild(d);
+  log.scrollTop=log.scrollHeight;
+}
+
+function openStudyPrivacy(){
+  document.getElementById('study-privacy').classList.add('open');
+  studyPrivacyStart=Date.now();
+  studyPrivacyTimer=setInterval(()=>{
+    const s=Math.floor((Date.now()-studyPrivacyStart)/1000);
+    document.getElementById('study-privacy-timer').textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+  },500);
+}
+function closeStudyPrivacy(){
+  document.getElementById('study-privacy').classList.remove('open');
+  clearInterval(studyPrivacyTimer);
 }
 
 async function createAccount(){

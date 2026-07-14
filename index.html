@@ -497,6 +497,9 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .admin-btn.promote{background:rgba(0,102,204,.08);color:var(--blue);border-color:rgba(0,102,204,.2)}
 .admin-btn.demote{background:rgba(200,0,0,.06);color:#c00;border-color:rgba(200,0,0,.18)}
 .admin-btn.reset{background:rgba(245,166,35,.08);color:#b37800;border-color:rgba(245,166,35,.25)}
+.cam-pill{font-size:10px;font-weight:700;padding:2px 8px;border-radius:var(--radius-pill)}
+.cam-pill.allowed{background:rgba(46,204,113,.12);color:#1a9c53}
+.cam-pill.blocked{background:var(--parchment);color:var(--ink-48)}
 .admin-actions{display:flex;gap:5px;flex-wrap:wrap}
 
 /* COMMENTS */
@@ -1168,11 +1171,12 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
                 <th>이름</th>
                 <th>선택과목</th>
                 <th>역할</th>
+                <th>캠스터디</th>
                 <th>작업</th>
               </tr>
             </thead>
             <tbody id="admin-table-body">
-              <tr><td colspan="5" style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">로딩 중...</td></tr>
+              <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">로딩 중...</td></tr>
             </tbody>
           </table>
         </div>
@@ -2347,7 +2351,7 @@ let allAccounts=[];
 
 async function loadAdminList(){
   if(currentRole!=='admin'&&currentRole!=='owner'){toast('권한이 없습니다');return}
-  document.getElementById('admin-table-body').innerHTML='<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">로딩 중...</td></tr>';
+  document.getElementById('admin-table-body').innerHTML='<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">로딩 중...</td></tr>';
 
   // 서버 API로 전체 계정 목록 가져오기 (이름 포함)
   const [usersRes, rolesRes] = await Promise.all([
@@ -2362,8 +2366,8 @@ async function loadAdminList(){
   const usersData = await usersRes.json();
   if(!usersRes.ok){toast('계정 목록 로드 실패: '+(usersData.error||''));return}
 
-  const roleMap={};
-  (rolesRes.data||[]).forEach(r=>roleMap[r.student_id]=r.role);
+  const roleMap={}, camMap={};
+  (rolesRes.data||[]).forEach(r=>{roleMap[r.student_id]=r.role;camMap[r.student_id]=!!r.cam_allowed});
 
   // 서버에서 받은 유저 + 없는 학번은 기본값으로 채우기
   const serverMap={};
@@ -2380,7 +2384,8 @@ async function loadAdminList(){
       suneung_math:u?.suneung_math||'—',
       suneung_exp1:u?.suneung_exp1||'—',
       suneung_exp2:u?.suneung_exp2||'—',
-      role:roleMap[sid]||'student'
+      role:roleMap[sid]||'student',
+      cam_allowed:camMap[sid]||false
     });
   }
   renderAdminTable(allAccounts);
@@ -2397,11 +2402,22 @@ function filterAdminList(){
 function renderAdminTable(list){
   const isOwner=currentRole==='owner';
   const tbody=document.getElementById('admin-table-body');
-  if(!list.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">결과 없음</td></tr>';return}
+  if(!list.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">결과 없음</td></tr>';return}
+  const canManageCam=currentRole==='admin'||currentRole==='owner';
   tbody.innerHTML=list.map(a=>{
     const isMe=a.student_id===currentStudentId;
     const rolePill=`<span class="role-pill ${a.role}">${a.role==='owner'?'운영자':a.role==='admin'?'관리자':'학생'}</span>`;
     const subjectInfo=a.suneung_kor!=='—'?`${a.suneung_kor} / ${a.suneung_math} / ${a.suneung_exp1} · ${a.suneung_exp2}`:'—';
+    const isStaff=a.role==='admin'||a.role==='owner';
+    let camCell;
+    if(isStaff){
+      camCell=`<span class="cam-pill allowed">항상 허용</span>`;
+    }else{
+      const pill=`<span class="cam-pill ${a.cam_allowed?'allowed':'blocked'}">${a.cam_allowed?'허용됨':'차단됨'}</span>`;
+      camCell=canManageCam
+        ? `${pill} <button class="admin-btn ${a.cam_allowed?'demote':'promote'}" style="margin-left:6px" onclick="toggleCamAllowed('${a.student_id}',${!a.cam_allowed})">${a.cam_allowed?'차단':'허용'}</button>`
+        : pill;
+    }
     let actions='';
     if(!isMe){
       actions+=`<button class="admin-btn reset" onclick="resetPassword('${a.student_id}')">비번 초기화</button>`;
@@ -2418,9 +2434,19 @@ function renderAdminTable(list){
       <td>${a.name}</td>
       <td style="font-size:12px;color:var(--ink-48)">${subjectInfo}</td>
       <td>${rolePill}</td>
+      <td>${camCell}</td>
       <td><div class="admin-actions">${actions}</div></td>
     </tr>`;
   }).join('');
+}
+
+async function toggleCamAllowed(sid,allowed){
+  if(currentRole!=='admin'&&currentRole!=='owner'){toast('권한이 없습니다');return}
+  if(!confirm(`${sid}번의 캠스터디 이용을 ${allowed?'허용':'차단'}할까요?`))return;
+  const {error}=await sb.from('user_roles').upsert({student_id:sid,cam_allowed:allowed});
+  if(error){toast('변경 실패: '+error.message);return}
+  toast(`${sid}번 캠스터디 ${allowed?'허용':'차단'} 완료 ✓`);
+  loadAdminList();
 }
 
 async function fetchNewsNow(){

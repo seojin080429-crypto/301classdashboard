@@ -397,6 +397,21 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .progress-val{font-size:12px;font-weight:600;color:var(--ink-48)}
 .progress-track{height:4px;background:var(--hairline);border-radius:2px;overflow:hidden}
 .progress-fill{height:100%;border-radius:2px;transition:width .4s ease}
+.band-graph{display:flex;width:100%;height:28px;border-radius:var(--radius-sm);overflow:hidden;background:var(--hairline)}
+.band-segment{height:100%;transition:width .4s ease}
+.band-legend{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.band-legend-item{display:flex;align-items:center;gap:8px}
+.band-legend-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.band-legend-name{font-size:13px;color:var(--ink);flex:1}
+.band-legend-val{font-size:12px;font-weight:600;color:var(--ink-48)}
+
+/* FAVORITES */
+.favorite-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.favorite-card{display:flex;align-items:center;gap:12px;background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--radius-lg);padding:16px;transition:border-color var(--t),opacity var(--t)}
+.favorite-card:hover{border-color:var(--blue);opacity:.85}
+.favorite-icon{width:40px;height:40px;border-radius:var(--radius-sm);background:var(--parchment);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.favorite-name{font-size:14px;font-weight:600;color:var(--ink)}
+.favorite-desc{font-size:12px;color:var(--ink-48)}
 .rank-list{display:flex;flex-direction:column;gap:5px}
 .rank-row{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--parchment);border-radius:var(--radius-sm);border:1px solid transparent}
 .rank-row.me{border-color:var(--blue);background:rgba(0,102,204,.04)}
@@ -696,6 +711,12 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">
           <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>대시보드
         </div>
+        <div class="nav-item" data-page="notice" onclick="navigate('notice')">
+          <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>공지사항
+        </div>
+        <div class="nav-item" data-page="favorites" onclick="navigate('favorites')">
+          <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>즐겨찾기
+        </div>
       </div>
       <div class="nav-group">
         <div class="nav-group-label">학습</div>
@@ -790,10 +811,30 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
       <div class="spacer">
         <div class="section-hd">
           <div class="section-hd-title">공지사항</div>
-          <span class="section-hd-link" id="notice-write-btn" style="display:none" onclick="openNoticeModal()">+ 공지 작성</span>
+          <span class="section-hd-link" onclick="navigate('notice')">전체보기 →</span>
         </div>
         <div class="card" style="padding:0 20px"><div class="notice-list" id="dash-notices"></div></div>
       </div>
+    </div>
+
+    <!-- NOTICE -->
+    <div class="page" id="page-notice">
+      <div class="page-title">공지사항</div>
+      <div class="page-sub">학급 공지사항을 확인하세요</div>
+      <div class="spacer">
+        <div class="section-hd">
+          <div class="section-hd-title">전체 공지</div>
+          <span class="section-hd-link" id="notice-write-btn-page" style="display:none" onclick="openNoticeModal()">+ 공지 작성</span>
+        </div>
+        <div class="card" style="padding:0 20px"><div class="notice-list" id="notice-page-list"></div></div>
+      </div>
+    </div>
+
+    <!-- FAVORITES -->
+    <div class="page" id="page-favorites">
+      <div class="page-title">즐겨찾기</div>
+      <div class="page-sub">자주 방문하는 사이트로 바로 이동하세요</div>
+      <div class="favorite-grid" id="favorite-grid"></div>
     </div>
 
     <!-- PLANNER -->
@@ -862,7 +903,8 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 
         <div>
             <div class="section-hd"><div class="section-hd-title" style="font-size: 16px;">과목별 비율</div></div>
-            <div class="progress-stack" id="subject-progress"></div>
+            <div class="band-graph" id="subject-band"></div>
+            <div class="band-legend" id="subject-band-legend"></div>
         </div>
       </div>
       <div class="spacer">
@@ -1485,7 +1527,7 @@ async function initApp(user,sid,name){
   const g=h<12?'좋은 아침이에요':h<18?'안녕하세요':'수고하세요';
   document.getElementById('dash-greeting').textContent=`${g}, ${name||sid+'번'}!`;
   populateMypage(meta,name,sid);
-  updateDday();renderTimetable();loadMeal();loadNotices();renderNews();initCalc();
+  updateDday();renderTimetable();loadMeal();loadNotices();renderNews();initCalc();renderFavorites();
   loadFreeBoard();loadQnaBoard();
   subjects=buildSubjectsFromMeta(meta);
   await loadTodaySessions();
@@ -1628,28 +1670,40 @@ async function loadMeal(){
 
 // ── NOTICES (관리자/운영자 작성) ──
 async function loadNotices(){
-  const el=document.getElementById('dash-notices');
-  const {data,error}=await sb.from('notices').select('*').order('created_at',{ascending:false}).limit(15);
-  if(error){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">공지사항을 불러올 수 없습니다</div>';return}
-  if(!data||!data.length){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">등록된 공지사항이 없습니다</div>';return}
+  const dashEl=document.getElementById('dash-notices');
+  const pageEl=document.getElementById('notice-page-list');
+  const {data,error}=await sb.from('notices').select('*').order('created_at',{ascending:false}).limit(30);
+  if(error){
+    const msg='<div style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">공지사항을 불러올 수 없습니다</div>';
+    if(dashEl)dashEl.innerHTML=msg;if(pageEl)pageEl.innerHTML=msg;
+    return;
+  }
+  if(!data||!data.length){
+    const msg='<div style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">등록된 공지사항이 없습니다</div>';
+    if(dashEl)dashEl.innerHTML=msg;if(pageEl)pageEl.innerHTML=msg;
+    return;
+  }
   const canManage=currentRole==='admin'||currentRole==='owner'||currentRole==='teacher';
-  el.innerHTML=data.map(n=>{
+  const renderList=(list,prefix)=>list.map(n=>{
     const created=new Date(n.created_at);
     const isNew=(Date.now()-created.getTime())<1000*60*60*24*3; // 3일 이내
     const dateStr=created.toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'}).replace(/\. /g,'.');
+    const uid=`${prefix}-${n.id}`;
     const delBtn=canManage?`<button class="notice-del-btn" onclick="deleteNotice(event,'${n.id}')">삭제</button>`:'';
     return`<div class="notice-item">
-      <div class="notice-item-row" onclick="toggleNotice('${n.id}')">
+      <div class="notice-item-row" onclick="toggleNotice('${uid}')">
         <div class="notice-icon">📋</div>
         <div class="notice-title">${n.title}${isNew?'<span class="badge-new">NEW</span>':''}</div>
         <div class="notice-date">${dateStr}</div>
       </div>
-      <div class="notice-content" id="notice-content-${n.id}">
+      <div class="notice-content" id="notice-content-${uid}">
         ${n.content}
         <div class="notice-meta-row"><span class="notice-author">${n.author_name} 작성</span>${delBtn}</div>
       </div>
     </div>`;
   }).join('');
+  if(dashEl)dashEl.innerHTML=renderList(data.slice(0,5),'dash');
+  if(pageEl)pageEl.innerHTML=renderList(data,'page');
 }
 
 function toggleNotice(id){
@@ -1688,6 +1742,24 @@ async function deleteNotice(event,id){
   if(error){toast('삭제 실패: '+error.message);return}
   toast('삭제되었습니다');
   await loadNotices();
+}
+
+// ── FAVORITES (바로가기) ──
+const FAVORITE_LINKS=[
+  {name:'대학어디가',desc:'대입정보포털',icon:'🎓',url:'https://www.adiga.kr/man/inf/mainView.do?menuId=PCMANINF1000'},
+  {name:'리로스쿨',desc:'학교 생활 시스템',icon:'🏫',url:'https://bg.riroschool.kr/'},
+  {name:'Gemini',desc:'AI 어시스턴트',icon:'✨',url:'https://gemini.google.com/'},
+  {name:'메가스터디',desc:'인터넷 강의',icon:'📚',url:'https://www.megastudy.net/megastudy.asp'},
+  {name:'대성마이맥',desc:'인터넷 강의',icon:'📖',url:'https://www.mimacstudy.com/main/main.ds'},
+  {name:'EBSi',desc:'EBS 강의',icon:'📺',url:'https://www.ebsi.co.kr/ebs/pot/poti/main.ebs'},
+];
+function renderFavorites(){
+  document.getElementById('favorite-grid').innerHTML=FAVORITE_LINKS.map(f=>
+    `<a class="favorite-card" href="${f.url}" target="_blank" rel="noopener noreferrer">
+      <div class="favorite-icon">${f.icon}</div>
+      <div><div class="favorite-name">${f.name}</div><div class="favorite-desc">${f.desc}</div></div>
+    </a>`
+  ).join('');
 }
 
 // ── PLANNER DATE ──
@@ -2228,10 +2300,22 @@ function renderReport(weekMins = [], rankByStudent = {}){
     return`<div class="week-bar-wrap"><div class="week-bar${m>0?' has-data':''}${isToday?' today':''}" style="height:${h}px"></div></div>`;
   }).join('') || '<div style="text-align:center;padding:16px;color:var(--ink-48);font-size:13px">이번 주 기록 없음</div>';
   const total=subjects.reduce((s,sub)=>s+sub.tasks.reduce((a,t)=>a+t.seconds,0),0)||1;
-  document.getElementById('subject-progress').innerHTML=subjects.map(sub=>{
-    const sec=sub.tasks.reduce((s,t)=>s+t.seconds,0);const pct=Math.round((sec/total)*100);
-    return`<div class="progress-item"><div class="progress-meta"><span class="progress-label">${sub.name}</span><span class="progress-val">${fmtHM(sec)}</span></div><div class="progress-track"><div class="progress-fill" style="width:${pct}%;background:${sub.color}"></div></div></div>`;
-  }).join('')||'<div style="text-align:center;padding:16px;color:var(--ink-48);font-size:13px">기록 없음</div>';
+  const bandEl=document.getElementById('subject-band');
+  const legendEl=document.getElementById('subject-band-legend');
+  const subjWithTime=subjects.map(sub=>({name:sub.name,color:sub.color,sec:sub.tasks.reduce((s,t)=>s+t.seconds,0)})).filter(s=>s.sec>0);
+  if(!subjWithTime.length){
+    bandEl.innerHTML='';
+    legendEl.innerHTML='<div style="text-align:center;padding:16px;color:var(--ink-48);font-size:13px">기록 없음</div>';
+  }else{
+    bandEl.innerHTML=subjWithTime.map(s=>{
+      const pct=(s.sec/total)*100;
+      return`<div class="band-segment" style="width:${pct}%;background:${s.color}" title="${s.name} ${Math.round(pct)}%"></div>`;
+    }).join('');
+    legendEl.innerHTML=subjWithTime.map(s=>{
+      const pct=Math.round((s.sec/total)*100);
+      return`<div class="band-legend-item"><span class="band-legend-dot" style="background:${s.color}"></span><span class="band-legend-name">${s.name}</span><span class="band-legend-val">${fmtHM(s.sec)} · ${pct}%</span></div>`;
+    }).join('');
+  }
   
   const sortedRank = Object.entries(rankByStudent).sort((a, b) => b[1] - a[1]);
   const maxR = sortedRank[0]?.[1] || 1;
@@ -2432,7 +2516,7 @@ async function loadMyRole(){
   const isStaff = ['admin','owner','teacher'].includes(currentRole);
   if(isStaff){
     document.getElementById('nav-admin').style.display='flex';
-    const noticeBtn=document.getElementById('notice-write-btn');
+    const noticeBtn=document.getElementById('notice-write-btn-page');
     if(noticeBtn)noticeBtn.style.display='inline';
     const mealCard=document.getElementById('admin-meal-card');
     if(mealCard)mealCard.style.display='block';

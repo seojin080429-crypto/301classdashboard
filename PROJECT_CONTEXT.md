@@ -62,7 +62,8 @@
   체크로만 게이팅되는, 이 프로젝트의 기존 컨벤션 — `study_sessions`처럼 `auth.uid()` 기반으로
   진짜 제한하는 테이블도 있으니 새 테이블 만들 때 어느 쪽이 맞는지 판단할 것).
 - `user_devices` — 계정당 등록 기기 수 제한(기본 2대) 기능용. `student_id`+`device_id`(브라우저
-  localStorage에 저장된 UUID) unique. 로그인 시 `checkDeviceLimit()`이 체크.
+  localStorage에 저장된 UUID) unique. **로그인 자체는 무제한**이고, 캠스터디 입장(`joinStudy()`)
+  시점에만 `checkDeviceLimit()`이 체크함(2026-07-14에 로그인 게이트에서 이쪽으로 옮김).
 - `user_profiles` — `student_id`(PK) / `user_id` / `display_name` / `avatar_url`. 친구 랭킹 등
   학급 전체에 실명·프로필사진을 보여주기 위한 테이블. RLS는 SELECT는 전체 공개(`true`), 쓰기는
   `study_sessions`처럼 `auth.uid() = user_id`로 본인만 가능하게 제한(진짜 보안 정책). 로그인
@@ -98,6 +99,10 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-07-14: 기기제한 위치 변경. 원래 로그인 성공 직후 `doLogin()`에서 `checkDeviceLimit()`을
+  불러서 미등록 3번째 기기는 로그인 자체를 막았는데, 요구사항이 "로그인은 무제한, 캠스터디
+  입장만 기기 수 제한"으로 바뀌어서 체크 위치를 `joinStudy()` 시작 부분으로 옮김. 등록/판정
+  로직(`checkDeviceLimit`, `user_devices` 테이블)은 그대로 재사용.
 - 2026-07-14: 선생님 학생 상세 학습현황 + 학생 본인 계획 이수 현황을 **월간 캘린더**로 추가.
   (처음엔 좁은 모달 안에 7일치만 보여주는 주간 리스트로 만들었다가, 사용자가 참고 이미지로
   보내준 "달력 형태"(요일 헤더 + 날짜별 그리드, 앞뒤 달 여백 포함)에 맞춰 다시 만들었음 —

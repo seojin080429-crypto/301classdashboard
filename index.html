@@ -3257,12 +3257,9 @@ async function renderMonthCalendar(prefix,userId,year,month){
     for(let i=0;i<dates.length;i+=7)weeks.push(dates.slice(i,i+7));
     const rows=weeks.map((week,wi)=>{
       const sec=week.reduce((a,d)=>a+(secByDate[ymdLocal(d)]||0),0);
-      const dayTasksArr=week.map(d=>tasksByDate[ymdLocal(d)]||[]);
-      const done=dayTasksArr.reduce((a,list)=>a+list.filter(t=>t.is_done).length,0);
-      const total=dayTasksArr.reduce((a,list)=>a+list.length,0);
-      return `<tr><td style="text-align:left;color:var(--ink-48)">${wi+1}주차 (${week[0].getMonth()+1}.${week[0].getDate()}~${week[6].getMonth()+1}.${week[6].getDate()})</td><td>${fmtHM(sec)}</td><td>${total?`${done}/${total} (${Math.round(done/total*100)}%)`:'—'}</td></tr>`;
+      return `<tr><td style="text-align:left;color:var(--ink-48)">${wi+1}주차 (${week[0].getMonth()+1}.${week[0].getDate()}~${week[6].getMonth()+1}.${week[6].getDate()})</td><td>${fmtHM(sec)}</td></tr>`;
     }).join('');
-    statsEl.innerHTML=`<thead><tr><th style="text-align:left">주차</th><th>공부 시간</th><th>계획 이수</th></tr></thead><tbody>${rows}</tbody>`;
+    statsEl.innerHTML=`<thead><tr><th style="text-align:left">주차</th><th>공부 시간</th></tr></thead><tbody>${rows}</tbody>`;
   }
 }
 

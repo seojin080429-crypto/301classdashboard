@@ -98,14 +98,19 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
-- 2026-07-14: 선생님 학생 상세 학습현황 + 학생 본인 주간 계획 이수 캘린더 추가.
-  - 선생님 탭 학생 카드를 클릭하면 모달(`student-detail-modal`)로 주간 캘린더(요일별 계획
-    목록 + 완료 체크, 과목은 이름 해시 기반 색상 점) + 요일별 공부시간/계획이수 표를 볼 수
-    있음. 이전/다음주 이동 가능(`openStudentDetail`/`shiftStudentDetailWeek`).
-  - 학생 본인도 학습 플래너 하단에 동일한 형태의 "이번주 계획 이수 현황"을 볼 수 있음(읽기전용,
-    `renderMyWeekCalendar`/`shiftMyPlannerWeek`).
-  - 공용 렌더 함수 `renderWeekCalendar(prefix,userId,weekStart)` 하나를 두 곳에서 재사용
-    (prefix로 DOM id만 분리 — 학생용은 `pw-`, 선생님용은 `sd-`).
+- 2026-07-14: 선생님 학생 상세 학습현황 + 학생 본인 계획 이수 현황을 **월간 캘린더**로 추가.
+  (처음엔 좁은 모달 안에 7일치만 보여주는 주간 리스트로 만들었다가, 사용자가 참고 이미지로
+  보내준 "달력 형태"(요일 헤더 + 날짜별 그리드, 앞뒤 달 여백 포함)에 맞춰 다시 만들었음 —
+  다음에 비슷한 요청이 오면 처음부터 월간 캘린더로 잡을 것.)
+  - 선생님 탭 학생 카드를 클릭하면 전체화면 오버레이(`#student-detail-fullscreen`)로 해당
+    학생의 월간 캘린더(날짜별 계획 목록 + 완료 체크, 과목은 이름 해시 기반 색상 점) + 주차별
+    공부시간/계획이수율 표를 볼 수 있음. 이전/다음 달 이동 가능
+    (`openStudentDetail`/`shiftStudentDetailMonth`).
+  - 학생 본인도 학습 플래너 하단에 동일한 형태의 "계획 이수 현황" 카드가 있음(읽기전용,
+    `renderMyMonthCalendar`/`shiftMyPlannerMonth`).
+  - 공용 렌더 함수 `renderMonthCalendar(prefix,userId,year,month)` 하나를 두 곳에서 재사용
+    (prefix로 DOM id만 분리 — 학생용은 `pw-`, 선생님용은 `sd-`). 날짜 그리드는
+    `getMonthGridDates()`가 월요일 시작 기준으로 앞뒤 달 여백까지 채워서 7의 배수로 반환.
   - `study_tasks`가 `study_sessions`와 달리 "본인만 조회 가능" RLS였어서 선생님이 다른 학생
     계획을 못 보는 문제가 있었음 → "class can view all" SELECT 정책 추가로 해결(위 스키마
     섹션 참고).

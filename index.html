@@ -230,9 +230,10 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 #toast.show{transform:translateX(-50%) translateY(0);opacity:1}
 
 /* MODAL */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:200;padding:20px;overflow-y:auto}
-.modal-overlay.open{display:flex}
-.modal{background:var(--canvas);border-radius:var(--radius-lg);padding:28px;width:100%;max-width:400px;max-height:calc(100vh - 40px);max-height:calc(100dvh - 40px);overflow-y:auto;box-shadow:0 8px 60px rgba(0,0,0,.15);margin:auto}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;overflow-y:auto;opacity:0;pointer-events:none;transition:opacity .18s ease}
+.modal-overlay.open{opacity:1;pointer-events:auto}
+.modal{background:var(--canvas);border-radius:var(--radius-lg);padding:28px;width:100%;max-width:400px;max-height:calc(100vh - 40px);max-height:calc(100dvh - 40px);overflow-y:auto;box-shadow:0 8px 60px rgba(0,0,0,.15);margin:auto;transform:scale(.96);transition:transform .18s ease}
+.modal-overlay.open .modal{transform:scale(1)}
 .modal-title{font-size:18px;font-weight:600;letter-spacing:-.022em;margin-bottom:20px;color:var(--ink)}
 .modal-close{float:right;color:var(--ink-48);font-size:20px;cursor:pointer;background:none;border:none;margin-top:-4px}
 .modal-field{margin-bottom:12px}
@@ -240,7 +241,8 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .modal-input{width:100%;padding:9px 13px;border:1px solid var(--hairline);border-radius:var(--radius-md);font-size:.94rem;color:var(--ink);background:var(--canvas);transition:border-color var(--t)}
 .modal-input:focus{border-color:var(--blue-focus);box-shadow:0 0 0 3px rgba(0,102,204,.12)}
 .modal-actions{display:flex;gap:8px;margin-top:20px}
-.btn-ghost{padding:9px 18px;background:var(--parchment);color:var(--ink-80);font-size:14px;border-radius:var(--radius-pill);border:1px solid var(--hairline);transition:background var(--t)}
+.btn-ghost{padding:9px 18px;background:var(--parchment);color:var(--ink-80);font-size:14px;border-radius:var(--radius-pill);border:1px solid var(--hairline);transition:background var(--t),transform var(--t)}
+.btn-ghost:active{transform:scale(.96)}
 .btn-ghost:hover{background:var(--hairline)}
 .btn-danger{padding:9px 18px;background:rgba(200,0,0,.08);color:#c00;font-size:14px;border-radius:var(--radius-pill);border:1px solid rgba(200,0,0,.2)}
 .btn-danger:hover{background:rgba(200,0,0,.14)}
@@ -282,8 +284,11 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .task-time{font-size:12px;font-weight:600;color:var(--ink-48);font-variant-numeric:tabular-nums;min-width:52px;text-align:right}
 .task-time.running{color:var(--blue)}
 .task-done-check{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--hairline);flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all var(--t)}
-.task-done-check.checked{background:var(--blue);border-color:var(--blue)}
+.task-done-check:hover{border-color:var(--blue)}
+.task-done-check:active{transform:scale(.85)}
+.task-done-check.checked{background:var(--blue);border-color:var(--blue);animation:task-check-pop .28s ease}
 .task-done-check.checked::after{content:'';display:block;width:4px;height:7px;border:1.5px solid #fff;border-top:none;border-left:none;transform:rotate(42deg) translate(0,-1px)}
+@keyframes task-check-pop{0%{transform:scale(.7)}55%{transform:scale(1.18)}100%{transform:scale(1)}}
 .task-del-btn{color:var(--ink-48);font-size:14px;padding:0 2px;background:none;border:none;cursor:pointer;opacity:0;transition:opacity var(--t),color var(--t)}
 .task-row:hover .task-del-btn{opacity:1}
 .task-del-btn:hover{color:#c00}
@@ -517,8 +522,10 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 
 /* TEACHER VIEW */
 .teacher-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
-.student-card{background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--radius-lg);padding:16px;transition:border-color var(--t)}
+.student-card{background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--radius-lg);padding:16px;cursor:pointer;transition:border-color var(--t),transform var(--t),box-shadow var(--t)}
 .student-card.studying{border-color:var(--green)}
+.student-card:hover{border-color:var(--blue);transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.08)}
+.student-card:active{transform:translateY(0) scale(.99)}
 .student-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
 .student-avatar{width:36px;height:36px;border-radius:50%;background:#1d1d1f;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:#fff;flex-shrink:0}
 .student-name{font-size:15px;font-weight:600;color:var(--ink)}
@@ -531,8 +538,6 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .student-info-val{font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .student-info-val.time{font-variant-numeric:tabular-nums}
 .student-info-val.placeholder{color:var(--ink-48);font-weight:400}
-.student-card{cursor:pointer}
-.student-card:hover{border-color:var(--blue)}
 
 /* MONTHLY PLAN CALENDAR (선생님 학생 상세 + 학생 본인 플래너 공용) */
 .mcal-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin:18px 0 12px}
@@ -557,6 +562,9 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .mcal-task-chk{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--ink-48);margin-left:9px}
 .mcal-task-chk input{width:11px;height:11px;accent-color:var(--blue);flex-shrink:0}
 .mcal-task-chk input:checked{accent-color:var(--green-dark)}
+#mp-avatar{transition:transform var(--t),opacity var(--t)}
+#mp-avatar:hover{transform:scale(1.05);opacity:.9}
+#mp-avatar:active{transform:scale(.95)}
 .mcal-stats-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:16px}
 .mcal-stats-table th,.mcal-stats-table td{padding:8px 6px;text-align:center;border-bottom:1px solid var(--hairline);white-space:nowrap}
 .mcal-stats-table th{color:var(--ink-48);font-weight:600;font-size:11px}
@@ -582,8 +590,9 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .role-pill.teacher{background:rgba(46,204,113,.12);color:#1a9c53}
 .role-pill.admin{background:rgba(0,102,204,.1);color:var(--blue)}
 .role-pill.student{background:var(--parchment);color:var(--ink-48)}
-.admin-btn{font-size:11px;font-weight:600;padding:4px 10px;border-radius:var(--radius-pill);border:1px solid;cursor:pointer;transition:opacity var(--t);white-space:nowrap}
+.admin-btn{font-size:11px;font-weight:600;padding:4px 10px;border-radius:var(--radius-pill);border:1px solid;cursor:pointer;transition:opacity var(--t),transform var(--t);white-space:nowrap}
 .admin-btn:hover{opacity:.75}
+.admin-btn:active{transform:scale(.94)}
 .admin-btn.promote{background:rgba(0,102,204,.08);color:var(--blue);border-color:rgba(0,102,204,.2)}
 .admin-btn.demote{background:rgba(200,0,0,.06);color:#c00;border-color:rgba(200,0,0,.18)}
 .admin-btn.reset{background:rgba(245,166,35,.08);color:#b37800;border-color:rgba(245,166,35,.25)}

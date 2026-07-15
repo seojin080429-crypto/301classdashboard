@@ -489,6 +489,25 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .band-legend-name{font-size:13px;color:var(--ink);flex:1}
 .band-legend-val{font-size:12px;font-weight:600;color:var(--ink-48)}
 
+/* TIMER */
+.timer-card{text-align:center;padding:40px 24px}
+.timer-display{font-size:56px;font-weight:600;letter-spacing:-.02em;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1}
+.timer-subrow{display:flex;justify-content:center;gap:28px;margin:16px 0 24px;font-size:13px;color:var(--ink-48)}
+.timer-subrow-label{margin-right:6px}
+.timer-subrow-val{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.timer-preset-row{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.timer-preset-btn{padding:10px 18px;border-radius:var(--radius-pill);border:1px solid var(--hairline);background:var(--parchment);color:var(--ink-80);font-size:14px;transition:all var(--t)}
+.timer-preset-btn:hover{border-color:var(--blue);color:var(--blue)}
+.timer-custom-row{display:flex;justify-content:center;gap:8px;margin-top:12px}
+.timer-custom-row .modal-input{max-width:150px}
+.timer-hint{margin-top:18px}
+.timer-actions{display:flex;justify-content:center;gap:10px;margin-top:20px}
+.timer-alarm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:600;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:#fff;text-align:center;padding:20px}
+.timer-alarm-overlay.open{display:flex}
+.timer-alarm-icon{font-size:64px;animation:timer-alarm-shake .6s ease-in-out infinite}
+.timer-alarm-title{font-size:22px;font-weight:600}
+@keyframes timer-alarm-shake{0%,100%{transform:rotate(0)}25%{transform:rotate(-10deg)}75%{transform:rotate(10deg)}}
+
 /* FAVORITES */
 .favorite-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
 .favorite-card{display:flex;align-items:center;gap:12px;background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--radius-lg);padding:16px;transition:border-color var(--t),opacity var(--t),transform var(--t),box-shadow var(--t);animation:item-in .28s ease both}
@@ -859,6 +878,9 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         <div class="nav-item" data-page="report" onclick="navigate('report')">
           <svg viewBox="0 0 24 24" style="stroke:#8b5cf6"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>학습 리포트
         </div>
+        <div class="nav-item" data-page="timer" onclick="navigate('timer')">
+          <svg viewBox="0 0 24 24" style="stroke:#f59e0b"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>타이머
+        </div>
         <div class="nav-item" data-page="simo" onclick="navigate('simo')" id="nav-simo" style="display:none">
           <svg viewBox="0 0 24 24" style="stroke:#14b8a6"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>실모반
         </div>
@@ -1133,6 +1155,68 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
       <div class="spacer">
         <div class="section-hd"><div class="section-hd-title">반 랭킹</div></div>
         <div class="card" style="padding:14px 20px"><div class="rank-list" id="rank-list"></div></div>
+      </div>
+    </div>
+
+    <!-- TIMER -->
+    <div class="page" id="page-timer">
+      <div class="page-title">타이머</div>
+      <div class="page-sub">쪽잠, 모의고사, 자유 학습에 맞는 타이머예요</div>
+      <div class="view-toggle" style="margin-bottom:16px">
+        <button class="view-btn active" id="timer-tab-nap" onclick="switchTimerTab('nap')">쪽잠 알림</button>
+        <button class="view-btn" id="timer-tab-exam" onclick="switchTimerTab('exam')">모의고사용 알림</button>
+        <button class="view-btn" id="timer-tab-stopwatch" onclick="switchTimerTab('stopwatch')">스톱워치</button>
+      </div>
+
+      <!-- 쪽잠 알림 -->
+      <div id="timer-view-nap">
+        <div class="card timer-card">
+          <div class="timer-display" id="nap-display">0:00</div>
+          <div class="timer-subrow">
+            <div><span class="timer-subrow-label">걸린 시간</span><span class="timer-subrow-val" id="nap-elapsed">0:00</span></div>
+            <div><span class="timer-subrow-label">남은 시간</span><span class="timer-subrow-val" id="nap-remaining">0:00</span></div>
+          </div>
+          <div class="timer-preset-row" id="nap-preset-row">
+            <button class="timer-preset-btn" onclick="startNapTimer(10)">10분</button>
+            <button class="timer-preset-btn" onclick="startNapTimer(15)">15분</button>
+            <button class="timer-preset-btn" onclick="startNapTimer(20)">20분</button>
+            <button class="timer-preset-btn" onclick="startNapTimer(30)">30분</button>
+          </div>
+          <div class="timer-custom-row" id="nap-custom-row">
+            <input type="number" class="modal-input" id="nap-custom-min" placeholder="직접 입력(분)" min="1" max="180">
+            <button class="btn-primary" onclick="startNapCustom()">시작</button>
+          </div>
+          <button class="btn-danger" id="nap-cancel-btn" onclick="cancelTimer('nap')" style="display:none;margin-top:14px">취소</button>
+          <div class="card-sub timer-hint">🎧 알림음이 주변에 방해되지 않도록 이어폰을 착용한 상태에서 사용해주세요.</div>
+        </div>
+      </div>
+
+      <!-- 모의고사용 알림 -->
+      <div id="timer-view-exam" style="display:none">
+        <div class="card timer-card">
+          <div class="timer-display" id="exam-display">0:00</div>
+          <div class="timer-subrow">
+            <div><span class="timer-subrow-label">걸린 시간</span><span class="timer-subrow-val" id="exam-elapsed">0:00</span></div>
+            <div><span class="timer-subrow-label">남은 시간</span><span class="timer-subrow-val" id="exam-remaining">0:00</span></div>
+          </div>
+          <div class="timer-preset-row" id="exam-preset-row">
+            <button class="timer-preset-btn" onclick="startExamTimer('국어',80)">국어 80분</button>
+            <button class="timer-preset-btn" onclick="startExamTimer('수학',100)">수학 100분</button>
+          </div>
+          <button class="btn-danger" id="exam-cancel-btn" onclick="cancelTimer('exam')" style="display:none;margin-top:14px">취소</button>
+          <div class="card-sub timer-hint" id="exam-subject-label">실제 시험처럼 시간에 맞춰 풀어보세요.</div>
+        </div>
+      </div>
+
+      <!-- 스톱워치 -->
+      <div id="timer-view-stopwatch" style="display:none">
+        <div class="card timer-card">
+          <div class="timer-display" id="sw-display">00:00:00</div>
+          <div class="timer-actions">
+            <button class="btn-primary" id="sw-start-btn" onclick="toggleStopwatch()">시작</button>
+            <button class="btn-ghost" onclick="resetStopwatch()">초기화</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1795,6 +1879,13 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 
 <div id="toast"></div>
 
+<!-- 타이머(쪽잠/모의고사) 알람 전체화면 -->
+<div class="timer-alarm-overlay" id="timer-alarm-overlay">
+  <div class="timer-alarm-icon">⏰</div>
+  <div class="timer-alarm-title" id="timer-alarm-title">시간이 다 됐어요!</div>
+  <button class="btn-primary" onclick="dismissTimerAlarm()">확인</button>
+</div>
+
 <!-- 기능 둘러보기 튜토리얼 -->
 <div class="tour-overlay" id="tour-overlay">
   <div class="tour-highlight" id="tour-highlight"></div>
@@ -2303,6 +2394,8 @@ function buildTourSteps(){
     {sel:'#week-chart',page:'report',title:'일별 공부시간',desc:'이번 주 요일별 공부 시간을 막대그래프로 보여줘요.'},
     {sel:'#subject-pie',page:'report',title:'과목별 비율',desc:'오늘 공부한 과목 비중을 도넛그래프로 보여줘요.'},
     {sel:'#rank-list',page:'report',title:'반 랭킹',desc:'오늘 반 전체 학생들의 공부시간 순위예요.'},
+
+    {sel:'[data-page="timer"]',title:'타이머',desc:'쪽잠 알림, 모의고사용 알림(국어 80분/수학 100분), 스톱워치를 쓸 수 있어요.'},
 
     {sel:'[data-page="simo"]',title:'실모반',desc:'실모반 전용 공지와 자료를 볼 수 있어요. (신청은 공지사항 상단 카드에서 해요)'},
 
@@ -3659,6 +3752,139 @@ function renderReport(weekMins = [], rankByStudent = {}){
     const pct = Math.round((sec / maxR) * 100);
     return`<div class="rank-row${isMe?' me':''}"><span class="rank-pos">${medals[i]||i+1}</span><span class="rank-name">${name}</span><div class="rank-bar-track"><div class="rank-bar-fill" style="width:${pct}%"></div></div><span class="rank-time">${fmtHM(sec)}</span></div>`;
   }).join('') || '<div style="text-align:center;padding:16px;color:var(--ink-48);font-size:13px">오늘 공부한 학생이 아직 없어요</div>';
+}
+
+// ── 타이머 (쪽잠 알림 / 모의고사용 알림 / 스톱워치) ──
+// 이 앱은 DB에 아무것도 안 남기는 순수 클라이언트 타이머라, 학습 타이머(activeTimer)처럼
+// 페이지를 새로고침하거나 탭을 완전히 닫으면 초기화된다 — 앱을 켜둔 채로만 동작.
+function switchTimerTab(tab){
+  ['nap','exam','stopwatch'].forEach(t=>{
+    document.getElementById(`timer-view-${t}`).style.display=t===tab?'block':'none';
+    document.getElementById(`timer-tab-${t}`).classList.toggle('active',t===tab);
+  });
+}
+
+function fmtClock(sec){
+  sec=Math.max(0,Math.round(sec));
+  const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;
+  return h>0?`${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`:`${m}:${String(s).padStart(2,'0')}`;
+}
+
+// 쪽잠/모의고사 카운트다운 공용 상태 — type('nap'|'exam')별로 하나씩만 동시에 돈다
+const countdownTimers={nap:null,exam:null};
+
+function startCountdown(type,minutes,label){
+  cancelTimer(type); // 이미 돌고 있으면 먼저 정리
+  const totalMs=minutes*60*1000;
+  countdownTimers[type]={endAt:Date.now()+totalMs,totalMs};
+  document.getElementById(`${type}-preset-row`).style.display='none';
+  const customRow=document.getElementById(`${type}-custom-row`);
+  if(customRow)customRow.style.display='none';
+  document.getElementById(`${type}-cancel-btn`).style.display='inline-block';
+  if(type==='exam')document.getElementById('exam-subject-label').textContent=`${label} 시험 시간 · 실제 시험처럼 풀어보세요`;
+  tickCountdown(type);
+  countdownTimers[type].interval=setInterval(()=>tickCountdown(type),250);
+}
+
+function tickCountdown(type){
+  const t=countdownTimers[type];
+  if(!t)return;
+  const remainMs=t.endAt-Date.now();
+  const elapsedMs=t.totalMs-remainMs;
+  document.getElementById(`${type}-display`).textContent=fmtClock(remainMs/1000);
+  document.getElementById(`${type}-elapsed`).textContent=fmtClock(elapsedMs/1000);
+  document.getElementById(`${type}-remaining`).textContent=fmtClock(remainMs/1000);
+  if(remainMs<=0){
+    clearInterval(t.interval);
+    countdownTimers[type]=null;
+    resetCountdownUI(type);
+    triggerTimerAlarm(type==='nap'?'일어날 시간이에요! ⏰':'시험 시간이 끝났어요! ✍️');
+  }
+}
+
+function resetCountdownUI(type){
+  document.getElementById(`${type}-preset-row`).style.display='flex';
+  const customRow=document.getElementById(`${type}-custom-row`);
+  if(customRow)customRow.style.display='flex';
+  document.getElementById(`${type}-cancel-btn`).style.display='none';
+  document.getElementById(`${type}-display`).textContent=fmtClock(0);
+  document.getElementById(`${type}-elapsed`).textContent=fmtClock(0);
+  document.getElementById(`${type}-remaining`).textContent=fmtClock(0);
+}
+
+function cancelTimer(type){
+  const t=countdownTimers[type];
+  if(t){clearInterval(t.interval);countdownTimers[type]=null}
+  resetCountdownUI(type);
+}
+
+function startNapTimer(minutes){startCountdown('nap',minutes)}
+function startNapCustom(){
+  const v=Number(document.getElementById('nap-custom-min').value);
+  if(!v||v<1){toast('1분 이상으로 입력해주세요');return}
+  startCountdown('nap',v);
+}
+function startExamTimer(subject,minutes){startCountdown('exam',minutes,subject)}
+
+// 알람 — 별도 음원 파일 없이 Web Audio API로 비프음을 직접 생성. 한 번만 울리면 자는 사람은
+// 못 들을 수 있으니, "확인"을 누르기 전까지 짧은 간격으로 반복한다.
+let alarmInterval=null;
+function playBeep(){
+  try{
+    const ctx=playBeep._ctx||(playBeep._ctx=new (window.AudioContext||window.webkitAudioContext)());
+    const osc=ctx.createOscillator();const gain=ctx.createGain();
+    osc.type='sine';osc.frequency.value=880;
+    gain.gain.setValueAtTime(0.0001,ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.3,ctx.currentTime+0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+0.5);
+    osc.connect(gain);gain.connect(ctx.destination);
+    osc.start();osc.stop(ctx.currentTime+0.5);
+  }catch(e){}
+}
+function triggerTimerAlarm(title){
+  document.getElementById('timer-alarm-title').textContent=title;
+  document.getElementById('timer-alarm-overlay').classList.add('open');
+  playBeep();
+  if(navigator.vibrate)navigator.vibrate([300,150,300]);
+  clearInterval(alarmInterval);
+  alarmInterval=setInterval(()=>{
+    playBeep();
+    if(navigator.vibrate)navigator.vibrate([300,150,300]);
+  },1500);
+}
+function dismissTimerAlarm(){
+  clearInterval(alarmInterval);alarmInterval=null;
+  document.getElementById('timer-alarm-overlay').classList.remove('open');
+}
+
+// 스톱워치 — 목표 없이 그냥 흐른 시간만 누적(남은 시간 개념이 없어서 카운트다운과 분리)
+function fmtStopwatch(sec){
+  sec=Math.max(0,Math.round(sec));
+  const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+let swState={running:false,startedAt:0,elapsedMs:0,interval:null};
+function toggleStopwatch(){
+  const btn=document.getElementById('sw-start-btn');
+  if(!swState.running){
+    swState.running=true;swState.startedAt=Date.now();
+    btn.textContent='정지';
+    clearInterval(swState.interval);
+    swState.interval=setInterval(()=>{
+      document.getElementById('sw-display').textContent=fmtStopwatch((swState.elapsedMs+(Date.now()-swState.startedAt))/1000);
+    },250);
+  }else{
+    swState.running=false;
+    swState.elapsedMs+=Date.now()-swState.startedAt;
+    clearInterval(swState.interval);
+    btn.textContent='시작';
+  }
+}
+function resetStopwatch(){
+  clearInterval(swState.interval);
+  swState={running:false,startedAt:0,elapsedMs:0,interval:null};
+  document.getElementById('sw-start-btn').textContent='시작';
+  document.getElementById('sw-display').textContent='00:00:00';
 }
 
 // ── BOARDS ──

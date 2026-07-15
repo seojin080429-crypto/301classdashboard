@@ -934,7 +934,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         <div class="stat-tile"><div class="stat-label">수능까지</div><div class="stat-num" id="dash-dday2">—</div><div class="stat-detail">일 남았습니다</div></div>
       </div>
       <div class="spacer">
-        <div class="section-hd"><div class="section-hd-title">오늘 시간표</div><span class="section-hd-link" onclick="navigate('planner')">플래너 →</span></div>
+        <div class="section-hd" id="dash-timetable-hd"><div class="section-hd-title">오늘 시간표</div><span class="section-hd-link" onclick="navigate('planner')">플래너 →</span></div>
         <div class="card"><div class="period-list" id="dash-timetable"></div></div>
       </div>
       <div class="spacer">
@@ -2243,7 +2243,7 @@ function buildTourSteps(){
   const steps=[
     {sel:'.dday-tile',title:'D-Day',desc:'수능까지 남은 날짜가 여기 표시돼요.'},
     {sel:'.grid-2.spacer .stat-tile',title:'오늘의 공부 현황',desc:'오늘 공부한 시간과 반 랭킹을 한눈에 볼 수 있어요.'},
-    {sel:'#dash-timetable',title:'오늘 시간표',desc:'오늘 요일 기준 시간표가 자동으로 표시돼요. 진행 중인 교시는 강조돼요.'},
+    {sel:'#dash-timetable-hd',title:'오늘 시간표',desc:'오늘 요일 기준 시간표가 자동으로 표시돼요. 진행 중인 교시는 강조돼요.'},
 
     {sel:'[data-page="notice"]',title:'공지사항',desc:'학급 공지를 확인해요. 투표가 달린 공지는 목록에서 바로 참여할 수 있어요.'},
     {sel:'#notice-page-list',page:'notice',title:'공지 목록',desc:'제목을 탭하면 내용이 펼쳐져요. 투표가 달린 공지는 그 자리에서 바로 참여할 수 있어요.'},

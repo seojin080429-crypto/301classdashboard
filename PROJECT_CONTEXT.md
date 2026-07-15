@@ -114,6 +114,31 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-07-15: 전체 UI에 마이크로인터랙션 대폭 추가. 기존(같은 날 앞선 커밋)에 모달 페이드/버튼
+  hover·active 정도만 있던 것을, 거의 모든 인터랙티브 요소로 확장.
+  - 전역 `button{}` 리셋에 `transition:transform .12s ease` + `button:active{transform:scale(.94)}`
+    를 추가해서, 개별적으로 hover/active를 안 챙겨준 아이콘 버튼들(공지/댓글/게시글 삭제 버튼 등)이
+    한 번에 눌림 피드백을 받도록 함 — 다크모드 대비 버그 때 썼던 "전역 리셋 한 곳만 고치기" 패턴을
+    재사용. 단, 이미 `transition:` 속성을 자체 정의한 버튼(`.notice-del-btn`처럼 `color`만
+    트랜지션하던 것들)은 전역 규칙이 transform을 못 얹으므로, 그런 것들은 개별적으로
+    `,transform .12s ease`를 이어붙여 부드럽게 눌리도록 수정.
+  - 사이드바: 다크모드 토글 버튼 누르면 살짝 회전(rotate)하며 축소, 햄버거 메뉴 버튼 누름 피드백,
+    nav-item/user-row 탭 시 살짝 스케일.
+  - 페이지 전환(`navigate()`가 `.page.active`를 붙일 때) 페이드+위로 슬라이드 진입
+    애니메이션(`@keyframes page-in`) 추가 — 탭 전환마다 매번 재생.
+  - 리스트/카드 항목 등장 애니메이션(`@keyframes item-in`, 페이드+슬라이드)을 공지 목록, 플래너
+    태스크 행, 즐겨찾기 카드, 성적 계산기 결과(대학 매칭 행), 선생님 탭 학생 카드, 댓글 목록에
+    적용. **주의**: 이 애니메이션은 해당 DOM 요소가 새로 생성(innerHTML 재렌더)될 때만 재생되고,
+    `textContent`만 갱신하는 초당 타이머 갱신(`activeTimer.interval`)에는 걸리지 않는지 확인하고
+    적용함(`renderSubjects()`는 타이머 값 변경 시가 아니라 과목/태스크 추가·삭제·시작·정지 같은
+    이산적 이벤트에서만 호출되고, 매초 갱신은 `task-time` 등 특정 자식 엘리먼트의 textContent만
+    바꾸는 구조라 안전). 다만 선생님 탭 학생 카드 그리드(`updateTeacherViewData`)는 5초마다
+    전체 재렌더되므로 그 카드들은 5초마다 등장 애니메이션이 재생됨(의도적으로 허용 — "살아있는"
+    느낌의 미묘한 새로고침 신호로 판단하고 정리 비용 대비 크게 거슬리지 않는다고 보고 넘어감).
+  - 즐겨찾기 카드/친구 랭킹 카드(`tf-rank-card`)는 hover 시 살짝 떠오르는(`translateY`) 효과 +
+    active 시 눌리는 효과 추가. "+" 과목 추가 버튼은 hover 시 90도 회전.
+  - 이미지(게시판 첨부 사진) hover 시 살짝 확대(`scale(1.01)`) + opacity 트랜지션 추가(기존엔
+    `transition` 자체가 없어서 순간적으로 튀었음).
 - 2026-07-15: 실모반 탭을 nav-admin/nav-teacher와 동일하게 권한 없으면 사이드바에서 아예
   숨김(`updateSimoNavVisibility()`, `canSeeSimoContent()`일 때만 표시). 신청 UI는 실모반
   페이지에서 빼고 공지사항 페이지 상단 고정 카드(`#simo-pinned-notice`)로 옮김 — 상태별로

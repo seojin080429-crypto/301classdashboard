@@ -1156,18 +1156,19 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
       <div class="write-form">
         <div class="write-form-title">글 작성</div>
         <textarea class="form-textarea" id="free-content" placeholder="내용을 입력하세요..."></textarea>
-        <!-- 사진 업로드 -->
+        <!-- 사진/동영상 업로드 -->
         <div class="photo-upload-row">
           <label class="photo-upload-label" for="free-photo">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-            사진 첨부
+            사진/동영상 첨부
           </label>
-          <input type="file" id="free-photo" accept="image/*" style="display:none" onchange="previewPhoto('free')">
+          <input type="file" id="free-photo" accept="image/*,video/*" style="display:none" onchange="previewPhoto('free')">
           <span class="photo-file-name" id="free-photo-name">파일 없음</span>
           <button class="photo-clear-btn" id="free-photo-clear" onclick="clearPhoto('free')" style="display:none">×</button>
         </div>
         <div class="photo-preview-wrap" id="free-photo-preview" style="display:none">
           <img id="free-photo-img" src="" alt="미리보기" class="photo-preview-img">
+          <video id="free-photo-video" class="photo-preview-img" controls playsinline style="display:none"></video>
         </div>
         <div class="form-actions">
           <button class="btn-primary" id="free-submit-btn" onclick="submitPost('free')">게시하기</button>
@@ -1188,18 +1189,19 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
           </select>
         </div>
         <textarea class="form-textarea" id="qna-content" placeholder="모르는 내용을 자세히 작성해주세요..."></textarea>
-        <!-- 사진 업로드 -->
+        <!-- 사진/동영상 업로드 -->
         <div class="photo-upload-row">
           <label class="photo-upload-label" for="qna-photo">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-            사진 첨부
+            사진/동영상 첨부
           </label>
-          <input type="file" id="qna-photo" accept="image/*" style="display:none" onchange="previewPhoto('qna')">
+          <input type="file" id="qna-photo" accept="image/*,video/*" style="display:none" onchange="previewPhoto('qna')">
           <span class="photo-file-name" id="qna-photo-name">파일 없음</span>
           <button class="photo-clear-btn" id="qna-photo-clear" onclick="clearPhoto('qna')" style="display:none">×</button>
         </div>
         <div class="photo-preview-wrap" id="qna-photo-preview" style="display:none">
           <img id="qna-photo-img" src="" alt="미리보기" class="photo-preview-img">
+          <video id="qna-photo-video" class="photo-preview-img" controls playsinline style="display:none"></video>
         </div>
         <div class="form-actions">
           <button class="btn-primary" id="qna-submit-btn" onclick="submitPost('qna')">질문 올리기</button>
@@ -1233,7 +1235,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
           <div class="study-chat-head">채팅</div>
           <div class="study-chat-log" id="study-chat-log"></div>
           <div class="study-chat-input">
-            <input id="study-chat-input" placeholder="메시지 입력" onkeydown="if(event.key==='Enter')sendStudyChat()" disabled>
+            <input id="study-chat-input" placeholder="메시지 입력" onkeydown="if(event.key==='Enter'&&!event.isComposing)sendStudyChat()" disabled>
             <button class="btn-primary" style="font-size:13px;padding:9px 14px" id="study-chat-send" onclick="sendStudyChat()" disabled>전송</button>
           </div>
         </div>
@@ -1378,6 +1380,24 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
             <div class="auth-error" id="mp-pw-error"></div>
             <div style="display:flex;justify-content:flex-end;margin-top:12px">
               <button class="btn-primary" style="font-size:14px;padding:8px 18px" onclick="changePw()">변경하기</button>
+            </div>
+          </div>
+
+          <!-- 아이디(학번) 변경 -->
+          <div class="card" style="margin-top:14px">
+            <div class="card-title" style="margin-bottom:4px">아이디 변경</div>
+            <div class="card-sub">로그인에 쓰는 아이디예요. 바꾸면 다음 로그인부터 새 아이디를 입력해야 해요.</div>
+            <div class="modal-field">
+              <label class="modal-label">새 아이디</label>
+              <input class="modal-input" id="mp-new-id" type="text" placeholder="영문/숫자/-/_ 2~30자">
+            </div>
+            <div class="modal-field">
+              <label class="modal-label">현재 비밀번호</label>
+              <input class="modal-input" id="mp-id-pw" type="password" placeholder="본인 확인을 위해 입력하세요">
+            </div>
+            <div class="auth-error" id="mp-id-error"></div>
+            <div style="display:flex;justify-content:flex-end;margin-top:12px">
+              <button class="btn-primary" style="font-size:14px;padding:8px 18px" onclick="changeStudentId()">변경하기</button>
             </div>
           </div>
 
@@ -1675,23 +1695,70 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
     <button class="modal-close" style="margin-top:0" onclick="closeStudentDetail()">×</button>
   </div>
   <div class="sd-fs-body">
-    <div class="mcal-head">
-      <div class="mcal-nav">
-        <button onclick="shiftStudentDetailMonth(-1)">‹</button>
-        <span class="mcal-title" id="sd-cal-title">-</span>
-        <button onclick="shiftStudentDetailMonth(1)">›</button>
-      </div>
-      <div class="mcal-summary" id="sd-cal-summary"></div>
+    <div class="view-toggle" style="margin-bottom:16px">
+      <button class="view-btn active" id="sd-tab-report" onclick="switchStudentDetailView('report')">리포트</button>
+      <button class="view-btn" id="sd-tab-calendar" onclick="switchStudentDetailView('calendar')">캘린더</button>
     </div>
-    <div class="mcal-scroll">
-      <div class="mcal-weekday-row">
-        <div class="mcal-weekday">월</div><div class="mcal-weekday">화</div><div class="mcal-weekday">수</div>
-        <div class="mcal-weekday">목</div><div class="mcal-weekday">금</div><div class="mcal-weekday">토</div>
-        <div class="mcal-weekday">일</div>
+
+    <!-- 학생 본인의 학습 리포트(page-report)와 동일한 구성 -->
+    <div id="sd-report-view">
+      <div class="grid-2 spacer" style="margin-bottom:16px">
+        <div class="stat-tile"><div class="stat-label">오늘</div><div class="stat-num blue" id="sd-rep-today">0h 0m</div><div class="stat-detail">누적 공부 시간</div></div>
+        <div class="stat-tile"><div class="stat-label">반 랭킹</div><div class="stat-num" id="sd-rep-rank">—</div><div class="stat-detail">오늘 기준</div></div>
       </div>
-      <div class="mcal-grid" id="sd-cal-grid"></div>
+      <div class="card spacer">
+        <div class="section-hd" style="margin-bottom: 16px;"><div class="section-hd-title">주간 학습 현황</div></div>
+        <div class="grid-2 spacer" style="margin-bottom: 20px;">
+            <div class="stat-tile"><div class="stat-label">이번주 총 공부시간</div><div class="stat-num" id="sd-rep-week-total">—</div></div>
+            <div class="stat-tile"><div class="stat-label">하루 평균 공부시간</div><div class="stat-num" id="sd-rep-week-avg">—</div></div>
+        </div>
+        <div class="spacer">
+            <div class="section-hd"><div class="section-hd-title" style="font-size: 16px;">일별 공부시간</div></div>
+            <div class="week-chart" id="sd-week-chart"></div>
+            <div style="display:flex;justify-content:space-around;padding:0 4px">
+                <span class="week-day">월</span><span class="week-day">화</span><span class="week-day">수</span><span class="week-day">목</span><span class="week-day">금</span><span class="week-day">토</span><span class="week-day">일</span>
+            </div>
+        </div>
+        <div>
+            <div class="section-hd"><div class="section-hd-title" style="font-size: 16px;">과목별 비율 (오늘)</div></div>
+            <div class="subject-pie-row">
+              <div class="pie-chart-wrap">
+                <div class="pie-chart" id="sd-subject-pie"></div>
+                <div class="pie-chart-hole">
+                  <div class="pie-chart-hole-val" id="sd-subject-pie-total">0h</div>
+                  <div class="pie-chart-hole-label">총합</div>
+                </div>
+              </div>
+              <div class="band-legend" id="sd-subject-band-legend"></div>
+            </div>
+        </div>
+      </div>
+      <div class="spacer">
+        <div class="section-hd"><div class="section-hd-title">반 랭킹</div></div>
+        <div class="card" style="padding:14px 20px"><div class="rank-list" id="sd-rank-list"></div></div>
+      </div>
     </div>
-    <table class="mcal-stats-table" id="sd-stats-table"></table>
+
+    <!-- 날짜별 계획/완료 목록 캘린더 -->
+    <div id="sd-calendar-view" style="display:none">
+      <div class="mcal-head">
+        <div class="mcal-nav">
+          <button onclick="shiftStudentDetailMonth(-1)">‹</button>
+          <span class="mcal-title" id="sd-cal-title">-</span>
+          <button onclick="shiftStudentDetailMonth(1)">›</button>
+        </div>
+        <div class="mcal-summary" id="sd-cal-summary"></div>
+      </div>
+      <div class="mcal-scroll">
+        <div class="mcal-weekday-row">
+          <div class="mcal-weekday">월</div><div class="mcal-weekday">화</div><div class="mcal-weekday">수</div>
+          <div class="mcal-weekday">목</div><div class="mcal-weekday">금</div><div class="mcal-weekday">토</div>
+          <div class="mcal-weekday">일</div>
+        </div>
+        <div class="mcal-grid" id="sd-cal-grid"></div>
+      </div>
+      <table class="mcal-stats-table" id="sd-stats-table"></table>
+    </div>
   </div>
 </div>
 
@@ -2039,6 +2106,38 @@ async function changePw(){
   toast('비밀번호가 변경되었습니다 ✓');
 }
 
+// 아이디(학번) 변경 — 로그인 이메일/여러 테이블의 student_id를 함께 갱신해야 해서
+// bugwang-server의 서비스 롤 API를 거친다(프론트에서 직접 못 하는 작업).
+async function changeStudentId(){
+  const newId=document.getElementById('mp-new-id').value.trim();
+  const pw=document.getElementById('mp-id-pw').value;
+  const errEl=document.getElementById('mp-id-error');
+  errEl.style.display='none';
+  if(!newId||!pw){errEl.textContent='새 아이디와 현재 비밀번호를 입력하세요.';errEl.style.display='block';return}
+  if(!/^[a-zA-Z0-9_-]{2,30}$/.test(newId)){errEl.textContent='아이디는 영문/숫자/-/_ 2~30자여야 합니다.';errEl.style.display='block';return}
+  if(newId===currentStudentId){errEl.textContent='현재 아이디와 같습니다.';errEl.style.display='block';return}
+  // re-auth로 본인 확인 + 최신 access_token 확보
+  const email=`${currentStudentId}@bugwang3-1.app`;
+  const {data:authData,error:loginErr}=await sb.auth.signInWithPassword({email,password:pw});
+  if(loginErr){errEl.textContent='현재 비밀번호가 올바르지 않습니다.';errEl.style.display='block';return}
+  const token=authData.session.access_token;
+  try{
+    const res=await fetch(`${SERVER_URL}/api/change-student-id`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
+      body:JSON.stringify({new_student_id:newId})
+    });
+    const result=await res.json();
+    if(!res.ok){errEl.textContent=result.error||'아이디 변경에 실패했습니다.';errEl.style.display='block';return}
+    currentStudentId=newId;
+    document.getElementById('mp-id').textContent=`${newId}번 · 3학년 1반`;
+    document.getElementById('user-display-id').textContent=`${newId}번 · 3학년 1반`;
+    document.getElementById('mp-new-id').value='';
+    document.getElementById('mp-id-pw').value='';
+    toast(result.partial?result.message:`아이디가 ${newId}(으)로 변경되었습니다 ✓ 다음 로그인부터 새 아이디를 쓰세요`);
+  }catch(e){errEl.textContent='서버 연결에 실패했습니다: '+e.message;errEl.style.display='block'}
+}
+
 async function saveResolution(){
   const val=document.getElementById('mp-resolution').value.trim();
   const {error}=await sb.auth.updateUser({data:{...currentUser.user_metadata,resolution:val}});
@@ -2219,25 +2318,46 @@ function showTourStep(i){
     positionTourCard(rect);
   },navigated?520:280);
 }
+// PWA로 홈 화면에 추가해 실행하면(standalone) iOS 하단 홈 인디케이터 영역
+// (env(safe-area-inset-bottom))이 실제 상호작용 가능한 화면보다 아래에 깔려서, 카드가
+// 화면 맨 아래쪽에 붙게 계산되면 "건너뛰기"/버튼 줄이 그 안전영역에 가려 안 보이는 문제가
+// 있었다. env() 값은 CSS에서만 직접 읽을 수 있어 숨김 프로브 엘리먼트로 픽셀값을 얻는다.
+function getSafeAreaBottom(){
+  if(getSafeAreaBottom._v!==undefined)return getSafeAreaBottom._v;
+  const probe=document.createElement('div');
+  probe.style.cssText='position:fixed;bottom:0;left:0;height:0;padding-bottom:env(safe-area-inset-bottom);visibility:hidden;pointer-events:none';
+  document.body.appendChild(probe);
+  getSafeAreaBottom._v=parseFloat(getComputedStyle(probe).paddingBottom)||0;
+  document.body.removeChild(probe);
+  return getSafeAreaBottom._v;
+}
 function positionTourCard(rect){
   const card=document.getElementById('tour-card');
   const cardW=280,gap=16;
   card.classList.remove('arrow-top','arrow-bottom','arrow-left','arrow-right');
   const cardH=card.offsetHeight||160;
+  const viewportH=window.innerHeight-getSafeAreaBottom();
   let top,left,arrowClass;
   const isSidebarTarget=rect.left<260&&window.innerWidth>834;
   if(isSidebarTarget&&rect.right+gap+cardW<=window.innerWidth-12){
     left=rect.right+gap;
-    top=Math.min(Math.max(rect.top+rect.height/2-cardH/2,12),window.innerHeight-cardH-12);
+    top=Math.min(Math.max(rect.top+rect.height/2-cardH/2,12),viewportH-cardH-12);
     arrowClass='arrow-left';
-  }else if(rect.top<window.innerHeight/2){
-    left=Math.min(Math.max(rect.left+rect.width/2-cardW/2,12),window.innerWidth-cardW-12);
-    top=rect.bottom+gap;
-    arrowClass='arrow-top';
   }else{
     left=Math.min(Math.max(rect.left+rect.width/2-cardW/2,12),window.innerWidth-cardW-12);
-    top=rect.top-cardH-gap;
-    arrowClass='arrow-bottom';
+    // 아래쪽에 카드가 온전히 들어갈 공간이 있거나, 위쪽보다 넓으면 아래에 배치 —
+    // 이전에는 rect.top이 화면 중간보다 위인지만 보고 무조건 아래에 붙여서, 화면 아래쪽
+    // 절반에 걸친 요소를 설명할 때 카드가(그리고 그 안의 스킵/다음 버튼이) 화면 밖으로
+    // 밀려나는 경우가 있었다.
+    const spaceBelow=viewportH-rect.bottom-gap;
+    const spaceAbove=rect.top-gap;
+    if(spaceBelow>=cardH||spaceBelow>=spaceAbove){
+      top=Math.min(rect.bottom+gap,viewportH-cardH-12);
+      arrowClass='arrow-top';
+    }else{
+      top=Math.max(rect.top-cardH-gap,12);
+      arrowClass='arrow-bottom';
+    }
   }
   card.style.left=left+'px';card.style.top=Math.max(top,12)+'px';
   card.classList.add(arrowClass);
@@ -2273,7 +2393,7 @@ function updateDday(){
 
 // ── TIMETABLE ──
 // A: 생명과학2/화학2 (301, 이동없음)
-const TT_A={1:[{s:'세계문제와미래사회',t:'08:30–09:20'},{s:'물리학2A',t:'09:30–10:20'},{s:'진로',t:'10:30–11:20'},{s:'기하',t:'11:30–12:20'},{s:'점심',t:'12:20–13:10',lunch:true},{s:'영어독해작문B',t:'13:10–14:00'},{s:'미적분',t:'14:10–15:00'}],2:[{s:'스포츠생활',t:'08:30–09:20'},{s:'생명과학2',t:'09:30–10:20'},{s:'화법과작문A',t:'10:30–11:20'},{s:'물리학2B',t:'11:30–12:20'},{s:'점심',t:'12:20–13:10',lunch:true},{s:'화학2',t:'13:10–14:00'}],3:[{s:'생명과학2',t:'08:30–09:20'},{s:'물리학2A',t:'09:30–10:20'},{s:'세계문제와미래사회',t:'10:30–11:20'},{s:'화법과작문B',t:'11:30–12:20'},{s:'점심',t:'12:20–13:10',lunch:true},{s:'미적분',t:'13:10–14:00'},{s:'기하',t:'14:10–15:00'}],4:[{s:'영어독해작문A',t:'08:30–09:20'},{s:'영어독해작문B',t:'09:30–10:20'},{s:'화학2',t:'10:30–11:20'},{s:'미적분',t:'11:30–12:20'},{s:'점심',t:'12:20–13:10',lunch:true},{s:'생명과학2',t:'13:10–14:00'},{s:'인공지능기초',t:'14:10–15:00'}],5:[{s:'미적분',t:'08:30–09:20'},{s:'화법과작문B',t:'09:30–10:20'},{s:'화법과작문A',t:'10:30–11:20'},{s:'영어독해작문A',t:'11:30–12:20'},{s:'점심',t:'12:20–13:10',lunch:true},{s:'화학2',t:'13:10–14:00'}],6:[{s:'자율학습',t:'10:00–16:00'}],0:[{s:'자율학습',t:'10:00–12:00'}]}; const TT_B={1:[{s:'세계문제와미래사회',t:'08:30–09:20'},{s:'물리학2A',t:'09:30–10:20'},{s:'진로',t:'10:30–11:20'},{s:'기하',t:'11:30–12:20'},{s:'점심',t:'12:20–13:10',lunch:true},{s:'영어독해작문B',t:'13:10–14:00'},{s:'미적분',t:'14:10–15:00'}],2:[{s:'스포츠생활',t:'08:30–09:20'},{s:'화학2',t:'09:30–10:20',m:true},{s:'화법과작문A',t:'10:30–11:20'},{s:'물리학2B',t:'11:30–12:20'},{s:'점심',t:'12:20–13:10',lunch:true},{s:'생명과학2',t:'13:10–14:00',m:true}],3:[{s:'화학2',t:'08:30–09:20',m:true},{s:'물리학2A',t:'09:30–10:20'},{s:'세계문제와미래사회',t:'10:30–11:20'},{s:'화법과작문B',t:'11:30–12:20'},{s:'점심',t:'12:20–13:10',lunch:true},{s:'미적분',t:'13:10–14:00'},{s:'기하',t:'14:10–15:00'}],4:[{s:'영어독해작문A',t:'08:30–09:20'},{s:'영어독해작문B',t:'09:30–10:20'},{s:'생명과학2',t:'10:30–11:20',m:true},{s:'미적분',t:'11:30–12:20'},{s:'점심',t:'12:20–13:10',lunch:true},{s:'화학2',t:'13:10–14:00',m:true},{s:'인공지능기초',t:'14:10–15:00'}],5:[{s:'미적분',t:'08:30–09:20'},{s:'화법과작문B',t:'09:30–10:20'},{s:'화법과작문A',t:'10:30–11:20'},{s:'영어독해작문A',t:'11:30–12:20'},{s:'점심',t:'12:20–13:10',lunch:true},{s:'생명과학2',t:'13:10–14:00',m:true}],6:[{s:'자율학습',t:'10:00–16:00'}],0:[{s:'자율학습',t:'10:00–12:00'}]}; const TT_C={1:[{s:'세계문제와미래사회',t:'08:30–09:20'},{s:'물리학2A',t:'09:30–10:20'},{s:'진로',t:'10:30–11:20'},{s:'기하',t:'11:30–12:20'},{s:'점심',t:'12:20–13:10',lunch:true},{s:'영어독해작문B',t:'13:10–14:00'},{s:'미적분',t:'14:10–15:00'}],2:[{s:'스포츠생활',t:'08:30–09:20'},{s:'지구과학2',t:'09:30–10:20',m:true},{s:'화법과작문A',t:'10:30–11:20'},{s:'물리학2B',t:'11:30–12:20'},{s:'점심',t:'12:20–13:10',lunch:true},{s:'화학2',t:'13:10–14:00'}],3:[{s:'지구과학2',t:'08:30–09:20',m:true},{s:'물리학2A',t:'09:30–10:20'},{s:'세계문제와미래사회',t:'10:30–11:20'},{s:'화법과작문B',t:'11:30–12:20'},{s:'점심',t:'12:20–13:10',lunch:true},{s:'미적분',t:'13:10–14:00'},{s:'기하',t:'14:10–15:00'}],4:[{s:'영어독해작문A',t:'08:30–09:20'},{s:'영어독해작문B',t:'09:30–10:20'},{s:'화학2',t:'10:30–11:20'},{s:'미적분',t:'11:30–12:20'},{s:'점심',t:'12:20–13:10',lunch:true},{s:'지구과학2',t:'13:10–14:00',m:true},{s:'인공지능기초',t:'14:10–15:00'}],5:[{s:'미적분',t:'08:30–09:20'},{s:'화법과작문B',t:'09:30–10:20'},{s:'화법과작문A',t:'10:30–11:20'},{s:'영어독해작문A',t:'11:30–12:20'},{s:'점심',t:'12:20–13:10',lunch:true},{s:'화학2',t:'13:10–14:00'}],6:[{s:'자율학습',t:'10:00–16:00'}],0:[{s:'자율학습',t:'10:00–12:00'}]}; const STUDENT_GROUP={'고다윤':'A','김민건':'A','김민찬':'C','김서진':'C','김서한':'A','김찬혁':'A','김태우':'A','민건희':'A','민정우':'A','박범준':'A','박상진':'B','박지섭':'A','신현우':'A','유현우':'A','이서후':'A','이승빈':'B','이주신':'B','이준섭':'A','이지환':'A','이현서':'C','이형석':'C','정서진':'B','정의성':'C','정현빈':'B','조동준':'A','조용혁':'B','차지수':'A','최산':'B'}; function getTT(){const g=STUDENT_GROUP[currentName];if(g==='B')return TT_B;if(g==='C')return TT_C;return TT_A;} const PT=[[830,920],[930,1020],[1030,1120],[1130,1220],[1220,1310],[1310,1400],[1410,1500]]; function nowPeriod(){const hm=new Date().getHours()*100+new Date().getMinutes();for(let i=0;i<PT.length;i++)if(hm>=PT[i][0]&&hm<PT[i][1])return i;return -1} function renderTimetable(){   const TT=getTT();const dow=new Date().getDay();const periods=TT[dow]||[];const np=nowPeriod();
+const TT_A={1:[{s:'세계문제와미래사회',t:'08:50–09:40'},{s:'물리학2A',t:'09:50–10:40'},{s:'진로',t:'10:50–11:40'},{s:'기하',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'영어독해작문B',t:'13:40–14:30'},{s:'미적분',t:'14:40–15:30'}],2:[{s:'스포츠생활',t:'08:50–09:40'},{s:'생명과학2',t:'09:50–10:40'},{s:'화법과작문A',t:'10:50–11:40'},{s:'물리학2B',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'화학2',t:'13:40–14:30'}],3:[{s:'생명과학2',t:'08:50–09:40'},{s:'물리학2A',t:'09:50–10:40'},{s:'세계문제와미래사회',t:'10:50–11:40'},{s:'화법과작문B',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'미적분',t:'13:40–14:30'},{s:'기하',t:'14:40–15:30'}],4:[{s:'영어독해작문A',t:'08:50–09:40'},{s:'영어독해작문B',t:'09:50–10:40'},{s:'화학2',t:'10:50–11:40'},{s:'미적분',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'생명과학2',t:'13:40–14:30'},{s:'인공지능기초',t:'14:40–15:30'}],5:[{s:'미적분',t:'08:50–09:40'},{s:'화법과작문B',t:'09:50–10:40'},{s:'화법과작문A',t:'10:50–11:40'},{s:'영어독해작문A',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'화학2',t:'13:40–14:30'}],6:[{s:'자율학습',t:'10:00–16:00'}],0:[{s:'자율학습',t:'10:00–12:00'}]}; const TT_B={1:[{s:'세계문제와미래사회',t:'08:50–09:40'},{s:'물리학2A',t:'09:50–10:40'},{s:'진로',t:'10:50–11:40'},{s:'기하',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'영어독해작문B',t:'13:40–14:30'},{s:'미적분',t:'14:40–15:30'}],2:[{s:'스포츠생활',t:'08:50–09:40'},{s:'화학2',t:'09:50–10:40',m:true},{s:'화법과작문A',t:'10:50–11:40'},{s:'물리학2B',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'생명과학2',t:'13:40–14:30',m:true}],3:[{s:'화학2',t:'08:50–09:40',m:true},{s:'물리학2A',t:'09:50–10:40'},{s:'세계문제와미래사회',t:'10:50–11:40'},{s:'화법과작문B',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'미적분',t:'13:40–14:30'},{s:'기하',t:'14:40–15:30'}],4:[{s:'영어독해작문A',t:'08:50–09:40'},{s:'영어독해작문B',t:'09:50–10:40'},{s:'생명과학2',t:'10:50–11:40',m:true},{s:'미적분',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'화학2',t:'13:40–14:30',m:true},{s:'인공지능기초',t:'14:40–15:30'}],5:[{s:'미적분',t:'08:50–09:40'},{s:'화법과작문B',t:'09:50–10:40'},{s:'화법과작문A',t:'10:50–11:40'},{s:'영어독해작문A',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'생명과학2',t:'13:40–14:30',m:true}],6:[{s:'자율학습',t:'10:00–16:00'}],0:[{s:'자율학습',t:'10:00–12:00'}]}; const TT_C={1:[{s:'세계문제와미래사회',t:'08:50–09:40'},{s:'물리학2A',t:'09:50–10:40'},{s:'진로',t:'10:50–11:40'},{s:'기하',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'영어독해작문B',t:'13:40–14:30'},{s:'미적분',t:'14:40–15:30'}],2:[{s:'스포츠생활',t:'08:50–09:40'},{s:'지구과학2',t:'09:50–10:40',m:true},{s:'화법과작문A',t:'10:50–11:40'},{s:'물리학2B',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'화학2',t:'13:40–14:30'}],3:[{s:'지구과학2',t:'08:50–09:40',m:true},{s:'물리학2A',t:'09:50–10:40'},{s:'세계문제와미래사회',t:'10:50–11:40'},{s:'화법과작문B',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'미적분',t:'13:40–14:30'},{s:'기하',t:'14:40–15:30'}],4:[{s:'영어독해작문A',t:'08:50–09:40'},{s:'영어독해작문B',t:'09:50–10:40'},{s:'화학2',t:'10:50–11:40'},{s:'미적분',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'지구과학2',t:'13:40–14:30',m:true},{s:'인공지능기초',t:'14:40–15:30'}],5:[{s:'미적분',t:'08:50–09:40'},{s:'화법과작문B',t:'09:50–10:40'},{s:'화법과작문A',t:'10:50–11:40'},{s:'영어독해작문A',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'화학2',t:'13:40–14:30'}],6:[{s:'자율학습',t:'10:00–16:00'}],0:[{s:'자율학습',t:'10:00–12:00'}]}; const STUDENT_GROUP={'고다윤':'A','김민건':'A','김민찬':'C','김서진':'C','김서한':'A','김찬혁':'A','김태우':'A','민건희':'A','민정우':'A','박범준':'A','박상진':'B','박지섭':'A','신현우':'A','유현우':'A','이서후':'A','이승빈':'B','이주신':'B','이준섭':'A','이지환':'A','이현서':'C','이형석':'C','정서진':'B','정의성':'C','정현빈':'B','조동준':'A','조용혁':'B','차지수':'A','최산':'B'}; function getTT(){const g=STUDENT_GROUP[currentName];if(g==='B')return TT_B;if(g==='C')return TT_C;return TT_A;} const PT=[[850,940],[950,1040],[1050,1140],[1150,1240],[1240,1340],[1340,1430],[1440,1530]]; function nowPeriod(){const hm=new Date().getHours()*100+new Date().getMinutes();for(let i=0;i<PT.length;i++)if(hm>=PT[i][0]&&hm<PT[i][1])return i;return -1} function renderTimetable(){   const TT=getTT();const dow=new Date().getDay();const periods=TT[dow]||[];const np=nowPeriod();
   const el=document.getElementById('dash-timetable');el.innerHTML='';
   if(!periods.length){el.innerHTML='<div style="text-align:center;padding:16px;color:var(--ink-48);font-size:13px">오늘은 시간표가 없습니다</div>';return}
   let periodNo=0;
@@ -2821,7 +2941,7 @@ function renderSubjects(){
       <div class="subject-tasks" id="tasks-${si}">
         ${sub.tasks.map((t,ti)=>renderTaskHTML(si,ti,t,sub.color)).join('')}
         <div class="task-add-form" id="add-task-form-${si}" style="display:none">
-          <input class="task-add-input" id="task-input-${si}" placeholder="할 일 이름..." onkeydown="if(event.key==='Enter')addTask(${si})">
+          <input class="task-add-input" id="task-input-${si}" placeholder="할 일 이름..." onkeydown="if(event.key==='Enter'&&!event.isComposing)addTask(${si})">
           <button class="task-add-submit" onclick="addTask(${si})">추가</button>
         </div>
       </div>`;
@@ -3185,21 +3305,32 @@ function dismissMarathonModal(){
   toast('4시간 지점에서 기록을 멈췄어요. 다시 시작하려면 ▶ 버튼을 눌러주세요.');
 }
 
+// 모바일에서 재생 버튼을 빠르게 두 번 누르면(네트워크 왕복 중이라 시각적 피드백이 없어서
+// 흔히 발생) insert가 끝나기 전까지 activeTimer가 아직 null이라 startTaskTimer가 두 번
+// 겹쳐 실행되면서 setInterval이 두 개 생기던 버그가 있었다 — 하나는 activeTimer.interval에
+// 저장돼 정지 버튼으로 멈출 수 있지만, 다른 하나는 그 자리를 나중에 덮어써서 참조를 잃어버린
+// 채(orphan) 계속 돌면서 "정지를 눌러도 총 공부시간이 계속 올라가는" 현상을 만들었다.
+// activeTimer 자체를 재사용하면 tfSwitchTask처럼 "정지 후 바로 시작"하는 정상 흐름까지
+// 막아버리므로, 이 함수의 진입 동시성만 막는 전용 락을 따로 둔다.
+let timerStarting=false;
 async function startTaskTimer(si,ti){
-  if(marathonModalOpen)closeMarathonModalUI();
-  const sub=subjects[si];const task=sub.tasks[ti];
-  const startedAt=new Date();
-  const prevSeconds=task.seconds; // 이전까지 쌓인 시간 보존
-  // 새 세션 insert (이번 구간 기록용)
-  const {data:sess}=await sb.from('study_sessions').insert({
-    user_id:currentUser.id,student_id:currentStudentId,
-    subject:sub.name,task_name:task.name,
-    duration_seconds:0,started_at:startedAt.toISOString(),
-    date:localDateStr(startedAt)
-  }).select().single();
-  const sessionId=sess?.id;
-  activeTimer={subjectIdx:si,taskIdx:ti,startedAt,sessionId,prevSeconds};
-  activeTimer.interval=setInterval(()=>{
+  if(timerStarting)return;
+  timerStarting=true;
+  try{
+    if(marathonModalOpen)closeMarathonModalUI();
+    const sub=subjects[si];const task=sub.tasks[ti];
+    const startedAt=new Date();
+    const prevSeconds=task.seconds; // 이전까지 쌓인 시간 보존
+    // 새 세션 insert (이번 구간 기록용)
+    const {data:sess}=await sb.from('study_sessions').insert({
+      user_id:currentUser.id,student_id:currentStudentId,
+      subject:sub.name,task_name:task.name,
+      duration_seconds:0,started_at:startedAt.toISOString(),
+      date:localDateStr(startedAt)
+    }).select().single();
+    const sessionId=sess?.id;
+    activeTimer={subjectIdx:si,taskIdx:ti,startedAt,sessionId,prevSeconds};
+    activeTimer.interval=setInterval(()=>{
     const elapsed=Math.floor((Date.now()-startedAt)/1000);
     subjects[si].tasks[ti].seconds=prevSeconds+elapsed;
     // 오늘 총 시간 = DB에 저장된 완료 세션들 + 현재 진행 중 elapsed
@@ -3215,9 +3346,12 @@ async function startTaskTimer(si,ti){
     const subEl=document.getElementById(`sub-${si}`);
     if(subEl){const subTime=subEl.querySelector('.subject-total-time');if(subTime)subTime.textContent=fmtSec(subjects[si].tasks.reduce((s,t)=>s+t.seconds,0))}
     renderSessionLog();
-  },1000);
-  showTimerBadge(sub.name,task.name);
-  renderSubjects();
+    },1000);
+    showTimerBadge(sub.name,task.name);
+    renderSubjects();
+  }finally{
+    timerStarting=false;
+  }
 }
 
 async function stopCurrentTimer(){
@@ -3453,15 +3587,22 @@ function previewPhoto(type){
   const input=document.getElementById(`${type}-photo`);
   const file=input.files[0];
   if(!file)return;
-  if(file.size>10*1024*1024){toast('사진은 10MB 이하만 가능합니다');input.value='';return}
+  const isVideo=file.type.startsWith('video/');
+  const maxSize=isVideo?50*1024*1024:10*1024*1024;
+  if(file.size>maxSize){toast(isVideo?'동영상은 50MB 이하만 가능합니다':'사진은 10MB 이하만 가능합니다');input.value='';return}
   document.getElementById(`${type}-photo-name`).textContent=file.name;
   document.getElementById(`${type}-photo-clear`).style.display='flex';
-  const reader=new FileReader();
-  reader.onload=e=>{
-    document.getElementById(`${type}-photo-img`).src=e.target.result;
-    document.getElementById(`${type}-photo-preview`).style.display='block';
-  };
-  reader.readAsDataURL(file);
+  const imgEl=document.getElementById(`${type}-photo-img`);
+  const videoEl=document.getElementById(`${type}-photo-video`);
+  const url=URL.createObjectURL(file);
+  if(isVideo){
+    imgEl.style.display='none';imgEl.src='';
+    videoEl.src=url;videoEl.style.display='block';
+  }else{
+    videoEl.style.display='none';videoEl.removeAttribute('src');
+    imgEl.src=url;imgEl.style.display='block';
+  }
+  document.getElementById(`${type}-photo-preview`).style.display='block';
 }
 
 function clearPhoto(type){
@@ -3469,7 +3610,10 @@ function clearPhoto(type){
   document.getElementById(`${type}-photo-name`).textContent='파일 없음';
   document.getElementById(`${type}-photo-clear`).style.display='none';
   document.getElementById(`${type}-photo-preview`).style.display='none';
-  document.getElementById(`${type}-photo-img`).src='';
+  const imgEl=document.getElementById(`${type}-photo-img`);
+  const videoEl=document.getElementById(`${type}-photo-video`);
+  imgEl.src='';imgEl.style.display='block';
+  videoEl.removeAttribute('src');videoEl.style.display='none';
 }
 
 async function submitPost(type){
@@ -3516,7 +3660,10 @@ async function deletePost(id,imageUrl,type){
 function renderPost(p,type,comments=[]){
   const isMe=p.student_id===currentStudentId;
   const date=new Date(p.created_at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
-  const imgHtml=p.image_url?`<img class="post-img" src="${p.image_url}" alt="첨부사진" onclick="openLightbox('${p.image_url}')">`:'' ;
+  const isVideoAttachment=p.image_url&&/\.(mp4|webm|mov|m4v|ogg|ogv)(\?|$)/i.test(p.image_url);
+  const imgHtml=p.image_url?(isVideoAttachment
+    ?`<video class="post-img" src="${p.image_url}" controls playsinline></video>`
+    :`<img class="post-img" src="${p.image_url}" alt="첨부사진" onclick="openLightbox('${p.image_url}')">`):'';
   const subjectPill=p.subject?`<span class="qna-subject-pill">${p.subject}</span>`:'';
   const deleteBtn=isMe?`<button class="post-delete-btn" onclick="deletePost('${p.id}','${p.image_url||''}','${type}')">삭제</button>`:'';
   const commentsHtml=comments.map(c=>{
@@ -3551,7 +3698,7 @@ function renderPost(p,type,comments=[]){
       <div id="comments-${p.id}" style="display:none">
         <div class="comment-list" id="comment-list-${p.id}">${commentsHtml}</div>
         <div class="comment-input-row">
-          <input class="comment-input" id="comment-input-${p.id}" placeholder="댓글을 입력하세요..." onkeydown="if(event.key==='Enter')submitComment('${p.id}','${type}')">
+          <input class="comment-input" id="comment-input-${p.id}" placeholder="댓글을 입력하세요..." onkeydown="if(event.key==='Enter'&&!event.isComposing)submitComment('${p.id}','${type}')">
           <button class="comment-submit" onclick="submitComment('${p.id}','${type}')">등록</button>
         </div>
       </div>
@@ -4161,19 +4308,111 @@ function shiftMyPlannerMonth(dir){
 }
 
 // 선생님: 학생 상세 학습현황 전체화면
-let sdState={userId:null,year:null,month:null};
+// 리포트 탭(학생 본인의 학습 리포트와 동일한 구성) + 캘린더 탭(날짜별 계획/완료 목록) 두 가지로 볼 수 있다.
+let sdState={userId:null,studentId:null,name:null,year:null,month:null,calLoaded:false};
 function openStudentDetail(sid,name,userId){
   if(!userId){toast('학생 정보를 찾을 수 없어요 (계정 미가입 상태일 수 있어요)');return}
   const n=new Date();
-  sdState={userId,year:n.getFullYear(),month:n.getMonth()};
+  sdState={userId,studentId:sid,name,year:n.getFullYear(),month:n.getMonth(),calLoaded:false};
   document.getElementById('sd-title').textContent=`${name} (${sid}번) 학습현황`;
   document.getElementById('student-detail-fullscreen').classList.add('open');
   document.body.style.overflow='hidden';
-  renderMonthCalendar('sd',sdState.userId,sdState.year,sdState.month);
+  switchStudentDetailView('report');
 }
 function closeStudentDetail(){
   document.getElementById('student-detail-fullscreen').classList.remove('open');
   document.body.style.overflow='';
+}
+function switchStudentDetailView(view){
+  document.getElementById('sd-report-view').style.display=view==='report'?'block':'none';
+  document.getElementById('sd-calendar-view').style.display=view==='calendar'?'block':'none';
+  document.getElementById('sd-tab-report').classList.toggle('active',view==='report');
+  document.getElementById('sd-tab-calendar').classList.toggle('active',view==='calendar');
+  if(view==='report')loadStudentReportData(sdState.userId,sdState.studentId);
+  else if(view==='calendar'&&!sdState.calLoaded){sdState.calLoaded=true;renderMonthCalendar('sd',sdState.userId,sdState.year,sdState.month)}
+}
+
+// 학생 본인의 renderReport()와 동일한 구성이지만, 대상 학생의 subjects(과목별 오늘 시간)를
+// 클라이언트 메모리가 아니라 study_sessions에서 직접 집계해야 한다(다른 학생 데이터라
+// currentUser의 subjects 배열에는 없기 때문).
+async function loadStudentReportData(userId,studentId){
+  const today=new Date();
+  const dayOfWeek=today.getDay();
+  const startOfWeek=new Date(today);
+  startOfWeek.setDate(today.getDate()-(dayOfWeek===0?6:dayOfWeek-1));
+  startOfWeek.setHours(0,0,0,0);
+  const todayStr=localDateStr();
+
+  const [{data:weekData},{data:todaySubjectData},{data:rankData}]=await Promise.all([
+    sb.from('study_sessions').select('date,duration_seconds').eq('user_id',userId).gte('date',localDateStr(startOfWeek)),
+    sb.from('study_sessions').select('subject,duration_seconds').eq('user_id',userId).eq('date',todayStr),
+    sb.from('study_sessions').select('student_id,duration_seconds').eq('date',todayStr)
+  ]);
+
+  const weekMins=Array(7).fill(0);
+  (weekData||[]).forEach(session=>{
+    const sessionDay=new Date(session.date).getDay();
+    const index=sessionDay===0?6:sessionDay-1;
+    weekMins[index]+=session.duration_seconds/60;
+  });
+
+  const subjTotals={};
+  (todaySubjectData||[]).forEach(s=>{subjTotals[s.subject]=(subjTotals[s.subject]||0)+s.duration_seconds});
+
+  const rankByStudent={};
+  (rankData||[]).forEach(r=>{rankByStudent[r.student_id]=(rankByStudent[r.student_id]||0)+r.duration_seconds});
+
+  renderStudentReport(weekMins,subjTotals,rankByStudent,studentId);
+}
+
+function renderStudentReport(weekMins,subjTotals,rankByStudent,studentId){
+  const weekTotalSeconds=weekMins.reduce((a,b)=>a+b,0)*60;
+  const weekAvgSeconds=weekTotalSeconds>0?weekTotalSeconds/(new Date().getDay()||7):0;
+  document.getElementById('sd-rep-week-total').textContent=fmtHM(weekTotalSeconds);
+  document.getElementById('sd-rep-week-avg').textContent=fmtHM(weekAvgSeconds);
+  const max=Math.max(...weekMins,1);const today=new Date().getDay();
+  document.getElementById('sd-week-chart').innerHTML=weekMins.map((m,i)=>{
+    const h=Math.round((m/max)*56);const isToday=(i+1)%7===today||(today===0&&i===6);
+    return`<div class="week-bar-wrap"><div class="week-bar${m>0?' has-data':''}${isToday?' today':''}" style="height:${h}px"></div></div>`;
+  }).join('')||'<div style="text-align:center;padding:16px;color:var(--ink-48);font-size:13px">이번 주 기록 없음</div>';
+
+  const todayTotalSec=Object.values(subjTotals).reduce((a,b)=>a+b,0);
+  document.getElementById('sd-rep-today').textContent=fmtHM(todayTotalSec);
+  const total=todayTotalSec||1;
+  const pieEl=document.getElementById('sd-subject-pie');
+  const legendEl=document.getElementById('sd-subject-band-legend');
+  document.getElementById('sd-subject-pie-total').textContent=fmtHM(todayTotalSec);
+  const subjWithTime=Object.entries(subjTotals).map(([name,sec])=>({name,sec,color:colorForSubject(name)})).filter(s=>s.sec>0).sort((a,b)=>b.sec-a.sec);
+  if(!subjWithTime.length){
+    pieEl.style.background='var(--hairline)';
+    legendEl.innerHTML='<div style="text-align:center;padding:16px;color:var(--ink-48);font-size:13px">기록 없음</div>';
+  }else{
+    let acc=0;
+    const stops=subjWithTime.map(s=>{
+      const start=acc;acc+=(s.sec/total)*100;
+      return`${s.color} ${start}% ${acc}%`;
+    }).join(', ');
+    pieEl.style.background=`conic-gradient(${stops})`;
+    pieEl.classList.remove('pie-animate');
+    void pieEl.offsetWidth;
+    pieEl.classList.add('pie-animate');
+    legendEl.innerHTML=subjWithTime.map(s=>{
+      const pct=Math.round((s.sec/total)*100);
+      return`<div class="band-legend-item"><span class="band-legend-dot" style="background:${s.color}"></span><span class="band-legend-name">${s.name}</span><span class="band-legend-val">${fmtHM(s.sec)} · ${pct}%</span></div>`;
+    }).join('');
+  }
+
+  const sortedRank=Object.entries(rankByStudent).sort((a,b)=>b[1]-a[1]);
+  const maxR=sortedRank[0]?.[1]||1;
+  const medals=['🥇','🥈','🥉'];
+  document.getElementById('sd-rank-list').innerHTML=sortedRank.map(([sid,sec],i)=>{
+    const isTarget=sid===studentId;
+    const name=allAccounts.find(a=>a.student_id===sid)?.name||`${sid}번`;
+    const pct=Math.round((sec/maxR)*100);
+    return`<div class="rank-row${isTarget?' me':''}"><span class="rank-pos">${medals[i]||i+1}</span><span class="rank-name">${name}</span><div class="rank-bar-track"><div class="rank-bar-fill" style="width:${pct}%"></div></div><span class="rank-time">${fmtHM(sec)}</span></div>`;
+  }).join('')||'<div style="text-align:center;padding:16px;color:var(--ink-48);font-size:13px">오늘 공부한 학생이 아직 없어요</div>';
+  const rankIdx=sortedRank.findIndex(([sid])=>sid===studentId);
+  document.getElementById('sd-rep-rank').textContent=rankIdx>=0?`${rankIdx+1}/${sortedRank.length}등`:(sortedRank.length?`${sortedRank.length+1}/${sortedRank.length+1}등`:'—');
 }
 function shiftStudentDetailMonth(dir){
   sdState.month+=dir;
@@ -4630,9 +4869,9 @@ function filterNews(category){
   renderNewsList(filtered);
 }
 
-document.getElementById('login-pw').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
-document.getElementById('login-id').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('login-pw').focus()});
-document.getElementById('setup-name').addEventListener('keydown',e=>{if(e.key==='Enter')saveName()});
+document.getElementById('login-pw').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing)doLogin()});
+document.getElementById('login-id').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing)document.getElementById('login-pw').focus()});
+document.getElementById('setup-name').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing)saveName()});
 
 restoreSession();
 

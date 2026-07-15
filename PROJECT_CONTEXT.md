@@ -21,7 +21,9 @@
 - 이 저장소에는 **프론트엔드만** 있습니다. 백엔드는 별도로 관리되며 Railway에 배포되어 있습니다.
 - `SERVER_URL = 'https://bugwang-server-production.up.railway.app'` (index.html 상단 근처에 정의)
 - 백엔드가 제공하는 API 예시: `/api/users`, `/api/fetch-news`, `/api/fetch-meal`, `/api/study/join`,
-  `/api/create-user`, `/api/delete-user`, `/api/reset-password`
+  `/api/create-user`, `/api/delete-user`, `/api/reset-password`, `/api/change-student-id`
+  (2026-07-15 추가 — 학생 본인이 마이페이지에서 아이디를 바꿀 때 사용, `requireAdmin`이 아니라
+  `requireAuth`로 게이팅해서 관리자 권한 없이 본인 access_token만으로 호출 가능)
 - 백엔드 코드 수정이 필요하면 이 저장소가 아닌 별도 위치(로컬의 `bugwang-server/` 또는 `server.js`,
   gitignore되어 있음)에서 작업해야 함 — 실수로 이 저장소에 커밋되지 않도록 주의 (과거에 실수로
   올렸다가 제거한 이력 있음: `b940993`, `0e90005` 커밋 참고)
@@ -127,6 +129,76 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-07-15: 시간표 변경 + 버그 4건 + 신규 기능 3건 묶음 (프론트 `index.html` +
+  백엔드 `bugwang-server/server.js`).
+  - **시간표 시간 전면 수정**. 사용자가 알려준 실제 교시(1교시 8:50~9:40 ~ 6교시
+    14:40~15:30, 점심 12:40~13:40)에 맞춰 `PT` 배열과 `TT_A/TT_B/TT_C`의 모든 교시별
+    시각 문자열을 일괄 치환(같은 옛 시각 문자열이 항상 같은 교시를 가리켜서 전역
+    치환으로 안전하게 처리 가능했음). 교시 개수(6교시+점심)는 기존과 동일해서 구조는
+    안 건드림.
+  - **모바일에서 한글이 안 써지는 버그 수정**. `onkeydown="if(event.key==='Enter')..."`
+    패턴으로 Enter 시 제출하는 입력(댓글/할일 추가/캠스터디 채팅/로그인/이름 설정)이
+    `event.isComposing` 체크가 없어서, 한글 IME로 조합 중 Enter로 음절을 확정하는
+    순간에도 제출이 같이 트리거되던 게 원인으로 추정됨 — 전부
+    `event.key==='Enter'&&!event.isComposing`으로 수정.
+  - **게시판(자유/질문) 동영상 첨부 지원**. 첨부 input을 `accept="image/*,video/*"`로
+    확장, 미리보기는 `URL.createObjectURL`로 이미지/동영상 전환 표시, 업로드는 기존
+    `board-photos` 버킷 그대로 재사용(MIME 제한 없음 확인). `posts.image_url`엔 이미지든
+    동영상이든 URL만 저장되므로, 렌더링 시 확장자(`.mp4/.webm/.mov/.m4v/.ogg`)로
+    동영상 여부를 판별해 `<video controls>`로 표시. 동영상 용량 제한은 50MB(이미지는
+    기존대로 10MB).
+  - **마이페이지에서 아이디(학번) 직접 변경 기능 추가**. 로그인 아이디가
+    `student_id`이자 로그인 이메일(`{학번}@bugwang3-1.app`)이고, `user_roles`/
+    `user_profiles`/`simo_members`/`user_devices`/`study_sessions`/`posts`/`comments`/
+    `notice_poll_votes` 등 여러 테이블에 텍스트로 흩어져 있어서(FK 제약은 없음)
+    프론트에서 직접 바꿀 수 없음 — `bugwang-server`에 서비스 롤로 실행하는
+    `POST /api/change-student-id` 신설(로그인한 본인 확인은 `requireAdmin`이 아니라
+    새로 만든 `requireAuth`로, access_token만 검증하고 관리자 권한은 요구하지 않음).
+    새 아이디 형식 검증 + 이메일 중복 확인 + `user_roles`/`user_profiles`/`simo_members`
+    (PK 테이블)에 이미 같은 아이디로 남은 행이 있는지(예전 계정 삭제 잔재) 확인한 뒤,
+    `sb.auth.admin.updateUserById`로 로그인 이메일부터 바꾸고 나머지 테이블들은
+    `Promise.allSettled`로 일괄 갱신(일부 실패 시 207 + "관리자에게 문의" 안내,
+    `/api/delete-user`의 기존 정리 패턴과 동일한 위험 감수 수준). `study_tasks`는
+    `student_id` 컬럼이 없이 `user_id`(uuid, 안 바뀜)로만 연결돼 있어서 손댈 필요 없음.
+    프론트는 마이페이지에 "아이디 변경" 카드 추가(현재 비밀번호로 본인 확인 후
+    `fetch`로 호출) — 비밀번호 변경 카드(`changePw`)와 동일한 재인증 패턴을 따름.
+    **실행 주체를 학생 자기 자신으로 할지 관리자 승인으로 할지는 사용자에게 직접
+    확인 후 "학생이 직접" 쪽으로 결정함.**
+  - **선생님 탭 학생 상세 화면에 "리포트" 탭 추가**. 기존엔 월간 캘린더(날짜별
+    계획/완료 목록)만 있었는데, 사용자가 "학생 본인의 학습 리포트(`page-report`)와
+    똑같이 구성해달라"고 요청 — 캘린더를 통째로 대체할지 탭으로 분리할지 확인한 뒤
+    "리포트 + 캘린더 탭 분리"로 결정. `#student-detail-fullscreen`에 `.view-toggle`
+    탭(`switchStudentDetailView`)을 추가해 기본은 리포트 탭으로 열림. 리포트 탭은
+    오늘 통계/주간 총합·평균/일별 막대그래프/오늘 과목별 도넛그래프/반 랭킹으로
+    학생 본인 리포트와 동일 구성이되, `subjects`(로그인한 사람의 메모리 상태)를 쓸 수
+    없어서 `study_sessions`를 대상 `user_id` 기준으로 직접 재집계하는
+    `loadStudentReportData`/`renderStudentReport`를 새로 작성(기존 `loadReportData`/
+    `renderReport`와 로직은 대응되지만 학생 본인 전제가 아님). 캘린더 탭은 처음
+    열 때 로드 안 하고 탭을 눌러야 지연 로드(`sdState.calLoaded`)하도록 해서 불필요한
+    쿼리를 줄임. **원본 학생 리포트의 "연속 공부일"(`rep-streak`)은 사실 어디서도
+    계산 로직이 없어 항상 "0"만 표시되는 미구현 상태였음** — 그대로 복제하지 않고
+    이 자리엔 대상 학생의 "오늘 반 랭킹"(`X/Y등`)을 대신 넣음.
+  - **PWA(홈 화면 추가)에서 튜토리얼 "건너뛰기" 버튼이 안 보이는 문제 수정**. 원인
+    두 가지: (1) `positionTourCard()`가 하이라이트 대상이 화면 위쪽 절반에 걸치기만
+    하면 무조건 카드를 그 아래에 붙였는데, 아래쪽에 남은 공간이 카드 높이보다 작으면
+    카드(그리고 맨 아래 "건너뛰기"/버튼 줄)가 뷰포트 밖으로 밀려났음 — 대상 위/아래
+    남은 공간을 비교해서 실제로 들어갈 수 있는 쪽에 배치하고, `top` 값도 항상
+    뷰포트 안으로 clamp하도록 수정. (2) iOS PWA(standalone) 모드에서는 하단 홈
+    인디케이터 영역(`env(safe-area-inset-bottom)`)만큼 실제 상호작용 가능한 화면이
+    `window.innerHeight`보다 작은데 이걸 고려하지 않고 있었음 — 숨김 프로브
+    엘리먼트로 `env()` 값을 픽셀로 읽어와(`getSafeAreaBottom()`) 카드 배치 계산에서
+    뷰포트 높이 대신 `innerHeight - safeAreaBottom`을 쓰도록 수정.
+  - **모바일에서 정지 버튼을 눌러도 총 공부시간이 계속 올라가는 버그 수정**. 원인은
+    `startTaskTimer(si,ti)`가 `await`(세션 insert)를 타기 전까지 `activeTimer`를
+    설정하지 않는 것 — 모바일에서 재생 버튼을 네트워크 왕복 중 시각적 피드백 없이
+    빠르게 두 번 누르면(흔한 사용 패턴) `openTimerView`/`toggleTaskTimer`의
+    `if(!activeTimer)` 가드가 두 번 다 통과해서 `startTaskTimer`가 겹쳐 실행되고,
+    `setInterval`이 두 개 생겨버림. 정지 버튼은 그 시점에 `activeTimer.interval`로
+    참조되는(더 나중에 덮어쓴) 하나만 멈추고, 먼저 만들어졌던 인터벌은 참조를
+    잃어버린 채(orphan) 계속 돌면서 시간을 올렸던 것. `activeTimer` 자체를 재사용해
+    막으면 `tfSwitchTask`처럼 "정지 후 바로 다른 태스크 시작"하는 정상 흐름까지
+    막혀버리므로, `startTaskTimer` 진입 동시성만 차단하는 전용 락(`timerStarting`)을
+    별도로 둬서 해결.
 - 2026-07-15: 게시물이 안 올라가는 오류 수정 (세션 만료 미감지 버그).
   실제로는 `posts` 테이블만의 문제가 아니었음 — Supabase 로그(`get_logs('postgres')`,
   `get_logs('auth')`)를 확인해보니 같은 시간대(03:55~04:01 KST)에 `study_sessions` insert도

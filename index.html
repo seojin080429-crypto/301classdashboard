@@ -1552,8 +1552,8 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
             </div>
           </div>
 
-          <!-- 선택과목 변경 -->
-          <div class="card" style="margin-top:14px">
+          <!-- 선택과목 변경 (선생님 계정은 선택과목 자체가 없으므로 숨김) -->
+          <div class="card" id="mp-subjects-card" style="margin-top:14px">
             <div class="card-title" style="margin-bottom:4px">선택과목 변경</div>
             <div class="card-sub">변경하면 학습 플래너 과목 목록이 업데이트됩니다</div>
             <div class="auth-row" style="margin-bottom:10px">
@@ -2262,6 +2262,8 @@ function applyMypageRoleView(){
   show('mp-row-math',!currentIsTeacher);
   show('mp-row-exp1',!currentIsTeacher);
   show('mp-row-exp2',!currentIsTeacher);
+  const subjectsCard=document.getElementById('mp-subjects-card');
+  if(subjectsCard)subjectsCard.style.display=currentIsTeacher?'none':'block';
 }
 
 // 아바타 자리에 프로필 사진(있으면) 또는 이니셜을 렌더링

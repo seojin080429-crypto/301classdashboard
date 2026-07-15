@@ -114,6 +114,16 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-07-15: 뉴스 삭제 버튼(운영자/선생님 전용)이 로그인 직후엔 안 보이다가 필터 탭을 눌러야
+  나타나던 버그 수정. 원인: `initApp()`에서 `renderNews()`(뉴스 목록 로드)와 `loadMyRole()`(권한
+  로드)가 둘 다 await 없이 거의 동시에 시작되는 경쟁 상태였는데, `renderNewsList()`의 삭제 버튼
+  노출 여부(`isStaffRole()`)가 그 시점의 `currentRole`을 읽다 보니 `renderNews()`가 먼저 끝나면
+  아직 role이 안 채워진 상태로 렌더링되고, 이후 role이 로드돼도 아무도 재렌더링을 안 시켜서 필터
+  버튼을 눌러 수동으로 `renderNewsList()`를 다시 태울 때까지 삭제 버튼이 안 보였음. 수정:
+  `filterNews()`가 현재 필터 카테고리를 `currentNewsCategory` 전역변수에 저장하도록 하고,
+  `loadMyRole()`이 끝난 직후 이미 뉴스가 로드돼 있으면(`allNewsData.length`) 그 필터 상태 그대로
+  `filterNews(currentNewsCategory)`를 한 번 더 호출해 삭제 버튼이 즉시 반영되도록 함(아직 뉴스
+  자체가 안 왔으면 `renderNews()`가 나중에 끝날 때 이미 반영된 role로 그리므로 그대로 둠).
 - 2026-07-15: 전체 UI에 마이크로인터랙션 대폭 추가. 기존(같은 날 앞선 커밋)에 모달 페이드/버튼
   hover·active 정도만 있던 것을, 거의 모든 인터랙티브 요소로 확장.
   - 전역 `button{}` 리셋에 `transition:transform .12s ease` + `button:active{transform:scale(.94)}`

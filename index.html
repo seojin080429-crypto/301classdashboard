@@ -2072,7 +2072,12 @@ async function doLogout(){
   // 학교 컴퓨터/태블릿처럼 여러 학생이 같은 기기를 쓸 수 있으니, 다음 로그인한 사람이 이
   // 사람의 마지막 화면이나(권한상 못 볼 페이지를 기억해뒀다 튕기는 것도 이상함) 혹시 못 지운
   // 활성 타이머 정보를 이어받지 않도록 로그아웃 시 명시적으로 지운다.
-  try{localStorage.removeItem('bugwang_last_page');clearActiveTimerStorage()}catch(e){}
+  try{
+    localStorage.removeItem('bugwang_last_page');
+    clearActiveTimerStorage();
+    clearCountdownStorage('nap');clearCountdownStorage('exam');clearStopwatchStorage();
+  }catch(e){}
+  if(alarmInterval){clearInterval(alarmInterval);alarmInterval=null;document.getElementById('timer-alarm-overlay').classList.remove('open')}
   document.getElementById('app-shell').classList.remove('visible');
   document.getElementById('name-setup-screen').classList.remove('visible');
   document.getElementById('auth-screen').style.display='flex';
@@ -2150,6 +2155,7 @@ async function initApp(user,sid,name){
   // 삭제 버튼이 안 뜰 수 있음 — 역할 로드가 끝난 시점에 이미 받아온 뉴스로 한 번 더 그려줌
   // (아직 뉴스 자체가 안 왔으면 renderNews()가 나중에 이미 반영된 권한으로 그리므로 건너뜀)
   if(allNewsData.length)filterNews(currentNewsCategory);
+  resumeMiscTimersOnLoad();
   restoreLastPage();
   maybeAutoStartTour();
 }
@@ -3836,8 +3842,11 @@ function renderReport(weekMins = [], rankByStudent = {}){
 }
 
 // ── 타이머 (쪽잠 알림 / 모의고사용 알림 / 스톱워치) ──
-// 이 앱은 DB에 아무것도 안 남기는 순수 클라이언트 타이머라, 학습 타이머(activeTimer)처럼
-// 페이지를 새로고침하거나 탭을 완전히 닫으면 초기화된다 — 앱을 켜둔 채로만 동작.
+// 학습 타이머(activeTimer)와 같은 방식으로, 새로고침해도 끊기지 않도록 시작/일시정지할
+// 때마다 재개에 필요한 값만 localStorage에 저장해두고 앱을 다시 켤 때(resumeMiscTimersOnLoad)
+// 이어서 돌린다. DB에 남기는 기록이 아니라 기기별 localStorage 하나로 충분하고, 다른
+// 사람이 봐도 큰 문제가 없는 정보라 학습 타이머처럼 소유자 확인까지는 하지 않는다(그래도
+// 깔끔하게 로그아웃 시엔 지움).
 function switchTimerTab(tab){
   ['nap','exam','stopwatch'].forEach(t=>{
     document.getElementById(`timer-view-${t}`).style.display=t===tab?'block':'none';
@@ -3854,17 +3863,47 @@ function fmtClock(sec){
 // 쪽잠/모의고사 카운트다운 공용 상태 — type('nap'|'exam')별로 하나씩만 동시에 돈다
 const countdownTimers={nap:null,exam:null};
 
-function startCountdown(type,minutes,label){
-  cancelTimer(type); // 이미 돌고 있으면 먼저 정리
-  const totalMs=minutes*60*1000;
-  countdownTimers[type]={endAt:Date.now()+totalMs,totalMs};
+function saveCountdownToStorage(type){
+  const t=countdownTimers[type];
+  if(!t)return;
+  try{localStorage.setItem(`bugwang_timer_${type}`,JSON.stringify({endAt:t.endAt,totalMs:t.totalMs,label:t.label||null}))}catch(e){}
+}
+function clearCountdownStorage(type){
+  try{localStorage.removeItem(`bugwang_timer_${type}`)}catch(e){}
+}
+
+// 새로 시작할 때와(startCountdown) 새로고침 후 이어서 켤 때(resumeCountdownIfAny) 둘 다
+// endAt/totalMs만 정해지면 나머진 똑같아서 공용으로 뺐다.
+function beginCountdownUI(type,endAt,totalMs,label){
+  countdownTimers[type]={endAt,totalMs,label};
   document.getElementById(`${type}-preset-row`).style.display='none';
   const customRow=document.getElementById(`${type}-custom-row`);
   if(customRow)customRow.style.display='none';
   document.getElementById(`${type}-cancel-btn`).style.display='inline-block';
-  if(type==='exam')document.getElementById('exam-subject-label').textContent=`${label} 시험 시간 · 실제 시험처럼 풀어보세요`;
+  if(type==='exam'&&label)document.getElementById('exam-subject-label').textContent=`${label} 시험 시간 · 실제 시험처럼 풀어보세요`;
+  saveCountdownToStorage(type);
   tickCountdown(type);
   countdownTimers[type].interval=setInterval(()=>tickCountdown(type),250);
+}
+
+function startCountdown(type,minutes,label){
+  cancelTimer(type); // 이미 돌고 있으면 먼저 정리
+  const totalMs=minutes*60*1000;
+  beginCountdownUI(type,Date.now()+totalMs,totalMs,label);
+}
+
+// 앱을 새로 켤 때(새로고침 포함) 저장된 카운트다운이 있으면 이어서 표시한다. 자리를 비운
+// 사이에 이미 시간이 다 지나버렸으면 그 자리에서 바로 알람을 울린다(놓치지 않게).
+function resumeCountdownIfAny(type){
+  let saved;
+  try{saved=JSON.parse(localStorage.getItem(`bugwang_timer_${type}`)||'null')}catch(e){saved=null}
+  if(!saved)return;
+  if(saved.endAt<=Date.now()){
+    clearCountdownStorage(type);
+    triggerTimerAlarm(type==='nap'?'일어날 시간이에요! ⏰':'시험 시간이 끝났어요! ✍️');
+    return;
+  }
+  beginCountdownUI(type,saved.endAt,saved.totalMs,saved.label);
 }
 
 function tickCountdown(type){
@@ -3878,6 +3917,7 @@ function tickCountdown(type){
   if(remainMs<=0){
     clearInterval(t.interval);
     countdownTimers[type]=null;
+    clearCountdownStorage(type);
     resetCountdownUI(type);
     triggerTimerAlarm(type==='nap'?'일어날 시간이에요! ⏰':'시험 시간이 끝났어요! ✍️');
   }
@@ -3896,6 +3936,7 @@ function resetCountdownUI(type){
 function cancelTimer(type){
   const t=countdownTimers[type];
   if(t){clearInterval(t.interval);countdownTimers[type]=null}
+  clearCountdownStorage(type);
   resetCountdownUI(type);
 }
 
@@ -3945,6 +3986,12 @@ function fmtStopwatch(sec){
   return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 }
 let swState={running:false,startedAt:0,elapsedMs:0,interval:null};
+function saveStopwatchToStorage(){
+  try{localStorage.setItem('bugwang_stopwatch',JSON.stringify({running:swState.running,startedAt:swState.startedAt,elapsedMs:swState.elapsedMs}))}catch(e){}
+}
+function clearStopwatchStorage(){
+  try{localStorage.removeItem('bugwang_stopwatch')}catch(e){}
+}
 function toggleStopwatch(){
   const btn=document.getElementById('sw-start-btn');
   if(!swState.running){
@@ -3960,12 +4007,39 @@ function toggleStopwatch(){
     clearInterval(swState.interval);
     btn.textContent='시작';
   }
+  saveStopwatchToStorage();
 }
 function resetStopwatch(){
   clearInterval(swState.interval);
   swState={running:false,startedAt:0,elapsedMs:0,interval:null};
   document.getElementById('sw-start-btn').textContent='시작';
   document.getElementById('sw-display').textContent='00:00:00';
+  clearStopwatchStorage();
+}
+// 새로고침해도 스톱워치가 이어지도록, 저장된 상태가 있으면 화면/인터벌을 그대로 복원한다.
+function resumeStopwatchIfAny(){
+  let saved;
+  try{saved=JSON.parse(localStorage.getItem('bugwang_stopwatch')||'null')}catch(e){saved=null}
+  if(!saved)return;
+  swState={running:saved.running,startedAt:saved.startedAt,elapsedMs:saved.elapsedMs,interval:null};
+  const btn=document.getElementById('sw-start-btn');
+  if(swState.running){
+    btn.textContent='정지';
+    swState.interval=setInterval(()=>{
+      document.getElementById('sw-display').textContent=fmtStopwatch((swState.elapsedMs+(Date.now()-swState.startedAt))/1000);
+    },250);
+    document.getElementById('sw-display').textContent=fmtStopwatch((swState.elapsedMs+(Date.now()-swState.startedAt))/1000);
+  }else{
+    btn.textContent='시작';
+    document.getElementById('sw-display').textContent=fmtStopwatch(swState.elapsedMs/1000);
+  }
+}
+
+// 쪽잠/모의고사/스톱워치를 앱 시작 시(로그인 직후, 새로고침 포함) 한꺼번에 복원
+function resumeMiscTimersOnLoad(){
+  resumeCountdownIfAny('nap');
+  resumeCountdownIfAny('exam');
+  resumeStopwatchIfAny();
 }
 
 // ── BOARDS ──

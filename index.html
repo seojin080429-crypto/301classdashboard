@@ -1604,6 +1604,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
               사파리 공유 버튼 → "홈 화면에 추가"를 먼저 해주세요.
             </div>
             <div id="push-unsupported" style="display:none;font-size:12px;color:var(--ink-48);margin-top:10px">이 브라우저는 푸시 알림을 지원하지 않아요.</div>
+            <div id="push-denied-hint" style="display:none;font-size:12px;color:var(--ink-48);margin-top:10px"></div>
           </div>
 
           <!-- 기능 둘러보기 -->
@@ -4124,11 +4125,22 @@ async function getAccessToken(){
   const {data:{session}}=await sb.auth.getSession();
   return session?.access_token||null;
 }
+// 브라우저가 알림 권한을 한 번 "차단"으로 기억하면 JS로는 다시 물어볼 방법이 없어서(재요청해도
+// 대화상자 없이 바로 거부로 응답됨), 브라우저 종류를 대충 구분해서 어디서 풀어야 하는지
+// 안내 문구를 보여준다. 정확한 메뉴 이름은 버전마다 조금씩 다를 수 있어 일반적인 경로만 안내.
+function pushDeniedHintText(){
+  const ua=navigator.userAgent;
+  if(/iPad|iPhone|iPod/.test(ua))return '📱 아이폰 설정 앱 → 알림 → 이 앱(홈 화면에 추가한 아이콘) 찾아서 "허용"으로 바꿔주세요.';
+  if(/Safari/.test(ua)&&!/Chrome|Chromium|Edg/.test(ua))return '🧭 Safari 메뉴 → 설정 → 웹 사이트 → 알림에서 이 사이트를 "허용"으로 바꾼 뒤 새로고침 해주세요.';
+  return '🔒 주소창 왼쪽의 자물쇠(또는 정보) 아이콘 → 사이트 설정(또는 권한) → 알림을 "허용"으로 바꾼 뒤 새로고침 해주세요.';
+}
 async function updatePushToggleUI(){
   const wrap=document.getElementById('push-toggle-wrap');
   const iosHintEl=document.getElementById('push-ios-hint');
   const unsupportedEl=document.getElementById('push-unsupported');
+  const deniedHintEl=document.getElementById('push-denied-hint');
   if(!wrap)return;
+  deniedHintEl.style.display='none';
   if(isIosNonStandalone()){
     wrap.style.display='none';iosHintEl.style.display='block';unsupportedEl.style.display='none';
     return;
@@ -4141,6 +4153,7 @@ async function updatePushToggleUI(){
   const btn=document.getElementById('push-toggle-btn');
   if(Notification.permission==='denied'){
     btn.textContent='브라우저 설정에서 차단됨';btn.disabled=true;btn.onclick=null;
+    deniedHintEl.textContent=pushDeniedHintText();deniedHintEl.style.display='block';
     return;
   }
   const reg=await navigator.serviceWorker.getRegistration('./sw.js');

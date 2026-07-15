@@ -877,6 +877,9 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         <div class="nav-item" data-page="qna-board" onclick="navigate('qna-board')">
           <svg viewBox="0 0 24 24" style="stroke:#6366f1"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>질문게시판
         </div>
+        <div class="nav-item" data-page="bug-report" onclick="navigate('bug-report')">
+          <svg viewBox="0 0 24 24" style="stroke:#ef4444"><rect x="8" y="6" width="8" height="14" rx="4"/><path d="M8 10H4M8 14H4M20 10h-4M20 14h-4M12 6V3M9 3h6"/></svg>버그 제보
+        </div>
       </div>
       <div class="nav-group">
         <div class="nav-group-label">입시</div>
@@ -1208,6 +1211,34 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         </div>
       </div>
       <div class="qna-list" id="qna-list"></div>
+    </div>
+
+    <!-- BUG REPORT -->
+    <div class="page" id="page-bug-report">
+      <div class="page-title">버그 제보</div>
+      <div class="page-sub">어플에서 이상하거나 잘못된 부분을 발견하면 알려주세요</div>
+      <div class="write-form">
+        <div class="write-form-title">제보하기</div>
+        <textarea class="form-textarea" id="bug-content" placeholder="어떤 화면에서, 어떤 버튼을 눌렀을 때, 무슨 문제가 있었는지 자세히 적어주세요..."></textarea>
+        <!-- 사진/동영상 업로드 -->
+        <div class="photo-upload-row">
+          <label class="photo-upload-label" for="bug-photo">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            스크린샷/화면녹화 첨부
+          </label>
+          <input type="file" id="bug-photo" accept="image/*,video/*" style="display:none" onchange="previewPhoto('bug')">
+          <span class="photo-file-name" id="bug-photo-name">파일 없음</span>
+          <button class="photo-clear-btn" id="bug-photo-clear" onclick="clearPhoto('bug')" style="display:none">×</button>
+        </div>
+        <div class="photo-preview-wrap" id="bug-photo-preview" style="display:none">
+          <img id="bug-photo-img" src="" alt="미리보기" class="photo-preview-img">
+          <video id="bug-photo-video" class="photo-preview-img" controls playsinline style="display:none"></video>
+        </div>
+        <div class="form-actions">
+          <button class="btn-primary" id="bug-submit-btn" onclick="submitPost('bug')">제보하기</button>
+        </div>
+      </div>
+      <div class="qna-list" id="bug-list"></div>
     </div>
 
     <!-- CAMSTUDY -->
@@ -1999,7 +2030,7 @@ async function initApp(user,sid,name){
   await syncMyProfile();
   populateMypage(meta,name,sid);
   updateDday();renderTimetable();loadMeal();loadNotices();renderNews();initCalc();renderFavorites();
-  loadFreeBoard();loadQnaBoard();
+  loadFreeBoard();loadQnaBoard();loadBugBoard();
   subjects=buildSubjectsFromMeta(meta);
   await closeOrphanSessions();
   await loadTodaySessions();
@@ -2130,11 +2161,21 @@ async function changeStudentId(){
     const result=await res.json();
     if(!res.ok){errEl.textContent=result.error||'아이디 변경에 실패했습니다.';errEl.style.display='block';return}
     currentStudentId=newId;
+    // 서버가 로그인 이메일과 함께 auth user_metadata.student_id도 갱신했으므로, 여기서도
+    // currentUser.user_metadata를 맞춰두지 않으면 saveResolution() 등 "기존 metadata를
+    // 그대로 복사해서 update"하는 다른 저장 동작이 낡은 아이디로 되돌려버릴 수 있다.
+    currentUser.user_metadata={...currentUser.user_metadata,student_id:newId};
     document.getElementById('mp-id').textContent=`${newId}번 · 3학년 1반`;
     document.getElementById('user-display-id').textContent=`${newId}번 · 3학년 1반`;
     document.getElementById('mp-new-id').value='';
     document.getElementById('mp-id-pw').value='';
-    toast(result.partial?result.message:`아이디가 ${newId}(으)로 변경되었습니다 ✓ 다음 로그인부터 새 아이디를 쓰세요`);
+    if(result.partial){
+      // 일부 테이블(특히 권한 정보)이 안 옮겨졌을 수 있는 심각한 상태라, 사라지는 토스트 대신
+      // 확인이 필요한 alert로 알려서 놓치지 않게 한다.
+      alert(result.message||'아이디는 바뀌었지만 일부 기록은 옮기지 못했어요. 관리자에게 문의해주세요.');
+    }else{
+      toast(`아이디가 ${newId}(으)로 변경되었습니다 ✓ 다음 로그인부터 새 아이디를 쓰세요`);
+    }
   }catch(e){errEl.textContent='서버 연결에 실패했습니다: '+e.message;errEl.style.display='block'}
 }
 
@@ -2274,6 +2315,8 @@ function buildTourSteps(){
     {sel:'[data-page="qna-board"]',title:'질문게시판',desc:'모르는 문제를 질문하고 답변을 받아요.'},
     {sel:'#qna-content',page:'qna-board',title:'질문 올리기',desc:'과목을 선택하고 사진과 함께 질문을 올리면 친구들이 답변해줘요.'},
 
+    {sel:'[data-page="bug-report"]',title:'버그 제보',desc:'어플이 이상하게 동작하면 여기서 알려주세요. 스크린샷이나 화면녹화도 첨부할 수 있어요.'},
+
     {sel:'[data-page="score-calc"]',title:'내신 산출 계산기',desc:'내 성적으로 대학별 환산점수를 미리 계산해봐요.'},
     {sel:'#calc-category-tiles',page:'score-calc',title:'교과군별 평균 등급',desc:'학기별로 과목·단위수·등급을 입력하면 교과군별·전체 평균 등급이 자동 계산돼요. "생기부로 자동 입력"도 지원해요.'},
 
@@ -2339,6 +2382,9 @@ function showTourStep(i){
 // (env(safe-area-inset-bottom))이 실제 상호작용 가능한 화면보다 아래에 깔려서, 카드가
 // 화면 맨 아래쪽에 붙게 계산되면 "건너뛰기"/버튼 줄이 그 안전영역에 가려 안 보이는 문제가
 // 있었다. env() 값은 CSS에서만 직접 읽을 수 있어 숨김 프로브 엘리먼트로 픽셀값을 얻는다.
+// 값을 한 번 재고 캐시해두되, 기기를 회전하거나(특히 아이패드 Stage Manager 등) 창 크기가
+// 바뀌면 safe-area 값도 바뀔 수 있어서 resize 시 캐시를 지워 다음 호출 때 다시 재도록 한다.
+window.addEventListener('resize',()=>{getSafeAreaBottom._v=undefined});
 function getSafeAreaBottom(){
   if(getSafeAreaBottom._v!==undefined)return getSafeAreaBottom._v;
   const probe=document.createElement('div');
@@ -3337,32 +3383,33 @@ function dismissMarathonModal(){
   toast('4시간 지점에서 기록을 멈췄어요. 다시 시작하려면 ▶ 버튼을 눌러주세요.');
 }
 
-// 모바일에서 재생 버튼을 빠르게 두 번 누르면(네트워크 왕복 중이라 시각적 피드백이 없어서
-// 흔히 발생) insert가 끝나기 전까지 activeTimer가 아직 null이라 startTaskTimer가 두 번
-// 겹쳐 실행되면서 setInterval이 두 개 생기던 버그가 있었다 — 하나는 activeTimer.interval에
-// 저장돼 정지 버튼으로 멈출 수 있지만, 다른 하나는 그 자리를 나중에 덮어써서 참조를 잃어버린
-// 채(orphan) 계속 돌면서 "정지를 눌러도 총 공부시간이 계속 올라가는" 현상을 만들었다.
-// activeTimer 자체를 재사용하면 tfSwitchTask처럼 "정지 후 바로 시작"하는 정상 흐름까지
-// 막아버리므로, 이 함수의 진입 동시성만 막는 전용 락을 따로 둔다.
-let timerStarting=false;
+// 시작/정지가 겹쳐 실행될 때(모바일에서 재생 버튼 빠르게 두 번 탭, 또는 tfSwitchTask처럼
+// "정지 후 바로 다른 태스크 시작") 둘 다 비동기로 전역 activeTimer를 건드리다 보니, 나중에
+// 도착한 응답이 그 사이에 이미 바뀐 activeTimer를 지우거나 덮어쓰는 경쟁 상태가 있었다 —
+// 예: A를 정지하고 B를 바로 시작했는데, A의 정지 처리(DB 업데이트 await)가 B의 시작 처리보다
+// 늦게 끝나면 A의 activeTimer=null이 막 시작된 B의 activeTimer를 지워버려서 정지 버튼이
+// 먹통이 되고 B의 인터벌은 참조를 잃은 채(orphan) 계속 시간을 올림. 단순히 시작 함수 진입만
+// 잠그는 락으로는 이 정지↔시작 간 경쟁까지는 못 막아서, 시작/정지 각 "시도"에 순번(timerGen)을
+// 매겨 자기보다 더 최신 시도가 이미 있었으면 activeTimer를 건드리지 않고 조용히 물러나게 한다.
+let timerGen=0;
 async function startTaskTimer(si,ti){
-  if(timerStarting)return;
-  timerStarting=true;
-  try{
-    if(marathonModalOpen)closeMarathonModalUI();
-    const sub=subjects[si];const task=sub.tasks[ti];
-    const startedAt=new Date();
-    const prevSeconds=task.seconds; // 이전까지 쌓인 시간 보존
-    // 새 세션 insert (이번 구간 기록용)
-    const {data:sess}=await sb.from('study_sessions').insert({
-      user_id:currentUser.id,student_id:currentStudentId,
-      subject:sub.name,task_name:task.name,
-      duration_seconds:0,started_at:startedAt.toISOString(),
-      date:localDateStr(startedAt)
-    }).select().single();
-    const sessionId=sess?.id;
-    activeTimer={subjectIdx:si,taskIdx:ti,startedAt,sessionId,prevSeconds};
-    activeTimer.interval=setInterval(()=>{
+  if(activeTimer&&activeTimer.subjectIdx===si&&activeTimer.taskIdx===ti)return; // 이미 이 태스크가 실행 중
+  const myGen=++timerGen;
+  if(marathonModalOpen)closeMarathonModalUI();
+  const sub=subjects[si];const task=sub.tasks[ti];
+  const startedAt=new Date();
+  const prevSeconds=task.seconds; // 이전까지 쌓인 시간 보존
+  // 새 세션 insert (이번 구간 기록용)
+  const {data:sess}=await sb.from('study_sessions').insert({
+    user_id:currentUser.id,student_id:currentStudentId,
+    subject:sub.name,task_name:task.name,
+    duration_seconds:0,started_at:startedAt.toISOString(),
+    date:localDateStr(startedAt)
+  }).select().single();
+  if(myGen!==timerGen)return; // 그 사이에 더 최신 시작/정지 시도가 있었으면 이 결과는 버림
+  const sessionId=sess?.id;
+  activeTimer={subjectIdx:si,taskIdx:ti,startedAt,sessionId,prevSeconds};
+  activeTimer.interval=setInterval(()=>{
     const elapsed=Math.floor((Date.now()-startedAt)/1000);
     subjects[si].tasks[ti].seconds=prevSeconds+elapsed;
     // 오늘 총 시간 = DB에 저장된 완료 세션들 + 현재 진행 중 elapsed
@@ -3378,28 +3425,28 @@ async function startTaskTimer(si,ti){
     const subEl=document.getElementById(`sub-${si}`);
     if(subEl){const subTime=subEl.querySelector('.subject-total-time');if(subTime)subTime.textContent=fmtSec(subjects[si].tasks.reduce((s,t)=>s+t.seconds,0))}
     renderSessionLog();
-    },1000);
-    showTimerBadge(sub.name,task.name);
-    renderSubjects();
-  }finally{
-    timerStarting=false;
-  }
+  },1000);
+  showTimerBadge(sub.name,task.name);
+  renderSubjects();
 }
 
 async function stopCurrentTimer(){
   if(!activeTimer)return;
-  clearInterval(activeTimer.interval);
-  const elapsed=Math.floor((Date.now()-activeTimer.startedAt)/1000);
+  const myGen=++timerGen;
+  const stopped=activeTimer; // 정지 대상 스냅샷 — await 도중 activeTimer가 다른 타이머로 바뀌어도 안전하게
+  clearInterval(stopped.interval);
+  const elapsed=Math.floor((Date.now()-stopped.startedAt)/1000);
   const endedAt=new Date().toISOString();
   // 이번 구간만 DB에 저장
-  if(activeTimer.sessionId){
-    await sb.from('study_sessions').update({duration_seconds:elapsed,ended_at:endedAt}).eq('id',activeTimer.sessionId);
+  if(stopped.sessionId){
+    await sb.from('study_sessions').update({duration_seconds:elapsed,ended_at:endedAt}).eq('id',stopped.sessionId);
   }
-  // 태스크 누적 시간 확정
-  subjects[activeTimer.subjectIdx].tasks[activeTimer.taskIdx].seconds=activeTimer.prevSeconds+elapsed;
-  const savedSeconds=subjects[activeTimer.subjectIdx].tasks[activeTimer.taskIdx].seconds;
-  activeTimer=null;
-  hideTimerBadge();
+  // 태스크 누적 시간 확정 (그 사이 다른 타이머가 시작됐어도 이 값 자체는 항상 반영해야 함)
+  subjects[stopped.subjectIdx].tasks[stopped.taskIdx].seconds=stopped.prevSeconds+elapsed;
+  const savedSeconds=subjects[stopped.subjectIdx].tasks[stopped.taskIdx].seconds;
+  // activeTimer/배지는 그 사이에 더 최신 시작 시도가 없었을 때만 정리 — 있었다면 그건 이미
+  // 새 타이머가 차지한 자리이므로 여기서 지우면 안 됨
+  if(myGen===timerGen){activeTimer=null;hideTimerBadge()}
   // DB 세션 다시 로드 (리스트/타임블록 갱신) — 단, task.seconds는 위에서 이미 확정했으므로 덮어쓰지 않음
   await loadTodaySessionsOnly();
   // 확정된 시간 복원 (loadTodaySessionsOnly가 덮어쓸 수 있으므로)
@@ -3615,6 +3662,16 @@ function renderReport(weekMins = [], rankByStudent = {}){
 }
 
 // ── BOARDS ──
+// createObjectURL로 만든 blob URL은 (data URL과 달리) 명시적으로 revokeObjectURL하지 않으면
+// 페이지가 떠 있는 동안 메모리에 계속 남는다. 하루 종일 켜두는 모바일 PWA에서 사진/동영상을
+// 여러 번 첨부·교체하며 게시하면 조금씩 누적되므로, 새 미리보기로 갈아끼우기 전/제출 후
+// 정리할 때 항상 이전 blob URL을 revoke한다.
+function revokePreviewUrls(type){
+  const imgEl=document.getElementById(`${type}-photo-img`);
+  const videoEl=document.getElementById(`${type}-photo-video`);
+  if(imgEl?.src?.startsWith('blob:'))URL.revokeObjectURL(imgEl.src);
+  if(videoEl?.src?.startsWith('blob:'))URL.revokeObjectURL(videoEl.src);
+}
 function previewPhoto(type){
   const input=document.getElementById(`${type}-photo`);
   const file=input.files[0];
@@ -3622,6 +3679,7 @@ function previewPhoto(type){
   const isVideo=file.type.startsWith('video/');
   const maxSize=isVideo?50*1024*1024:10*1024*1024;
   if(file.size>maxSize){toast(isVideo?'동영상은 50MB 이하만 가능합니다':'사진은 10MB 이하만 가능합니다');input.value='';return}
+  revokePreviewUrls(type);
   document.getElementById(`${type}-photo-name`).textContent=file.name;
   document.getElementById(`${type}-photo-clear`).style.display='flex';
   const imgEl=document.getElementById(`${type}-photo-img`);
@@ -3638,6 +3696,7 @@ function previewPhoto(type){
 }
 
 function clearPhoto(type){
+  revokePreviewUrls(type);
   document.getElementById(`${type}-photo`).value='';
   document.getElementById(`${type}-photo-name`).textContent='파일 없음';
   document.getElementById(`${type}-photo-clear`).style.display='none';
@@ -3648,11 +3707,17 @@ function clearPhoto(type){
   videoEl.removeAttribute('src');videoEl.style.display='none';
 }
 
+// 게시판 종류(자유/질문/버그제보)가 늘어날 때마다 곳곳의 type==='free'?A:B 삼항연산이
+// 계속 늘어나는 걸 막기 위한 조회 테이블 — 새 게시판을 추가할 땐 여기 한 줄만 더하면 됨.
+const BOARD_SUBMIT_LABEL={free:'게시하기',qna:'질문 올리기',bug:'제보하기'};
+function boardLoader(type){return type==='free'?loadFreeBoard:type==='qna'?loadQnaBoard:loadBugBoard}
+
 async function submitPost(type){
   const contentEl=document.getElementById(`${type}-content`);
   const content=contentEl.value.trim();
   if(!content){toast('내용을 입력해주세요');return}
   const submitBtn=document.getElementById(`${type}-submit-btn`);
+  const label=BOARD_SUBMIT_LABEL[type];
   submitBtn.textContent='올리는 중...';submitBtn.disabled=true;
   const subject=type==='qna'?document.getElementById('qna-subject').value:null;
   let imageUrl=null;
@@ -3660,9 +3725,13 @@ async function submitPost(type){
   const file=photoInput.files[0];
   if(file){
     const ext=file.name.split('.').pop();
-    const fileName=`${currentStudentId}_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+    // 나중에 렌더링할 때(renderPost) 이미지/동영상 여부를 확장자로 추측하면 avi/wmv/mkv처럼
+    // 흔치 않은 확장자를 놓칠 수 있으므로, 업로드 시점에 브라우저가 실제로 읽은 file.type을
+    // 파일명 접두사(vid_/img_)에 그대로 새겨서 나중엔 추측 없이 파일명만 보고 판단하게 한다.
+    const mediaPrefix=file.type.startsWith('video/')?'vid':'img';
+    const fileName=`${mediaPrefix}_${currentStudentId}_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
     const {error:upErr}=await sb.storage.from('board-photos').upload(fileName,file);
-    if(upErr){toast('사진 업로드 실패: '+upErr.message);submitBtn.textContent=type==='free'?'게시하기':'질문 올리기';submitBtn.disabled=false;return}
+    if(upErr){toast('사진 업로드 실패: '+upErr.message);submitBtn.textContent=label;submitBtn.disabled=false;return}
     const {data:urlData}=sb.storage.from('board-photos').getPublicUrl(fileName);
     imageUrl=urlData.publicUrl;
   }
@@ -3671,11 +3740,11 @@ async function submitPost(type){
     author_name:currentName||currentStudentId+'번',
     category:type,subject,content,image_url:imageUrl
   });
-  if(error){toast('게시 실패: '+error.message);submitBtn.textContent=type==='free'?'게시하기':'질문 올리기';submitBtn.disabled=false;return}
+  if(error){toast('게시 실패: '+error.message);submitBtn.textContent=label;submitBtn.disabled=false;return}
   contentEl.value='';clearPhoto(type);
-  submitBtn.textContent=type==='free'?'게시하기':'질문 올리기';submitBtn.disabled=false;
-  toast('게시되었습니다 ✓');
-  if(type==='free')await loadFreeBoard();else await loadQnaBoard();
+  submitBtn.textContent=label;submitBtn.disabled=false;
+  toast(type==='bug'?'제보됐어요, 확인할게요 ✓':'게시되었습니다 ✓');
+  await boardLoader(type)();
 }
 
 async function deletePost(id,imageUrl,type){
@@ -3686,13 +3755,15 @@ async function deletePost(id,imageUrl,type){
   }
   await sb.from('posts').delete().eq('id',id);
   toast('삭제되었습니다');
-  if(type==='free')await loadFreeBoard();else await loadQnaBoard();
+  await boardLoader(type)();
 }
 
 function renderPost(p,type,comments=[]){
   const isMe=p.student_id===currentStudentId;
   const date=new Date(p.created_at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
-  const isVideoAttachment=p.image_url&&/\.(mp4|webm|mov|m4v|ogg|ogv)(\?|$)/i.test(p.image_url);
+  // 업로드 시점에 파일명에 새겨둔 vid_/img_ 접두사로 우선 판단하고, 그 접두사가 없는(이
+  // 방식 도입 전에 이미 올라간) 과거 첨부파일은 예전처럼 확장자로 대신 추측한다.
+  const isVideoAttachment=p.image_url&&(/\/vid_[^/]*$/.test(p.image_url)||(!/\/img_[^/]*$/.test(p.image_url)&&/\.(mp4|webm|mov|m4v|ogg|ogv|avi|wmv|mkv|3gp|flv|mpeg|mpg)(\?|$)/i.test(p.image_url)));
   const imgHtml=p.image_url?(isVideoAttachment
     ?`<video class="post-img" src="${p.image_url}" controls playsinline></video>`
     :`<img class="post-img" src="${p.image_url}" alt="첨부사진" onclick="openLightbox('${p.image_url}')">`):'';
@@ -3782,28 +3853,21 @@ async function submitComment(postId,type){
 async function deleteComment(commentId,postId,type){
   if(!confirm('댓글을 삭제할까요?'))return;
   await sb.from('comments').delete().eq('id',commentId);
-  if(type==='free')await loadFreeBoard();else await loadQnaBoard();
+  await boardLoader(type)();
 }
 
-async function loadFreeBoard(){
-  const {data:posts}=await sb.from('posts').select('*').eq('category','free').order('created_at',{ascending:false}).limit(30);
-  const el=document.getElementById('free-list');
-  if(!posts||!posts.length){el.innerHTML='<div style="text-align:center;padding:32px;color:var(--ink-48);font-size:13px">아직 글이 없어요. 첫 글을 남겨보세요!</div>';return}
+async function loadBoardPosts(category,listElId,emptyMsg,type){
+  const {data:posts}=await sb.from('posts').select('*').eq('category',category).order('created_at',{ascending:false}).limit(30);
+  const el=document.getElementById(listElId);
+  if(!posts||!posts.length){el.innerHTML=`<div style="text-align:center;padding:32px;color:var(--ink-48);font-size:13px">${emptyMsg}</div>`;return}
   const ids=posts.map(p=>p.id);
   const {data:comments}=await sb.from('comments').select('*').in('post_id',ids).order('created_at');
   const commentMap={};(comments||[]).forEach(c=>{if(!commentMap[c.post_id])commentMap[c.post_id]=[];commentMap[c.post_id].push(c)});
-  el.innerHTML=posts.map(p=>renderPost(p,'free',commentMap[p.id]||[])).join('');
+  el.innerHTML=posts.map(p=>renderPost(p,type,commentMap[p.id]||[])).join('');
 }
-
-async function loadQnaBoard(){
-  const {data:posts}=await sb.from('posts').select('*').eq('category','qna').order('created_at',{ascending:false}).limit(30);
-  const el=document.getElementById('qna-list');
-  if(!posts||!posts.length){el.innerHTML='<div style="text-align:center;padding:32px;color:var(--ink-48);font-size:13px">아직 질문이 없어요!</div>';return}
-  const ids=posts.map(p=>p.id);
-  const {data:comments}=await sb.from('comments').select('*').in('post_id',ids).order('created_at');
-  const commentMap={};(comments||[]).forEach(c=>{if(!commentMap[c.post_id])commentMap[c.post_id]=[];commentMap[c.post_id].push(c)});
-  el.innerHTML=posts.map(p=>renderPost(p,'qna',commentMap[p.id]||[])).join('');
-}
+async function loadFreeBoard(){await loadBoardPosts('free','free-list','아직 글이 없어요. 첫 글을 남겨보세요!','free')}
+async function loadQnaBoard(){await loadBoardPosts('qna','qna-list','아직 질문이 없어요!','qna')}
+async function loadBugBoard(){await loadBoardPosts('bug','bug-list','아직 제보된 버그가 없어요.','bug')}
 
 function openLightbox(url){document.getElementById('lightbox-img').src=url;document.getElementById('img-lightbox').classList.add('open')}
 function closeLightbox(){document.getElementById('img-lightbox').classList.remove('open')}
@@ -4341,11 +4405,11 @@ function shiftMyPlannerMonth(dir){
 
 // 선생님: 학생 상세 학습현황 전체화면
 // 리포트 탭(학생 본인의 학습 리포트와 동일한 구성) + 캘린더 탭(날짜별 계획/완료 목록) 두 가지로 볼 수 있다.
-let sdState={userId:null,studentId:null,name:null,year:null,month:null,calLoaded:false};
+let sdState={userId:null,studentId:null,year:null,month:null,calLoaded:false};
 function openStudentDetail(sid,name,userId){
   if(!userId){toast('학생 정보를 찾을 수 없어요 (계정 미가입 상태일 수 있어요)');return}
   const n=new Date();
-  sdState={userId,studentId:sid,name,year:n.getFullYear(),month:n.getMonth(),calLoaded:false};
+  sdState={userId,studentId:sid,year:n.getFullYear(),month:n.getMonth(),calLoaded:false};
   document.getElementById('sd-title').textContent=`${name} (${sid}번) 학습현황`;
   document.getElementById('student-detail-fullscreen').classList.add('open');
   document.body.style.overflow='hidden';

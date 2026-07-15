@@ -218,6 +218,31 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .notice-del-btn{font-size:11px;color:var(--ink-48);background:none;border:none;cursor:pointer;margin-left:auto;transition:color var(--t),transform .12s ease}
 .notice-del-btn:hover{color:#c00}
 
+/* 공지 투표 */
+.poll-block{white-space:normal;margin-top:14px;padding:14px;background:var(--parchment);border-radius:var(--radius-md);border:1px solid var(--hairline)}
+.poll-question{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:10px}
+.poll-options{display:flex;flex-direction:column;gap:6px}
+.poll-option-btn{width:100%;text-align:left;padding:10px 12px;border:1px solid var(--hairline);border-radius:var(--radius-sm);background:var(--canvas);color:var(--ink-80);font-size:13px;transition:border-color var(--t),background var(--t),transform .1s ease}
+.poll-option-btn:hover{border-color:var(--blue);color:var(--blue);background:rgba(0,102,204,.04)}
+.poll-option-btn:active{transform:scale(.98)}
+.poll-result-row{padding:8px 0}
+.poll-result-row.mine .poll-result-top{color:var(--blue);font-weight:600}
+.poll-result-top{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--ink-80);margin-bottom:4px}
+.poll-mine-badge{font-size:9px;font-weight:600;padding:1px 6px;border-radius:var(--radius-pill);background:rgba(0,102,204,.12);color:var(--blue);margin-left:4px}
+.poll-result-track{height:6px;border-radius:3px;background:var(--hairline);overflow:hidden}
+.poll-result-fill{height:100%;border-radius:3px;background:var(--blue);transition:width .6s ease}
+.poll-voter-names{font-size:11px;color:var(--ink-48);margin-top:3px;line-height:1.5}
+.poll-meta-row{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:11px;color:var(--ink-48)}
+.poll-nonvoters-toggle{color:var(--blue);cursor:pointer}
+.poll-nonvoters-toggle:hover{text-decoration:underline}
+.poll-nonvoters{display:none;font-size:11px;color:var(--ink-48);margin-top:6px;padding-top:6px;border-top:1px dashed var(--hairline);line-height:1.6}
+.poll-nonvoters.open{display:block}
+.poll-option-input-list{display:flex;flex-direction:column;gap:6px}
+.poll-option-input-row{display:flex;gap:6px;align-items:center}
+.poll-option-input-row .modal-input{flex:1}
+.poll-option-remove-btn{width:26px;height:26px;flex-shrink:0;border-radius:50%;border:1px solid var(--hairline);color:var(--ink-48);background:none;font-size:13px;transition:all var(--t)}
+.poll-option-remove-btn:hover{border-color:#c00;color:#c00}
+
 /* 실모반 */
 .simo-material-list{display:flex;flex-direction:column}
 .simo-material-item{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--hairline)}
@@ -235,9 +260,11 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 
 /* NEWS */
 .news-list{display:flex;flex-direction:column}
-.news-item{display:flex;align-items:flex-start;gap:12px;padding:14px 0;border-bottom:1px solid var(--hairline);cursor:pointer}
+.news-item{display:flex;align-items:flex-start;gap:12px;padding:14px 0;border-bottom:1px solid var(--hairline);cursor:pointer;animation:item-in .25s ease both}
+.news-thumb{width:56px;height:56px;border-radius:var(--radius-md);flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:22px}
+.news-thumb img{width:100%;height:100%;object-fit:cover;display:block}
 .news-item:last-child{border-bottom:none}
-.news-tag{font-size:10px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:rgba(0,102,204,.1);color:var(--blue);white-space:nowrap;margin-top:1px;flex-shrink:0}
+.news-tag{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:rgba(0,102,204,.1);color:var(--blue);white-space:nowrap;margin-bottom:4px;flex-shrink:0}
 .news-title{font-size:13px;color:var(--ink);line-height:1.4;margin-bottom:2px}
 .news-date{font-size:11px;color:var(--ink-48)}
 
@@ -251,6 +278,24 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 /* TOAST */
 #toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:#1d1d1f;color:#fff;font-size:13px;padding:10px 20px;border-radius:var(--radius-pill);box-shadow:0 4px 24px rgba(0,0,0,.4);z-index:999;transition:transform .3s ease,opacity .3s ease;opacity:0;pointer-events:none;white-space:nowrap}
 #toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+
+/* 기능 둘러보기 튜토리얼 */
+.tour-overlay{position:fixed;inset:0;z-index:500;display:none}
+.tour-overlay.open{display:block}
+.tour-highlight{position:fixed;border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,.6);pointer-events:none;z-index:501;transition:top .35s ease,left .35s ease,width .35s ease,height .35s ease}
+.tour-card{position:fixed;background:var(--canvas);border-radius:var(--radius-lg);padding:18px 20px;width:280px;max-width:calc(100vw - 24px);box-shadow:0 12px 50px rgba(0,0,0,.35);z-index:502;transition:top .35s ease,left .35s ease;animation:item-in .25s ease both}
+.tour-card::before{content:'';position:absolute;width:0;height:0;border:9px solid transparent}
+.tour-card.arrow-left::before{left:-18px;top:24px;border-right-color:var(--canvas)}
+.tour-card.arrow-right::before{right:-18px;top:24px;border-left-color:var(--canvas)}
+.tour-card.arrow-top::before{top:-18px;left:24px;border-bottom-color:var(--canvas)}
+.tour-card.arrow-bottom::before{bottom:-18px;left:24px;border-top-color:var(--canvas)}
+.tour-card-step{font-size:11px;font-weight:700;color:var(--blue);letter-spacing:.04em;margin-bottom:6px}
+.tour-card-title{font-size:16px;font-weight:700;color:var(--ink);letter-spacing:-.022em;margin-bottom:6px}
+.tour-card-desc{font-size:13px;color:var(--ink-80);line-height:1.55;margin-bottom:16px}
+.tour-card-actions{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.tour-skip{font-size:12px;color:var(--ink-48);cursor:pointer}
+.tour-skip:hover{text-decoration:underline}
+.tour-card-actions .btn-ghost,.tour-card-actions .btn-primary{padding:7px 14px;font-size:13px}
 
 /* MODAL */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;overflow-y:auto;opacity:0;pointer-events:none;transition:opacity .18s ease}
@@ -431,7 +476,10 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .progress-fill{height:100%;border-radius:2px;transition:width .4s ease}
 .subject-pie-row{display:flex;align-items:center;gap:28px;flex-wrap:wrap}
 .pie-chart-wrap{position:relative;width:130px;height:130px;flex-shrink:0}
-.pie-chart{width:100%;height:100%;border-radius:50%;background:var(--hairline);transition:background .5s ease}
+@property --reveal{syntax:'<percentage>';inherits:false;initial-value:100%}
+.pie-chart{width:100%;height:100%;border-radius:50%;background:var(--hairline);transition:background .5s ease;--reveal:100%;-webkit-mask-image:conic-gradient(#000 var(--reveal),transparent var(--reveal));mask-image:conic-gradient(#000 var(--reveal),transparent var(--reveal))}
+.pie-chart.pie-animate{animation:pie-reveal 1s cubic-bezier(.25,.8,.35,1) forwards}
+@keyframes pie-reveal{from{--reveal:0%}to{--reveal:100%}}
 .pie-chart-hole{position:absolute;inset:20px;border-radius:50%;background:var(--canvas);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
 .pie-chart-hole-val{font-size:13px;font-weight:700;color:var(--ink)}
 .pie-chart-hole-label{font-size:10px;color:var(--ink-48);margin-top:2px}
@@ -780,69 +828,74 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <div class="sidebar-wordmark">부광 <span>3-1</span></div>
-      <button class="theme-toggle-btn" onclick="toggleTheme()" title="다크모드 전환">
-        <svg class="icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-        <svg class="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
-      </button>
+      <div style="display:flex;align-items:center;gap:2px">
+        <button class="theme-toggle-btn" onclick="startTour()" title="기능 둘러보기">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </button>
+        <button class="theme-toggle-btn" onclick="toggleTheme()" title="다크모드 전환">
+          <svg class="icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+          <svg class="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+        </button>
+      </div>
     </div>
     <nav class="sidebar-nav">
       <div class="nav-group">
         <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">
-          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>대시보드
+          <svg viewBox="0 0 24 24" style="stroke:#0071e3"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>대시보드
         </div>
         <div class="nav-item" data-page="notice" onclick="navigate('notice')">
-          <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>공지사항
+          <svg viewBox="0 0 24 24" style="stroke:#e8a23d"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>공지사항
         </div>
         <div class="nav-item" data-page="favorites" onclick="navigate('favorites')">
-          <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>즐겨찾기
+          <svg viewBox="0 0 24 24" style="stroke:#f5c518"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>즐겨찾기
         </div>
       </div>
       <div class="nav-group">
         <div class="nav-group-label">학습</div>
         <div class="nav-item" data-page="planner" onclick="navigate('planner')">
-          <svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>학습 플래너
+          <svg viewBox="0 0 24 24" style="stroke:#2ecc71"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>학습 플래너
         </div>
         <div class="nav-item" data-page="report" onclick="navigate('report')">
-          <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>학습 리포트
+          <svg viewBox="0 0 24 24" style="stroke:#8b5cf6"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>학습 리포트
         </div>
         <div class="nav-item" data-page="simo" onclick="navigate('simo')" id="nav-simo" style="display:none">
-          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>실모반
+          <svg viewBox="0 0 24 24" style="stroke:#14b8a6"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>실모반
         </div>
       </div>
       <div class="nav-group">
         <div class="nav-group-label">실시간</div>
         <div class="nav-item" data-page="camstudy" onclick="navigate('camstudy')">
-          <svg viewBox="0 0 24 24"><rect x="2" y="5" width="15" height="14" rx="2"/><path d="M22 8l-5 4 5 4V8z"/></svg>캠스터디
+          <svg viewBox="0 0 24 24" style="stroke:#ec4899"><rect x="2" y="5" width="15" height="14" rx="2"/><path d="M22 8l-5 4 5 4V8z"/></svg>캠스터디
         </div>
       </div>
       <div class="nav-group">
         <div class="nav-group-label">게시판</div>
         <div class="nav-item" data-page="free-board" onclick="navigate('free-board')">
-          <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>자유게시판
+          <svg viewBox="0 0 24 24" style="stroke:#0ea5e9"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>자유게시판
         </div>
         <div class="nav-item" data-page="qna-board" onclick="navigate('qna-board')">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>질문게시판
+          <svg viewBox="0 0 24 24" style="stroke:#6366f1"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>질문게시판
         </div>
       </div>
       <div class="nav-group">
         <div class="nav-group-label">입시</div>
         <div class="nav-item" data-page="score-calc" onclick="navigate('score-calc')">
-          <svg viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>내신 산출 계산기
+          <svg viewBox="0 0 24 24" style="stroke:#06b6d4"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>내신 산출 계산기
         </div>
         <div class="nav-item" data-page="news" onclick="navigate('news')">
-          <svg viewBox="0 0 24 24"><path d="M4 22h16a2 2 0 002-2V4a2 2 0 00-2-2H8a2 2 0 00-2 2v2"/><rect x="6" y="7" width="13" height="4" rx="1"/></svg>입시뉴스
+          <svg viewBox="0 0 24 24" style="stroke:#f97316"><path d="M4 22h16a2 2 0 002-2V4a2 2 0 00-2-2H8a2 2 0 00-2 2v2"/><rect x="6" y="7" width="13" height="4" rx="1"/></svg>입시뉴스
         </div>
       </div>
       <div class="nav-group">
         <div class="nav-group-label">설정</div>
         <div class="nav-item" data-page="mypage" onclick="navigate('mypage')">
-          <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>마이페이지
+          <svg viewBox="0 0 24 24" style="stroke:#64748b"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>마이페이지
         </div>
         <div class="nav-item" data-page="admin" onclick="navigate('admin')" id="nav-admin" style="display:none">
-          <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>관리자
+          <svg viewBox="0 0 24 24" style="stroke:#c026a8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>관리자
         </div>
         <div class="nav-item" data-page="teacher" onclick="navigate('teacher')" id="nav-teacher" style="display:none">
-          <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>학생 현황
+          <svg viewBox="0 0 24 24" style="stroke:#1a9c53"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>학생 현황
         </div>
       </div>
     </nav>
@@ -907,9 +960,62 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
       <div class="spacer">
         <div class="section-hd">
           <div class="section-hd-title">전체 공지</div>
-          <span class="section-hd-link" id="notice-write-btn-page" style="display:none" onclick="openNoticeModal()">+ 공지 작성</span>
+          <span class="section-hd-link" id="notice-write-btn-page" style="display:none" onclick="openNoticeWritePage()">+ 공지 작성</span>
         </div>
         <div class="card" style="padding:0 20px"><div class="notice-list" id="notice-page-list"></div></div>
+      </div>
+    </div>
+
+    <!-- NOTICE WRITE (네이버 카페식 전체 페이지 글쓰기) -->
+    <div class="page" id="page-notice-write">
+      <span class="section-hd-link" onclick="closeNoticeWritePage()">← 공지사항으로</span>
+      <div class="page-title" style="margin-top:10px">공지 작성</div>
+      <div class="page-sub">학급에 공개되는 공지를 작성하세요</div>
+      <div class="card spacer">
+        <div class="modal-field">
+          <label class="modal-label">제목</label>
+          <input class="modal-input" id="notice-title-input" type="text" placeholder="공지 제목">
+        </div>
+        <div class="modal-field">
+          <label class="modal-label">내용</label>
+          <textarea class="form-textarea" id="notice-content-input" placeholder="공지 내용을 입력하세요" style="min-height:220px"></textarea>
+        </div>
+        <div class="modal-field" id="notice-audience-field" style="display:none">
+          <label class="modal-label">대상</label>
+          <select class="modal-input" id="notice-audience-input">
+            <option value="all">전체 공지</option>
+            <option value="simo">실모반 전용</option>
+          </select>
+        </div>
+        <div class="modal-field">
+          <label class="modal-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="notice-poll-toggle" style="width:15px;height:15px;accent-color:var(--blue)" onchange="syncPollSectionVisibility()">
+            투표 추가
+          </label>
+        </div>
+        <div id="notice-poll-section" style="display:none">
+          <div class="modal-field">
+            <label class="modal-label">투표 질문</label>
+            <input class="modal-input" id="notice-poll-question-input" type="text" placeholder="예: 이번 주 토요일 특강 참석하시나요?">
+          </div>
+          <div class="modal-field">
+            <label class="modal-label">선택지</label>
+            <div id="notice-poll-options-list" class="poll-option-input-list"></div>
+            <span class="section-hd-link" onclick="addPollOptionInput()" style="display:inline-block;margin-top:8px">+ 선택지 추가</span>
+          </div>
+          <div class="modal-field">
+            <label class="modal-label">공개 방식</label>
+            <select class="modal-input" id="notice-poll-anon-input">
+              <option value="false">실명 — 누가 어떤 선택지를 골랐는지 서로 볼 수 있어요</option>
+              <option value="true">익명 — 참여 여부만 보이고 어떤 선택지를 골랐는지는 비공개예요</option>
+            </select>
+          </div>
+        </div>
+        <div class="auth-error" id="notice-error"></div>
+        <div class="modal-actions">
+          <button class="btn-ghost" onclick="closeNoticeWritePage()">취소</button>
+          <button class="btn-primary" onclick="submitNotice()">게시하기</button>
+        </div>
       </div>
     </div>
 
@@ -1324,6 +1430,15 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
             </div>
           </div>
 
+          <!-- 기능 둘러보기 -->
+          <div class="card" style="margin-top:14px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <div>
+              <div class="card-title" style="margin-bottom:2px">기능 둘러보기</div>
+              <div class="card-sub" style="margin-bottom:0">주요 기능을 화살표로 안내하는 투어를 다시 볼 수 있어요</div>
+            </div>
+            <button class="btn-ghost" style="flex-shrink:0" onclick="startTour()">다시 보기</button>
+          </div>
+
           <!-- 로그아웃 -->
           <div style="margin-top:14px;text-align:right">
             <button class="btn-danger" onclick="doLogout()" style="padding:10px 20px;font-size:14px">로그아웃</button>
@@ -1485,33 +1600,6 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
   </div>
 </div>
 
-<!-- 공지 작성 모달 -->
-<div class="modal-overlay" id="notice-modal">
-  <div class="modal">
-    <button class="modal-close" onclick="closeNoticeModal()">×</button>
-    <div class="modal-title">공지 작성</div>
-    <div class="modal-field">
-      <label class="modal-label">제목</label>
-      <input class="modal-input" id="notice-title-input" type="text" placeholder="공지 제목">
-    </div>
-    <div class="modal-field">
-      <label class="modal-label">내용</label>
-      <textarea class="form-textarea" id="notice-content-input" placeholder="공지 내용을 입력하세요" style="min-height:120px"></textarea>
-    </div>
-    <div class="modal-field" id="notice-audience-field" style="display:none">
-      <label class="modal-label">대상</label>
-      <select class="modal-input" id="notice-audience-input">
-        <option value="all">전체 공지</option>
-        <option value="simo">실모반 전용</option>
-      </select>
-    </div>
-    <div class="auth-error" id="notice-error"></div>
-    <div class="modal-actions">
-      <button class="btn-ghost" onclick="closeNoticeModal()">취소</button>
-      <button class="btn-primary" onclick="submitNotice()">게시하기</button>
-    </div>
-  </div>
-</div>
 
 <!-- 실모반 자료 업로드 모달 -->
 <div class="modal-overlay" id="simo-material-modal">
@@ -1593,6 +1681,23 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 </div>
 
 <div id="toast"></div>
+
+<!-- 기능 둘러보기 튜토리얼 -->
+<div class="tour-overlay" id="tour-overlay">
+  <div class="tour-highlight" id="tour-highlight"></div>
+  <div class="tour-card" id="tour-card">
+    <div class="tour-card-step" id="tour-step-counter"></div>
+    <div class="tour-card-title" id="tour-card-title"></div>
+    <div class="tour-card-desc" id="tour-card-desc"></div>
+    <div class="tour-card-actions">
+      <span class="tour-skip" onclick="endTour()">건너뛰기</span>
+      <div style="display:flex;gap:8px">
+        <button class="btn-ghost" id="tour-prev-btn" onclick="prevTourStep()">이전</button>
+        <button class="btn-primary" id="tour-next-btn" onclick="nextTourStep()">다음</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- 이미지 라이트박스 -->
 <div id="img-lightbox" onclick="closeLightbox()">
@@ -1799,6 +1904,7 @@ async function initApp(user,sid,name){
   // 삭제 버튼이 안 뜰 수 있음 — 역할 로드가 끝난 시점에 이미 받아온 뉴스로 한 번 더 그려줌
   // (아직 뉴스 자체가 안 왔으면 renderNews()가 나중에 이미 반영된 권한으로 그리므로 건너뜀)
   if(allNewsData.length)filterNews(currentNewsCategory);
+  maybeAutoStartTour();
 }
 
 function populateMypage(meta,name,sid){
@@ -1942,6 +2048,126 @@ function navigate(page){
 function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sidebar-overlay').classList.add('visible')}
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-overlay').classList.remove('visible')}
 
+// ── 날짜 자동 롤오버 ──
+// 앱을 켜놓은 채로 자정을 넘기면(폰 화면 꺼놨다 켰을 때 등) D-day/시간표/오늘 공부시간/플래너
+// 할일이 전날 기준으로 멈춰있는 문제 — 주기적으로, 그리고 탭이 다시 보일 때마다 날짜가
+// 바뀌었는지 확인해서 바뀌었으면 오늘 기준 데이터를 다시 불러온다.
+let lastKnownDateStr=new Date().toISOString().slice(0,10);
+async function checkDateRollover(){
+  const nowStr=new Date().toISOString().slice(0,10);
+  if(nowStr===lastKnownDateStr||!currentUser)return;
+  lastKnownDateStr=nowStr;
+  updateDday();renderTimetable();loadMeal();
+  await loadSubjectsFromDB();renderSubjects();
+  await loadTodaySessions();
+  await refreshStats();
+  updatePlannerDate();
+  if(document.getElementById('page-report')?.classList.contains('active'))loadReportData();
+  if(document.getElementById('page-planner')?.classList.contains('active'))renderMyMonthCalendar();
+}
+setInterval(checkDateRollover,60000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkDateRollover()});
+
+// ── 기능 둘러보기 튜토리얼 ──
+// 사이드바 메뉴 항목 + 대시보드 핵심 요소를 순서대로 하이라이트하며 화살표 말풍선으로 설명한다.
+// 대상 요소가 실제로 화면에 보일 때만(offsetParent!==null — display:none 등으로 숨겨진 관리자/
+// 선생님/실모반 탭 등은 자동 제외) 포함하므로 학생/운영자/선생님 권한에 따라 단계 수가 달라진다.
+let tourSteps=[];
+let tourIndex=0;
+function buildTourSteps(){
+  const steps=[
+    {sel:'.dday-tile',title:'D-Day',desc:'수능까지 남은 날짜가 여기 표시돼요.'},
+    {sel:'.grid-2.spacer .stat-tile',title:'오늘의 공부 현황',desc:'오늘 공부한 시간과 반 랭킹을 한눈에 볼 수 있어요.'},
+    {sel:'#dash-timetable',title:'오늘 시간표',desc:'오늘 요일 기준 시간표가 자동으로 표시돼요. 진행 중인 교시는 강조돼요.'},
+    {sel:'[data-page="notice"]',title:'공지사항',desc:'학급 공지를 확인해요. 투표가 달린 공지는 목록에서 바로 참여할 수 있어요.'},
+    {sel:'[data-page="favorites"]',title:'즐겨찾기',desc:'대학어디가·리로스쿨 등 자주 쓰는 사이트로 바로 이동해요.'},
+    {sel:'[data-page="planner"]',title:'학습 플래너',desc:'과목별로 타이머를 켜고 오늘 할 일을 체크하며 공부 시간을 기록해요.'},
+    {sel:'[data-page="report"]',title:'학습 리포트',desc:'이번 주 공부 통계, 과목별 비율, 반 랭킹을 확인해요.'},
+    {sel:'[data-page="simo"]',title:'실모반',desc:'실모반 전용 공지와 자료를 볼 수 있어요.'},
+    {sel:'[data-page="camstudy"]',title:'캠스터디',desc:'화상으로 친구들과 함께 공부하는 실시간 스터디룸이에요.'},
+    {sel:'[data-page="free-board"]',title:'자유게시판',desc:'자유롭게 글을 쓰고 친구들과 소통해요.'},
+    {sel:'[data-page="qna-board"]',title:'질문게시판',desc:'모르는 문제를 질문하고 답변을 받아요.'},
+    {sel:'[data-page="score-calc"]',title:'내신 산출 계산기',desc:'내 성적으로 대학별 환산점수를 미리 계산해봐요.'},
+    {sel:'[data-page="news"]',title:'입시뉴스',desc:'최신 입시 뉴스를 카테고리별로 모아봐요.'},
+    {sel:'[data-page="admin"]',title:'관리자',desc:'계정·권한 관리와 실모반 신청 승인을 여기서 처리해요.'},
+    {sel:'[data-page="teacher"]',title:'학생 현황',desc:'학생별 공부 현황과 계획 이수율을 확인할 수 있어요.'},
+    {sel:'[data-page="mypage"]',title:'마이페이지',desc:'내 정보를 확인하고 프로필 사진을 바꿀 수 있어요.'},
+    {sel:'.theme-toggle-btn[title="다크모드 전환"]',title:'다크모드',desc:'눈이 편안한 다크 테마로 전환할 수 있어요.'}
+  ];
+  return steps.filter(s=>{
+    const el=document.querySelector(s.sel);
+    return el&&el.offsetParent!==null;
+  });
+}
+function startTour(){
+  navigate('dashboard');
+  openSidebar();
+  tourSteps=buildTourSteps();
+  tourIndex=0;
+  if(!tourSteps.length)return;
+  document.getElementById('tour-overlay').classList.add('open');
+  showTourStep(0);
+}
+function showTourStep(i){
+  const step=tourSteps[i];
+  const el=document.querySelector(step.sel);
+  if(!el){nextTourStep();return}
+  el.scrollIntoView({block:'center',behavior:'smooth'});
+  setTimeout(()=>{
+    const rect=el.getBoundingClientRect();
+    const hl=document.getElementById('tour-highlight');
+    const pad=6;
+    hl.style.top=(rect.top-pad)+'px';hl.style.left=(rect.left-pad)+'px';
+    hl.style.width=(rect.width+pad*2)+'px';hl.style.height=(rect.height+pad*2)+'px';
+    document.getElementById('tour-step-counter').textContent=`${i+1} / ${tourSteps.length}`;
+    document.getElementById('tour-card-title').textContent=step.title;
+    document.getElementById('tour-card-desc').textContent=step.desc;
+    document.getElementById('tour-prev-btn').style.visibility=i===0?'hidden':'visible';
+    document.getElementById('tour-next-btn').textContent=i===tourSteps.length-1?'완료':'다음';
+    positionTourCard(rect);
+  },280);
+}
+function positionTourCard(rect){
+  const card=document.getElementById('tour-card');
+  const cardW=280,gap=16;
+  card.classList.remove('arrow-top','arrow-bottom','arrow-left','arrow-right');
+  const cardH=card.offsetHeight||160;
+  let top,left,arrowClass;
+  const isSidebarTarget=rect.left<260&&window.innerWidth>834;
+  if(isSidebarTarget&&rect.right+gap+cardW<=window.innerWidth-12){
+    left=rect.right+gap;
+    top=Math.min(Math.max(rect.top+rect.height/2-cardH/2,12),window.innerHeight-cardH-12);
+    arrowClass='arrow-left';
+  }else if(rect.top<window.innerHeight/2){
+    left=Math.min(Math.max(rect.left+rect.width/2-cardW/2,12),window.innerWidth-cardW-12);
+    top=rect.bottom+gap;
+    arrowClass='arrow-top';
+  }else{
+    left=Math.min(Math.max(rect.left+rect.width/2-cardW/2,12),window.innerWidth-cardW-12);
+    top=rect.top-cardH-gap;
+    arrowClass='arrow-bottom';
+  }
+  card.style.left=left+'px';card.style.top=Math.max(top,12)+'px';
+  card.classList.add(arrowClass);
+}
+function nextTourStep(){
+  if(tourIndex>=tourSteps.length-1){endTour();return}
+  tourIndex++;showTourStep(tourIndex);
+}
+function prevTourStep(){
+  if(tourIndex<=0)return;
+  tourIndex--;showTourStep(tourIndex);
+}
+function endTour(){
+  document.getElementById('tour-overlay').classList.remove('open');
+  closeSidebar();
+  try{localStorage.setItem('tour_done_v1','1')}catch(e){}
+}
+function maybeAutoStartTour(){
+  try{if(localStorage.getItem('tour_done_v1'))return}catch(e){}
+  setTimeout(startTour,900);
+}
+
 // ── D-DAY ──
 function updateDday(){
   const target=new Date(2026,10,19);const now=new Date();now.setHours(0,0,0,0);
@@ -1988,6 +2214,19 @@ async function loadMeal(){
 }
 
 // ── NOTICES (관리자/운영자 작성) ──
+// 학급 명단 캐시 — 투표 참여 인원(분모)/미참여자 명단 계산용. /api/users는 학번/이름을 주므로
+// 투표에 직접 저장된 voter_name과는 별개로 "투표를 아예 안 한 사람"을 판별할 때만 필요하다.
+let classRosterCache=null;
+async function loadClassRoster(){
+  if(classRosterCache)return classRosterCache;
+  try{
+    const res=await fetch(`${SERVER_URL}/api/users`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({student_id:currentStudentId})});
+    const data=await res.json();
+    classRosterCache=(data.users||[]).filter(u=>u.student_id&&u.student_id.startsWith('301'));
+  }catch(e){classRosterCache=[]}
+  return classRosterCache;
+}
+
 async function loadNotices(){
   renderSimoPinnedNotice();
   const dashEl=document.getElementById('dash-notices');
@@ -2007,6 +2246,20 @@ async function loadNotices(){
     return;
   }
   const canManage=isStaffRole();
+
+  // 이 공지들에 달린 투표와 투표 기록을 한 번에 불러온다
+  const noticeIds=data.map(n=>n.id);
+  const pollsByNotice={};
+  const votesByPoll={};
+  const {data:polls}=await sb.from('notice_polls').select('*').in('notice_id',noticeIds);
+  (polls||[]).forEach(p=>pollsByNotice[p.notice_id]=p);
+  const pollIds=(polls||[]).map(p=>p.id);
+  if(pollIds.length){
+    const {data:votes}=await sb.from('notice_poll_votes').select('*').in('poll_id',pollIds);
+    (votes||[]).forEach(v=>{(votesByPoll[v.poll_id]=votesByPoll[v.poll_id]||[]).push(v)});
+    await loadClassRoster();
+  }
+
   const renderList=(list,prefix)=>list.map(n=>{
     const created=new Date(n.created_at);
     const isNew=(Date.now()-created.getTime())<1000*60*60*24*3; // 3일 이내
@@ -2014,14 +2267,18 @@ async function loadNotices(){
     const uid=`${prefix}-${n.id}`;
     const delBtn=canManage?`<button class="notice-del-btn" onclick="deleteNotice(event,'${n.id}')">삭제</button>`:'';
     const simoBadge=n.audience==='simo'?'<span class="badge-new" style="background:var(--green-dark)">실모반</span>':'';
+    const poll=pollsByNotice[n.id];
+    const pollBadge=poll?'<span class="badge-new" style="background:#8b5cf6">투표</span>':'';
+    const pollHtml=poll?renderPollBlock(poll,votesByPoll[poll.id]||[],uid):'';
     return`<div class="notice-item">
       <div class="notice-item-row" onclick="toggleNotice('${uid}')">
         <div class="notice-icon">📋</div>
-        <div class="notice-title">${n.title}${simoBadge}${isNew?'<span class="badge-new">NEW</span>':''}</div>
+        <div class="notice-title">${escHtml(n.title)}${simoBadge}${pollBadge}${isNew?'<span class="badge-new">NEW</span>':''}</div>
         <div class="notice-date">${dateStr}</div>
       </div>
       <div class="notice-content" id="notice-content-${uid}">
         ${n.content}
+        ${pollHtml}
         <div class="notice-meta-row"><span class="notice-author">${n.author_name} 작성</span>${delBtn}</div>
       </div>
     </div>`;
@@ -2035,15 +2292,98 @@ function toggleNotice(id){
   el.classList.toggle('open');
 }
 
-function openNoticeModal(){
+// ── 공지 투표 렌더링/투표 ──
+function renderPollBlock(poll,votes,uid){
+  const options=poll.options||[];
+  const totalVotes=votes.length;
+  const myVote=votes.find(v=>v.student_id===currentStudentId);
+  const hasVoted=!!myVote;
+  const roster=classRosterCache||[];
+  const voterIds=new Set(votes.map(v=>v.student_id));
+  const nonVoters=roster.filter(u=>!voterIds.has(u.student_id));
+
+  const optionsHtml=options.map((opt,i)=>{
+    const count=votes.filter(v=>v.option_index===i).length;
+    const pct=totalVotes?Math.round(count/totalVotes*100):0;
+    const isMine=hasVoted&&myVote.option_index===i;
+    if(hasVoted){
+      const namesHtml=!poll.is_anonymous?`<div class="poll-voter-names">${votes.filter(v=>v.option_index===i).map(v=>escHtml(v.voter_name)).join(', ')||'—'}</div>`:'';
+      return`<div class="poll-result-row${isMine?' mine':''}">
+        <div class="poll-result-top"><span>${escHtml(opt)}${isMine?'<span class="poll-mine-badge">내 선택</span>':''}</span><span>${count}표 · ${pct}%</span></div>
+        <div class="poll-result-track"><div class="poll-result-fill" style="width:${pct}%"></div></div>
+        ${namesHtml}
+      </div>`;
+    }
+    return`<button class="poll-option-btn" onclick="event.stopPropagation();voteOnPoll('${poll.id}',${i})">${escHtml(opt)}</button>`;
+  }).join('');
+
+  const nonVoterHtml=nonVoters.length?nonVoters.map(u=>escHtml(u.name||u.student_id)).join(', '):'전원 참여 완료 🎉';
+
+  return`<div class="poll-block" onclick="event.stopPropagation()">
+    <div class="poll-question">🗳️ ${escHtml(poll.question)}</div>
+    <div class="poll-options">${optionsHtml}</div>
+    <div class="poll-meta-row">
+      <span>${poll.is_anonymous?'🙈 익명 투표':'😎 실명 투표'}</span>
+      <span>참여 ${totalVotes}${roster.length?`/${roster.length}명`:'명'}</span>
+      ${roster.length?`<span class="poll-nonvoters-toggle" onclick="toggleNonVoters('${uid}')">미참여자 보기</span>`:''}
+    </div>
+    ${roster.length?`<div class="poll-nonvoters" id="poll-nonvoters-${uid}">${nonVoterHtml}</div>`:''}
+  </div>`;
+}
+
+function toggleNonVoters(uid){
+  document.getElementById(`poll-nonvoters-${uid}`)?.classList.toggle('open');
+}
+
+async function voteOnPoll(pollId,optionIndex){
+  const {error}=await sb.from('notice_poll_votes').upsert({
+    poll_id:pollId,user_id:currentUser.id,student_id:currentStudentId,
+    voter_name:currentName||currentStudentId+'번',option_index:optionIndex
+  },{onConflict:'poll_id,student_id'});
+  if(error){toast('투표 실패: '+error.message);return}
+  toast('투표했습니다 ✓');
+  await loadNotices();
+}
+
+// ── 공지 작성 (네이버 카페식 전체 페이지 글쓰기) ──
+function openNoticeWritePage(){
   document.getElementById('notice-title-input').value='';
   document.getElementById('notice-content-input').value='';
   document.getElementById('notice-error').style.display='none';
   document.getElementById('notice-audience-input').value='all';
   document.getElementById('notice-audience-field').style.display=isOwnerTier()?'block':'none';
-  document.getElementById('notice-modal').classList.add('open');
+  document.getElementById('notice-poll-toggle').checked=false;
+  document.getElementById('notice-poll-section').style.display='none';
+  document.getElementById('notice-poll-question-input').value='';
+  document.getElementById('notice-poll-anon-input').value='false';
+  renderPollOptionInputs(2);
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-notice-write').classList.add('active');
+  window.scrollTo(0,0);
 }
-function closeNoticeModal(){document.getElementById('notice-modal').classList.remove('open')}
+function closeNoticeWritePage(){navigate('notice')}
+
+function syncPollSectionVisibility(){
+  document.getElementById('notice-poll-section').style.display=document.getElementById('notice-poll-toggle').checked?'block':'none';
+}
+function renderPollOptionInputs(count){
+  const list=document.getElementById('notice-poll-options-list');
+  list.innerHTML='';
+  for(let i=0;i<count;i++)addPollOptionInput();
+}
+function addPollOptionInput(){
+  const list=document.getElementById('notice-poll-options-list');
+  if(list.children.length>=8){toast('선택지는 최대 8개까지예요');return}
+  const row=document.createElement('div');
+  row.className='poll-option-input-row';
+  row.innerHTML=`<input class="modal-input" data-poll-opt placeholder="선택지 ${list.children.length+1}"><button type="button" class="poll-option-remove-btn" onclick="removePollOptionInput(this)">✕</button>`;
+  list.appendChild(row);
+}
+function removePollOptionInput(btn){
+  const list=document.getElementById('notice-poll-options-list');
+  if(list.children.length<=2){toast('선택지는 최소 2개 필요해요');return}
+  btn.closest('.poll-option-input-row').remove();
+}
 
 async function submitNotice(){
   if(!isStaffRole()){toast('권한이 없습니다');return}
@@ -2051,12 +2391,33 @@ async function submitNotice(){
   const content=document.getElementById('notice-content-input').value.trim();
   const audience=isOwnerTier()?document.getElementById('notice-audience-input').value:'all';
   const errEl=document.getElementById('notice-error');
+  errEl.style.display='none';
   if(!title||!content){errEl.textContent='제목과 내용을 모두 입력하세요.';errEl.style.display='block';return}
-  const {error}=await sb.from('notices').insert({
+
+  const addPoll=document.getElementById('notice-poll-toggle').checked;
+  let pollQuestion='',pollOptions=[],pollAnon=false;
+  if(addPoll){
+    pollQuestion=document.getElementById('notice-poll-question-input').value.trim();
+    pollOptions=[...document.querySelectorAll('#notice-poll-options-list [data-poll-opt]')].map(i=>i.value.trim()).filter(Boolean);
+    pollAnon=document.getElementById('notice-poll-anon-input').value==='true';
+    if(!pollQuestion){errEl.textContent='투표 질문을 입력하세요.';errEl.style.display='block';return}
+    if(pollOptions.length<2){errEl.textContent='투표 선택지를 2개 이상 입력하세요.';errEl.style.display='block';return}
+  }
+
+  const {data:noticeRow,error}=await sb.from('notices').insert({
     title,content,audience,author_name:currentName||currentStudentId+'번',student_id:currentStudentId
-  });
+  }).select().single();
   if(error){errEl.textContent='게시 실패: '+error.message;errEl.style.display='block';return}
-  closeNoticeModal();
+
+  if(addPoll){
+    const {error:pollErr}=await sb.from('notice_polls').insert({
+      notice_id:noticeRow.id,question:pollQuestion,options:pollOptions,
+      is_anonymous:pollAnon,created_by:currentUser.id
+    });
+    if(pollErr)toast('공지는 게시됐지만 투표 등록에 실패했어요: '+pollErr.message);
+  }
+
+  closeNoticeWritePage();
   toast(`${audience==='simo'?'실모반 ':''}공지가 게시되었습니다 ✓`);
   await loadNotices();
 }
@@ -2860,6 +3221,11 @@ function renderReport(weekMins = [], rankByStudent = {}){
       return `${s.color} ${start}% ${acc}%`;
     }).join(', ');
     pieEl.style.background=`conic-gradient(${stops})`;
+    // 도넛이 한 바퀴 쭉 채워지며 등장하도록 애니메이션 재생(리포트를 다시 열 때마다 처음부터 재생되도록
+    // 클래스를 떼었다 강제 리플로우 후 다시 붙임)
+    pieEl.classList.remove('pie-animate');
+    void pieEl.offsetWidth;
+    pieEl.classList.add('pie-animate');
     legendEl.innerHTML=subjWithTime.map(s=>{
       const pct=Math.round((s.sec/total)*100);
       return`<div class="band-legend-item"><span class="band-legend-dot" style="background:${s.color}"></span><span class="band-legend-name">${s.name}</span><span class="band-legend-val">${fmtHM(s.sec)} · ${pct}%</span></div>`;
@@ -3971,31 +4337,57 @@ async function renderNews(){
     el.innerHTML='<div style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">뉴스를 불러올 수 없습니다.<br>관리자 페이지에서 수집해주세요.</div>';
     return;
   }
-  allNewsData = data;
-  renderNewsList(data);
+  allNewsData = dedupeNews(data);
+  renderNewsList(allNewsData);
 }
 
+// 백엔드 뉴스 수집기가 같은 기사를 중복으로 넣는 경우가 있어(url이 같으면 같은 기사로 간주,
+// url이 없으면 제목으로) 화면에 보여주기 전에 걸러낸다.
+function dedupeNews(list){
+  const seen=new Set();
+  return list.filter(n=>{
+    const key=(n.url||n.title||'').trim().toLowerCase();
+    if(seen.has(key))return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+// 백엔드 수집기가 아직 썸네일(image_url)을 못 채워주는 기사가 대부분이라, 그 경우엔
+// 카테고리별 색상+이모지 플레이스홀더 타일로 대신 채워서 밋밋해 보이지 않게 함.
+const NEWS_CATEGORY_STYLE={
+  '수능':{color:'#0066cc',emoji:'🎓'},
+  '수시':{color:'#2ecc71',emoji:'📝'},
+  '정시':{color:'#8b5cf6',emoji:'📊'},
+  '모의고사':{color:'#f97316',emoji:'✏️'},
+  '학종':{color:'#ec4899',emoji:'📁'}
+};
 function renderNewsList(data){
   const el = document.getElementById('news-list');
   el.innerHTML = ''; // Clear previous list
   if(!data.length){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">해당 카테고리 뉴스가 없습니다</div>';return}
   const isAdmin = isStaffRole();
-  
+
   const fragment = document.createDocumentFragment();
   data.forEach(n => {
     const date=new Date(n.published_at).toLocaleDateString('ko-KR',{month:'numeric',day:'numeric'});
+    const style=NEWS_CATEGORY_STYLE[n.category]||{color:'#7a7a7a',emoji:'📰'};
 
     const item = document.createElement('div');
     item.className = 'news-item';
     item.id = `news-${n.id}`;
 
     item.innerHTML = `
-      <span class="news-tag" style="cursor:default">${n.category}</span>
-      <div style="flex:1;cursor:pointer">
+      <div class="news-thumb" style="background:${style.color}1a">${n.image_url?`<img src="${n.image_url}" alt="">`:style.emoji}</div>
+      <div style="flex:1;min-width:0;cursor:pointer">
+        <span class="news-tag" style="cursor:default;color:${style.color};background:${style.color}1a">${n.category}</span>
         <div class="news-title">${n.title}</div>
         <div class="news-date">${date}</div>
       </div>`;
-    
+
+    const thumbImg=item.querySelector('.news-thumb img');
+    if(thumbImg)thumbImg.onerror=()=>{const t=item.querySelector('.news-thumb');t.textContent=style.emoji;t.style.background=`${style.color}1a`};
+
     item.querySelector('div[style^="flex:1"]').addEventListener('click', () => window.open(n.url, '_blank'));
 
     if (isAdmin) {

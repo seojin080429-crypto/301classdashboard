@@ -74,7 +74,20 @@
 - `notices.audience`('all'/'simo') — 실모반 전용 공지는 별도 테이블(`simo_notices`, 폐기됨
   2026-07-15) 대신 기존 `notices`에 이 컬럼으로 통합. `loadNotices()`가
   `audience==='simo'`인 공지를 `canSeeSimoContent()`가 아니면 걸러내고, 보이면 "실모반"
-  배지를 붙임. 공지 작성 모달의 "대상" 선택(운영자/선생님에게만 보임)으로 지정.
+  배지를 붙임. 공지 작성 페이지(`page-notice-write`)의 "대상" 선택(운영자/선생님에게만
+  보임)으로 지정. `news.image_url`(text, nullable, 2026-07-15 추가) — 백엔드 수집기가 아직
+  안 채워줘서 항상 null, 프론트는 없으면 카테고리별 플레이스홀더 타일로 대체.
+- `notice_polls`(2026-07-15 신설) — 공지에 달리는 투표. `notice_id`(FK→notices, on delete
+  cascade) / `question` / `options`(jsonb 문자열 배열) / `is_anonymous` / `created_by`(auth
+  uid). `notice_poll_votes` — `poll_id`(FK→notice_polls, cascade) / `user_id`(auth uid) /
+  `student_id` / `voter_name`(투표 시점 이름 스냅샷) / `option_index`,
+  `unique(poll_id,student_id)`+`unique(poll_id,user_id)`로 중복투표 방지(재투표는 upsert로
+  덮어씀). **이 프로젝트의 기존 RLS 컨벤션(대부분 SELECT/ALL `true` permissive)과 다르게,
+  두 테이블 모두 SELECT는 `true`(투표 결과·참여 여부를 학급 전체가 봐야 함)지만 INSERT/
+  UPDATE/DELETE는 `auth.uid()`가 본인 행일 때만 허용** — Claude Code의 자동실행 안전장치가
+  실명/투표선택지처럼 민감한 데이터에 permissive(`true`/`true`) 쓰기 정책을 만드는 걸
+  막아서(unrestricted write 경고), `study_sessions`/`user_profiles`처럼 이 저장소에 이미
+  있는 "진짜 제한하는" 패턴으로 대신 설계함. 새로 비슷한 민감 테이블을 만들 때 참고할 것.
 - `simo_materials` — 실모반 전용 자료(`file_url`로 Storage 파일 링크). `notices`처럼
   **RLS 자체가 없음(비활성)** — 승인 안 된 학생이 개발자도구로 API를 직접 두드리면 볼 수
   있음. 사용자에게 이 트레이드오프를 확인받고 의도적으로 이렇게 함(2026-07-15, "UI에서만
@@ -114,6 +127,69 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-07-15: 대규모 기능 추가 묶음 (공지 투표, 뉴스 개선, 날짜 롤오버 버그, 온보딩 투어 등).
+  **아직 실제 브라우저에서 로그인해 눌러보는 E2E 테스트는 못 했음** — 문법 검사(JS 파싱,
+  CSS 중괄호 균형, HTML id 중복)만 통과 확인. 특히 투표 흐름과 튜토리얼 위치 계산(모바일
+  폭 포함)은 실제로 한 번 눌러보길 권장.
+  - **공지 투표 기능 추가**. `notice_polls`(질문/선택지 jsonb/익명여부/notice_id)과
+    `notice_poll_votes`(poll_id/student_id/voter_name/option_index, `(poll_id,student_id)`
+    unique) 테이블 신설. RLS는 이 프로젝트의 기존 permissive(`true`/`true`) 컨벤션과 다르게
+    설계함 — 실명/학번/투표 선택지처럼 민감한 데이터를 다루는 테이블이라 **Claude Code의
+    자동 실행 안전장치가 permissive 정책 생성을 막았음**(unrestricted write 경고). 그래서
+    읽기는 전체 공개(SELECT `true`, 투표 결과·참여 여부를 학급 전체가 봐야 하는 기능
+    특성상 필요) / 쓰기는 `auth.uid()`가 본인 것일 때만 허용(`study_sessions`/`user_profiles`
+    처럼 진짜 제한하는 기존 테이블 패턴을 따름)하는 절충안으로 감. 투표 삭제는 공지
+    삭제(`deleteNotice`)시 `notice_id` FK cascade로 자동 정리(cascade는 자식 테이블 RLS를
+    안 타므로 문제없음).
+    - 공지 작성 시(스태프만) "투표 추가" 체크 → 질문/선택지(최소 2개, 최대 8개)/공개방식
+      (실명·익명) 입력. 실명이면 옵션별로 누가 골랐는지 이름이 그대로 보이고(투표 시
+      `voter_name`을 함께 저장), 익명이면 개수/퍼센트만 보임. 어느 쪽이든 "미참여자 보기"
+      토글로 아직 투표 안 한 학생 명단은 항상 볼 수 있음(참여 여부는 선택 내용과 별개
+      정보라고 판단) — 명단은 `/api/users`(bugwang-server)로 가져온 전체 학생 목록에서
+      투표자를 뺀 것(`loadClassRoster()`, 세션 내 캐시).
+    - 투표 UI는 공지 목록의 펼침 영역(`notice-content`) 안에 들어가서, 대시보드 미리보기와
+      공지사항 전체 페이지 양쪽에 동시에 렌더링될 수 있음 — DOM id 충돌을 피하려고
+      `poll-nonvoters-${uid}`처럼 `dash-`/`page-` 접두사가 붙은 uid를 그대로 재사용함.
+  - **공지 작성을 모달 → 전체 페이지(글쓰기 뷰)로 전환**. "+ 공지 작성" 클릭 시
+    `openNoticeWritePage()`가 `.page` 전환 방식으로 `#page-notice-write`를 보여줌(사이드바
+    nav에는 없는 페이지라 `navigate()` 대신 직접 `.page.active` 토글 + 나가기는
+    `closeNoticeWritePage()`→`navigate('notice')`). 기존 모달의 id(`notice-title-input`
+    등)는 그대로 재사용해서 `submitNotice()` 로직은 최소 수정.
+  - **뉴스 중복 표시 문제 해결**. 원인은 백엔드 수집기(이 저장소 밖, `bugwang-server`)가
+    같은 기사를 두 번 넣는 경우가 있었던 것으로 보임(DB에서 확인한 실제 중복 4건은 SQL로
+    정리 완료). 백엔드 코드가 이 세션에 없어서 근본 수정은 못 했고, 대신 `dedupeNews()`로
+    프론트에서 url(없으면 제목) 기준으로 항상 걸러서 렌더링하도록 방어 처리.
+  - **뉴스 썸네일 표시 추가**. `news` 테이블에 `image_url`(nullable) 컬럼 추가하고
+    프론트에서 표시하도록 준비했지만, **현재 백엔드 수집기가 이 컬럼을 채워주지 않아서
+    당장은 전부 카테고리별 색상+이모지 플레이스홀더 타일로만 보임**(그래도 줄글보다는 덜
+    밋밋함). 실제 기사 썸네일(예: og:image 스크래핑)을 보여주려면 `bugwang-server`의 뉴스
+    수집 로직에서 `image_url`을 채워 insert하도록 별도로 고쳐야 함 — 이 저장소 담당 밖이라
+    사용자에게 안내만 하고 넘어감.
+  - **플래너/D-day 자정 롤오버 버그 수정**. 앱을 켜둔 채(특히 폰 화면 꺼놨다 켰을 때) 자정을
+    넘기면 D-day/시간표/오늘 공부시간/플래너 할일이 전날 기준으로 멈춰있던 문제. `today`를
+    계산하는 함수들 자체는 다 `new Date()`를 매번 새로 읽어서 문제없었는데, 아무도 그
+    함수들을 자정 이후에 다시 안 불러준 게 원인. `checkDateRollover()`를 60초 주기
+    `setInterval` + `visibilitychange`(탭 다시 보일 때)에 걸어서, 날짜 문자열이 바뀐 걸
+    감지하면 `updateDday/renderTimetable/loadMeal/loadSubjectsFromDB/loadTodaySessions/
+    refreshStats` 등을 다시 실행하도록 함.
+  - **학습 리포트 도넛그래프 등장 애니메이션**. `conic-gradient`는 배경색이라 직접
+    transition이 잘 안 먹어서, `@property --reveal`(각도/퍼센트 보간 가능하게 타입 등록) +
+    `mask-image:conic-gradient(#000 var(--reveal),transparent var(--reveal))`로 이미 그려진
+    도넛을 각도 방향으로 걷어내는 방식의 마스크 리빌 애니메이션을 씀. 리포트를 다시 열
+    때마다 재생되도록 `renderReport()`에서 클래스를 뗐다 강제 리플로우 후 다시 붙임.
+  - **사이드바 메뉴 아이콘에 색상 추가**. 아이콘마다 다른 고정 색(`style="stroke:#hex"`,
+    인라인이라 `.nav-item svg{stroke:currentColor}` 전역 규칙보다 우선함)을 줘서, 선택
+    여부(active)와 무관하게 항목마다 구분되는 색을 유지하도록 함(macOS 시스템 설정
+    사이드바 스타일 참고) — 관리자는 `admin-role-badge.owner`와 같은 마젠타, 학생현황은
+    `role-pill.teacher`와 같은 초록 등 기존에 쓰던 의미색을 최대한 재사용.
+  - **신규 사용자 온보딩 투어 추가**. 사이드바 헤더에 물음표 버튼(`startTour()`) +
+    마이페이지 설정 섹션에 "다시 보기" 버튼으로 언제든 재실행 가능. 로그인 후 최초
+    1회(`localStorage.tour_done_v1` 없을 때) 0.9초 뒤 자동 시작. 대시보드 핵심 요소
+    (D-day/오늘 공부현황/시간표) + 사이드바 nav 항목들을 순서대로 하이라이트(`box-shadow:
+    0 0 0 9999px`로 스포트라이트 만드는 방식)하며 화살표 말풍선(`.tour-card::before`
+    삼각형)으로 설명. `buildTourSteps()`가 `offsetParent!==null`로 각 대상이 실제로 화면에
+    보이는지 걸러내므로, 관리자/선생님/실모반처럼 권한에 따라 숨겨진 nav 항목은 해당 계정의
+    투어에서 자동으로 빠짐.
 - 2026-07-15: 뉴스 삭제 버튼(운영자/선생님 전용)이 로그인 직후엔 안 보이다가 필터 탭을 눌러야
   나타나던 버그 수정. 원인: `initApp()`에서 `renderNews()`(뉴스 목록 로드)와 `loadMyRole()`(권한
   로드)가 둘 다 await 없이 거의 동시에 시작되는 경쟁 상태였는데, `renderNewsList()`의 삭제 버튼

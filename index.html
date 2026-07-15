@@ -849,6 +849,9 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
     <div class="sidebar-header">
       <div class="sidebar-wordmark">부광 <span>3-1</span></div>
       <div style="display:flex;align-items:center;gap:2px">
+        <button class="theme-toggle-btn" onclick="refreshApp()" title="새로고침">
+          <svg viewBox="0 0 24 24"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0115-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 01-15 6.7L3 16"/></svg>
+        </button>
         <button class="theme-toggle-btn" onclick="startTour()" title="기능 둘러보기">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         </button>
@@ -940,7 +943,9 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
   <div class="topbar" id="topbar">
     <button class="hamburger-btn" onclick="openSidebar()"><span></span><span></span><span></span></button>
     <div class="topbar-wordmark">부광 <span>3-1</span></div>
-    <div style="width:28px"></div>
+    <button class="theme-toggle-btn" onclick="refreshApp()" title="새로고침">
+      <svg viewBox="0 0 24 24"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0115-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 01-15 6.7L3 16"/></svg>
+    </button>
   </div>
 
   <main class="main-content">
@@ -2060,10 +2065,14 @@ async function saveName(){
 function showSetupErr(msg){const e=document.getElementById('setup-error');e.textContent=msg;e.style.display='block'}
 
 async function doLogout(){
-  if(activeTimer)stopCurrentTimer();
+  if(activeTimer)await stopCurrentTimer();
   if(marathonModalOpen)closeMarathonModalUI();
   await sb.auth.signOut();
   currentUser=null;currentStudentId='';currentName='';subjects=[];todaySessions=[];totalTodaySec=0;
+  // 학교 컴퓨터/태블릿처럼 여러 학생이 같은 기기를 쓸 수 있으니, 다음 로그인한 사람이 이
+  // 사람의 마지막 화면이나(권한상 못 볼 페이지를 기억해뒀다 튕기는 것도 이상함) 혹시 못 지운
+  // 활성 타이머 정보를 이어받지 않도록 로그아웃 시 명시적으로 지운다.
+  try{localStorage.removeItem('bugwang_last_page');clearActiveTimerStorage()}catch(e){}
   document.getElementById('app-shell').classList.remove('visible');
   document.getElementById('name-setup-screen').classList.remove('visible');
   document.getElementById('auth-screen').style.display='flex';
@@ -2123,9 +2132,13 @@ async function initApp(user,sid,name){
   updateDday();renderTimetable();loadMeal();loadNotices();renderNews();initCalc();renderFavorites();
   loadFreeBoard();loadQnaBoard();loadBugBoard();
   subjects=buildSubjectsFromMeta(meta);
-  await closeOrphanSessions();
   await loadTodaySessions();
   await loadSubjectsFromDB();
+  // 새로고침으로 끊긴 타이머가 있으면 subjects에 태스크가 다 채워진 지금 이어서 시작하고,
+  // 그 세션은 고아 정리 대상에서 빼고 나머지만 정리한다(순서가 바뀌면 방금 이어붙인 세션까지
+  // "고아"로 오인해 0으로 마감해버릴 수 있음).
+  const resumedSessionId=await resumeActiveTimerIfAny();
+  await closeOrphanSessions(resumedSessionId);
   updatePlannerDate();
   await refreshStats();
   renderReport();
@@ -2137,6 +2150,7 @@ async function initApp(user,sid,name){
   // 삭제 버튼이 안 뜰 수 있음 — 역할 로드가 끝난 시점에 이미 받아온 뉴스로 한 번 더 그려줌
   // (아직 뉴스 자체가 안 왔으면 renderNews()가 나중에 이미 반영된 권한으로 그리므로 건너뜀)
   if(allNewsData.length)filterNews(currentNewsCategory);
+  restoreLastPage();
   maybeAutoStartTour();
 }
 
@@ -2312,6 +2326,9 @@ function navigate(page){
   document.getElementById('page-'+page).classList.add('active');
   document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
   closeSidebar();window.scrollTo(0,0);
+  // 새로고침해도 대시보드로 튕기지 않고 보던 화면 그대로 있도록, 사이드바 메뉴로 이동할
+  // 때마다 마지막으로 본 페이지를 기억해둔다(복원은 restoreLastPage 참고).
+  try{localStorage.setItem('bugwang_last_page',page)}catch(e){}
   // 관리자/선생님 탭은 들어갈 때마다 권한을 새로 조회해서, 방금 권한이 바뀐 경우
   // 재로그인 없이도 즉시 반영되도록 한다.
   if(page==='admin')loadMyRole().then(loadAdminList);
@@ -2320,8 +2337,22 @@ function navigate(page){
   if(page==='planner')renderMyMonthCalendar();
   if(page==='simo')loadMyRole().then(renderSimoPage);
 }
+// 로그인 직후엔 항상 대시보드가 기본으로 떠 있는 상태이므로, 마지막으로 본 페이지가 그와
+// 다르고(대시보드는 굳이 다시 안 눌러도 됨) 지금 권한으로도 여전히 사이드바에 보이는
+// 페이지일 때만(관리자 권한이 빠졌는데 admin 페이지를 기억하고 있던 경우 등을 걸러냄) 복원한다.
+function restoreLastPage(){
+  let saved;
+  try{saved=localStorage.getItem('bugwang_last_page')}catch(e){saved=null}
+  if(!saved||saved==='dashboard')return;
+  const navEl=document.querySelector(`[data-page="${saved}"]`);
+  if(navEl&&navEl.offsetParent!==null)navigate(saved);
+}
 function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sidebar-overlay').classList.add('visible')}
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-overlay').classList.remove('visible')}
+// PWA 홈 화면 추가(standalone) 상태에서는 브라우저의 새로고침 버튼/당겨서 새로고침이 아예 안
+// 보이는 경우가 많아서 앱 안에 직접 버튼을 둔다. 보던 페이지와 기록 중이던 타이머는 각각
+// restoreLastPage()/resumeActiveTimerIfAny()가 복원하므로 그냥 새로고침해도 안전하다.
+function refreshApp(){location.reload()}
 
 // ── 날짜 자동 롤오버 ──
 // 앱을 켜놓은 채로 자정을 넘기면(폰 화면 꺼놨다 켰을 때 등) D-day/시간표/오늘 공부시간/플래너
@@ -3020,9 +3051,11 @@ function updatePlannerDate(){
 // 정상 종료되지 못하고 고아가 된 것이다. 방치하면 친구 랭킹 등에서 실시간 경과 시간 계산 시
 // 중복으로 합산돼 시간이 실제보다 빠르게 올라가 보이는 문제가 생기므로 로그인 시점에 정리한다.
 // 실제로 얼마나 공부했는지는 알 수 없으므로 시간을 부풀리지 않게 0으로 마감한다.
-async function closeOrphanSessions(){
+async function closeOrphanSessions(exceptId){
   const today=localDateStr();
-  const {data}=await sb.from('study_sessions').select('id').eq('user_id',currentUser.id).eq('date',today).is('ended_at',null);
+  let q=sb.from('study_sessions').select('id').eq('user_id',currentUser.id).eq('date',today).is('ended_at',null);
+  if(exceptId)q=q.neq('id',exceptId); // 방금 이어서 시작한(resumeActiveTimerIfAny) 세션은 고아가 아니므로 제외
+  const {data}=await q;
   if(!data||!data.length)return;
   await sb.from('study_sessions').update({ended_at:new Date().toISOString(),duration_seconds:0}).in('id',data.map(r=>r.id));
 }
@@ -3485,23 +3518,29 @@ function dismissMarathonModal(){
 // 잠그는 락으로는 이 정지↔시작 간 경쟁까지는 못 막아서, 시작/정지 각 "시도"에 순번(timerGen)을
 // 매겨 자기보다 더 최신 시도가 이미 있었으면 activeTimer를 건드리지 않고 조용히 물러나게 한다.
 let timerGen=0;
-async function startTaskTimer(si,ti){
-  if(activeTimer&&activeTimer.subjectIdx===si&&activeTimer.taskIdx===ti)return; // 이미 이 태스크가 실행 중
-  const myGen=++timerGen;
-  if(marathonModalOpen)closeMarathonModalUI();
+// 새로고침해도 기록 중이던 타이머가 끊기지 않도록, 시작할 때마다 localStorage에 재개에
+// 필요한 최소 정보(과목/할일 인덱스, DB 세션 id, 시작 시각, 시작 전 누적 시간)를 저장해두고
+// 앱을 다시 켤 때(resumeActiveTimerIfAny) 그 세션이 아직 열려있으면 이어서 시작한다.
+const ACTIVE_TIMER_KEY='bugwang_active_timer';
+function saveActiveTimerToStorage(){
+  if(!activeTimer)return;
+  try{localStorage.setItem(ACTIVE_TIMER_KEY,JSON.stringify({
+    userId:currentUser.id, // 학교 공용기기에서 다른 학생이 로그인했을 때 이어받지 않도록 소유자 확인용
+    subjectIdx:activeTimer.subjectIdx,taskIdx:activeTimer.taskIdx,
+    sessionId:activeTimer.sessionId,startedAtISO:activeTimer.startedAt.toISOString(),
+    prevSeconds:activeTimer.prevSeconds
+  }))}catch(e){}
+}
+function clearActiveTimerStorage(){
+  try{localStorage.removeItem(ACTIVE_TIMER_KEY)}catch(e){}
+}
+
+// 매초 화면을 갱신하는 인터벌 — 새로 시작할 때(startTaskTimer)와 새로고침 후 이어서
+// 시작할 때(resumeActiveTimerIfAny) 둘 다 이미 채워진 전역 activeTimer를 그대로 읽어서
+// 붙이기만 하면 되므로 공용으로 뺐다.
+function attachTimerInterval(){
+  const {subjectIdx:si,taskIdx:ti,startedAt,prevSeconds}=activeTimer;
   const sub=subjects[si];const task=sub.tasks[ti];
-  const startedAt=new Date();
-  const prevSeconds=task.seconds; // 이전까지 쌓인 시간 보존
-  // 새 세션 insert (이번 구간 기록용)
-  const {data:sess}=await sb.from('study_sessions').insert({
-    user_id:currentUser.id,student_id:currentStudentId,
-    subject:sub.name,task_name:task.name,
-    duration_seconds:0,started_at:startedAt.toISOString(),
-    date:localDateStr(startedAt)
-  }).select().single();
-  if(myGen!==timerGen)return; // 그 사이에 더 최신 시작/정지 시도가 있었으면 이 결과는 버림
-  const sessionId=sess?.id;
-  activeTimer={subjectIdx:si,taskIdx:ti,startedAt,sessionId,prevSeconds};
   activeTimer.interval=setInterval(()=>{
     const elapsed=Math.floor((Date.now()-startedAt)/1000);
     subjects[si].tasks[ti].seconds=prevSeconds+elapsed;
@@ -3521,6 +3560,48 @@ async function startTaskTimer(si,ti){
   },1000);
   showTimerBadge(sub.name,task.name);
   renderSubjects();
+  saveActiveTimerToStorage();
+}
+
+async function startTaskTimer(si,ti){
+  if(activeTimer&&activeTimer.subjectIdx===si&&activeTimer.taskIdx===ti)return; // 이미 이 태스크가 실행 중
+  const myGen=++timerGen;
+  if(marathonModalOpen)closeMarathonModalUI();
+  const sub=subjects[si];const task=sub.tasks[ti];
+  const startedAt=new Date();
+  const prevSeconds=task.seconds; // 이전까지 쌓인 시간 보존
+  // 새 세션 insert (이번 구간 기록용)
+  const {data:sess}=await sb.from('study_sessions').insert({
+    user_id:currentUser.id,student_id:currentStudentId,
+    subject:sub.name,task_name:task.name,
+    duration_seconds:0,started_at:startedAt.toISOString(),
+    date:localDateStr(startedAt)
+  }).select().single();
+  if(myGen!==timerGen)return; // 그 사이에 더 최신 시작/정지 시도가 있었으면 이 결과는 버림
+  const sessionId=sess?.id;
+  activeTimer={subjectIdx:si,taskIdx:ti,startedAt,sessionId,prevSeconds};
+  attachTimerInterval();
+}
+
+// 앱을 새로 켤 때(새로고침 포함) localStorage에 남은 활성 타이머 정보가 있으면, 그 DB 세션이
+// 아직 열려있는지(다른 기기에서 정지되지 않았는지) 확인한 뒤 이어서 시작한다. 성공하면 이어받은
+// 세션 id를 반환 — closeOrphanSessions()가 이 세션까지 0으로 마감해버리지 않도록 제외시키는 데 쓴다.
+async function resumeActiveTimerIfAny(){
+  let saved;
+  try{saved=JSON.parse(localStorage.getItem(ACTIVE_TIMER_KEY)||'null')}catch(e){saved=null}
+  if(!saved)return null;
+  // 학교 공용 컴퓨터/태블릿처럼 여러 학생이 같은 기기·브라우저를 쓸 수 있으므로, 저장된
+  // 타이머가 지금 로그인한 사람 것이 아니면(기기를 안 씻고 다른 학번으로 로그인한 경우 등)
+  // 무조건 버린다 — 다른 사람의 진행 중인 세션을 내 화면에서 이어받아 조작하면 안 됨.
+  if(saved.userId!==currentUser.id){clearActiveTimerStorage();return null}
+  const {subjectIdx:si,taskIdx:ti,sessionId,startedAtISO,prevSeconds}=saved;
+  const sub=subjects[si];
+  if(!sub||!sub.tasks[ti]){clearActiveTimerStorage();return null} // 그 사이 과목/할일이 삭제된 경우
+  const {data:row}=await sb.from('study_sessions').select('id,ended_at,user_id').eq('id',sessionId).maybeSingle();
+  if(!row||row.ended_at||row.user_id!==currentUser.id){clearActiveTimerStorage();return null} // 이미 끝났거나, 없거나, 남의 세션
+  activeTimer={subjectIdx:si,taskIdx:ti,startedAt:new Date(startedAtISO),sessionId,prevSeconds};
+  attachTimerInterval();
+  return sessionId;
 }
 
 async function stopCurrentTimer(){
@@ -3539,7 +3620,7 @@ async function stopCurrentTimer(){
   const savedSeconds=subjects[stopped.subjectIdx].tasks[stopped.taskIdx].seconds;
   // activeTimer/배지는 그 사이에 더 최신 시작 시도가 없었을 때만 정리 — 있었다면 그건 이미
   // 새 타이머가 차지한 자리이므로 여기서 지우면 안 됨
-  if(myGen===timerGen){activeTimer=null;hideTimerBadge()}
+  if(myGen===timerGen){activeTimer=null;hideTimerBadge();clearActiveTimerStorage()}
   // DB 세션 다시 로드 (리스트/타임블록 갱신) — 단, task.seconds는 위에서 이미 확정했으므로 덮어쓰지 않음
   await loadTodaySessionsOnly();
   // 확정된 시간 복원 (loadTodaySessionsOnly가 덮어쓸 수 있으므로)

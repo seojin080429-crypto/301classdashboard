@@ -23,7 +23,17 @@
 - 백엔드가 제공하는 API 예시: `/api/users`, `/api/fetch-news`, `/api/fetch-meal`, `/api/study/join`,
   `/api/create-user`, `/api/delete-user`, `/api/reset-password`, `/api/change-student-id`
   (2026-07-15 추가 — 학생 본인이 마이페이지에서 아이디를 바꿀 때 사용, `requireAdmin`이 아니라
-  `requireAuth`로 게이팅해서 관리자 권한 없이 본인 access_token만으로 호출 가능)
+  `requireAuth`로 게이팅해서 관리자 권한 없이 본인 access_token만으로 호출 가능),
+  `/api/push-subscribe`/`/api/push-unsubscribe`(구독 등록/해지, `requireAuth`),
+  `/api/notify/notice`·`/api/notify/teacher-message`(스태프 전용, `requireStaffAuth`)·
+  `/api/notify/comment`·`/api/notify/poll-vote`(로그인만 하면 호출 가능, 서버가 자기 소유
+  행인지 다시 확인) — 전부 2026-07-15 푸시 알림 기능 추가 때 신설. 아래 "푸시 알림" 섹션 참고.
+- **환경변수 필요**: `web-push`용 `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`를 Railway의
+  `bugwang-server` 서비스에 반드시 추가해야 푸시 발송이 동작함(코드에 하드코딩 안 하고
+  `process.env`로 읽음 — 없으면 `sendPushNotification()`이 조용히 아무것도 안 함, 서버는 정상
+  기동). 값은 이 저장소 커밋 히스토리/대화 기록에 없으므로 분실하면 `web-push`의
+  `generateVAPIDKeys()`로 새로 만들고 프론트 `index.html`의 `VAPID_PUBLIC_KEY` 상수도 반드시
+  같이 갱신해야 함(둘이 반드시 같은 키 쌍이어야 구독이 유효함).
 - 백엔드 코드 수정이 필요하면 이 저장소가 아닌 별도 위치(로컬의 `bugwang-server/` 또는 `server.js`,
   gitignore되어 있음)에서 작업해야 함 — 실수로 이 저장소에 커밋되지 않도록 주의 (과거에 실수로
   올렸다가 제거한 이력 있음: `b940993`, `0e90005` 커밋 참고)
@@ -98,10 +108,25 @@
   업로드/수정/삭제는 `storage.foldername(name)[1] = auth.uid()`인 본인 uid 폴더에만 가능),
   `simo-materials`(실모반 자료 파일, 공개 — 업로드/삭제는 로그인 사용자면 누구나 가능한
   단순 정책이고 실제 업로드 버튼은 프론트에서 운영자/선생님에게만 노출).
-- ⚠️ `notices`/`meals`/`teacher_messages`/`simo_materials` 테이블은 RLS가
-  아예 꺼져 있음(anon key로 누구나 읽기/쓰기 가능) — Supabase 어드바이저가 critical로
-  표시하는 항목. 정책 추가 전에는 끄면 안 되므로(전체 접근 차단됨) 방치 중, 필요시 사용자와
-  상의 후 정책 설계.
+- ⚠️ `notices`/`meals`/`simo_materials` 테이블은 RLS가 아예 꺼져 있음(anon key로 누구나
+  읽기/쓰기 가능) — Supabase 어드바이저가 critical로 표시하는 항목. 정책 추가 전에는 끄면
+  안 되므로(전체 접근 차단됨) 방치 중, 필요시 사용자와 상의 후 정책 설계. **`teacher_messages`는
+  2026-07-15에 여기서 빠졌음** — 선생님-학생 1:1 비공개 메시지 기능을 실제로 만들면서 더 이상
+  방치할 수 없어 RLS를 켬(아래 항목 참고). 새 테이블을 만들 때 "이 프로젝트는 대체로 permissive"
+  라고 무심코 따라하지 말고, 그 데이터가 전체 공개돼도 괜찮은지부터 먼저 판단할 것.
+- `teacher_messages` — 선생님↔학생 1:1 메시지 스레드. `student_id`(대화 상대 학생)/
+  `author_name`/`content`/`sender_role`('student'|'teacher')/`is_read`. `user_id` 컬럼이
+  없어서(text인 `student_id`만 있음) RLS에서 `auth.uid()`와 연결하려면
+  `user_profiles(student_id, user_id)`를 거쳐야 함 — SELECT/UPDATE는 본인 스레드(자기
+  student_id) 또는 스태프(admin/owner/is_teacher)만, INSERT는 `sender_role='student'`면
+  본인 student_id로만, `sender_role='teacher'`면 스태프만 가능하도록 제한(2026-07-15,
+  이 테이블에 실제 기능을 얹으면서 RLS를 처음 켬 — 그 전엔 스키마만 있고 아무 데서도 안 쓰던
+  빈 테이블이었음). 프론트에서 직접 `sb.from('teacher_messages').insert(...)`로 쓰고,
+  푸시 알림은 별도로 백엔드 `/api/notify/teacher-message`를 호출해서 트리거함(테이블
+  쓰기 자체는 backend를 거치지 않음 — RLS가 이미 막아주므로).
+- `push_subscriptions` — 기기별 웹 푸시 구독 정보(`endpoint`/`p256dh`/`auth_key`, `endpoint`
+  유니크). RLS는 본인 것만 읽기/쓰기/삭제(진짜 제한). 실제 발송은 백엔드가 서비스 롤로 조회해서
+  하므로 이 RLS는 프론트의 구독/해지 호출에서만 의미 있음. 2026-07-15 신설.
 
 ## 주요 기능 (커밋 이력 기반)
 - 로그인 / 사용자 관리 (관리자 탭에서 계정 생성·삭제·비밀번호 초기화·등록기기 초기화)
@@ -129,6 +154,57 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-07-15: 웹 푸시 알림 + 선생님→학생 메시지 기능 신설 (프론트 `index.html` + 신규
+  `sw.js` + 백엔드 `bugwang-server/server.js`, Supabase 마이그레이션 포함).
+  - **선생님↔학생 메시지 기능을 이번에 처음 만듦**. `teacher_messages` 테이블은 예전부터
+    스키마만 있고 실제로 쓰는 곳이 없던 빈 테이블이었음 — 마이페이지에 "선생님 메시지" 카드
+    (학생 본인 스레드 + 답장 입력)를 추가하고, 선생님 탭(학생 현황) 학생 카드에 💬 버튼을
+    추가해 모달로 1:1 대화를 주고받을 수 있게 함. `sender_role`('student'|'teacher')로
+    누가 보낸 메시지인지 구분해서 말풍선 정렬(교사=왼쪽 회색, 학생=오른쪽 파란색). 안 읽은
+    선생님 메시지가 있으면 사이드바 "마이페이지" 항목에 빨간 점 배지가 뜨고, 그 스레드를
+    열면 자동으로 읽음 처리됨. 이 테이블은 이전엔 RLS가 꺼져 있었는데(전체 공개), 사적인
+    1:1 대화를 실제로 담게 되면서 이번에 RLS를 켬 — 자세한 정책은 위 스키마 섹션 참고.
+  - **웹 푸시 알림 기능 추가**. 대상 이벤트 4가지: 새 공지사항, 내 글/댓글에 달린 댓글, 내가
+    만든 공지 투표에 새 참여, 선생님 메시지. 사용자에게 미리 확인받은 내용:
+    (1) **아이폰(iOS Safari)은 홈 화면에 추가(PWA 설치)해야만 푸시가 동작함**(iOS 16.4+
+    한정, 일반 브라우저 탭으로는 아예 안 됨) — 마이페이지 알림 카드가 iOS이면서
+    standalone이 아닌 경우 토글 대신 "홈 화면에 추가해주세요" 안내만 보여줌
+    (`isIosNonStandalone()`). (2) 진행에 동의받음. 구조:
+    - 새 서비스 워커(`sw.js`, 프로젝트 루트) — `push`/`notificationclick` 이벤트만 처리,
+      오프라인 캐싱은 안 함(캐시가 낡은 대시보드를 보여주면 오히려 혼란스러움). GitHub
+      Pages 프로젝트 페이지 배포(서브패스)라 등록도 `navigator.serviceWorker.register('./sw.js')`
+      처럼 항상 상대경로로 해야 스코프가 올바르게 잡힘(절대경로 `/sw.js`는 스코프가 루트로
+      잘못 잡혀서 등록 자체가 거부될 수 있음) — 이 저장소의 다른 정적 자산 참조 방식과 동일한
+      컨벤션.
+    - 새 테이블 `push_subscriptions`(기기별 구독 정보, RLS로 본인 것만). VAPID 키 쌍은
+      `web-push` 패키지의 `generateVAPIDKeys()`로 생성해서 공개키는 프론트
+      `index.html`의 `VAPID_PUBLIC_KEY` 상수에 박아넣고(공개키는 노출돼도 안전),
+      개인키는 Railway `bugwang-server` 서비스 환경변수 `VAPID_PRIVATE_KEY`로 등록해야
+      함(코드에 없음 — 아직 Railway에 안 넣었으면 발송 자체가 조용히 비활성 상태로 남음,
+      `sendPushNotification()`이 키 없으면 그냥 아무것도 안 하고 리턴).
+    - 백엔드에 발송 헬퍼(`sendPushNotification(payload, studentIds)`, 410/404 응답이면
+      만료된 구독으로 보고 자동 정리)와 `/api/notify/*` 엔드포인트 4개 신설. **제목/본문을
+      클라이언트가 보낸 문자열로 그대로 안 믿고 항상 서버가 id로 원본 행을 다시 조회해서
+      직접 만듦** — 그래야 이 엔드포인트를 직접 두드려서 학급 전체에 임의의 문구로 푸시를
+      뿌리는 악용을 막을 수 있음. `notice`/`teacher-message`는 스태프만
+      호출 가능(`requireStaffAuth` 신설, `requireAdmin`과 달리 진짜 토큰 검증 기반).
+      `comment`/`poll-vote`는 로그인만 하면 호출 가능하지만, comment는 호출자가 그
+      댓글의 실제 작성자인지, poll-vote는 투표 생성자 본인에게는 안 보내는지 등을 서버가
+      다시 확인함.
+    - 프론트 4개 지점에 발송 트리거 연결: `submitNotice()`(성공 후), `submitComment()`
+      (성공 후), `voteOnPoll()`(성공 후 — 재투표해도 매번 알림 가므로 스팸 소지 있음, 필요시
+      "최초 투표만 알림"으로 좁힐 수 있음), `sendTeacherMessageToStudent()`(성공 후).
+      전부 `triggerNotify()`로 실패를 조용히 삼켜서, 알림 발송이 실패해도 원래 하려던 글쓰기/
+      투표/메시지 자체는 절대 막히지 않게 함.
+    - **학교 공용 컴퓨터/태블릿 대비**: 로그아웃할 때(`doLogout()`) 이 기기의 브라우저 푸시
+      구독 자체를 해지(`unsubscribePushSilently()`)하도록 함 — 안 그러면 학생 A가 켜둔
+      알림을, A가 로그아웃하고 같은 기기로 로그인한 학생 B가(A 앞으로 온 선생님 메시지
+      등 사적인 내용까지 포함해서) 계속 받게 되는 정보 유출이 생김.
+    - **아직 실제 기기에서 푸시가 도착하는지까지는 검증 못 했음** — 이 환경엔 배포된
+      Railway 백엔드에 접근할 수단도, 실제 브라우저/기기도 없어서 코드 리뷰·문법 검사로만
+      확인함. 무엇보다 **Railway에 `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` 환경변수를 아직
+      안 넣었으면 서버는 정상 동작하되 푸시는 계속 조용히 안 나가는 상태**이니, 이 기능을
+      실제로 켜려면 그것부터 확인할 것.
 - 2026-07-15: 타이머 탭(쪽잠/모의고사/스톱워치)도 학습 타이머와 같은 방식으로 새로고침해도
   안 끊기게 수정. 시작/일시정지할 때마다 `localStorage`(`bugwang_timer_nap`/
   `bugwang_timer_exam`/`bugwang_stopwatch`)에 재개 정보를 저장해두고, 로그인 직후

@@ -102,6 +102,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .nav-item:active{transform:scale(.98)}
 .nav-item.active{color:var(--blue);background:rgba(0,102,204,.06);font-weight:600}
 .nav-item svg{width:16px;height:16px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.nav-badge-dot{width:7px;height:7px;border-radius:50%;background:#e11d48;flex-shrink:0}
 .sidebar-footer{border-top:1px solid var(--hairline);padding:12px 20px calc(12px + env(safe-area-inset-bottom));flex-shrink:0}
 .user-row{display:flex;align-items:center;gap:10px;cursor:pointer;padding:6px 8px;border-radius:var(--radius-sm);transition:background var(--t),transform .1s ease}
 .user-row:hover{background:var(--parchment)}
@@ -489,6 +490,13 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .band-legend-name{font-size:13px;color:var(--ink);flex:1}
 .band-legend-val{font-size:12px;font-weight:600;color:var(--ink-48)}
 
+/* 선생님 메시지 */
+.tm-thread{display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto;padding-right:2px}
+.tm-msg{max-width:80%;padding:9px 13px;border-radius:14px;font-size:13px;line-height:1.5}
+.tm-msg.teacher{align-self:flex-start;background:var(--parchment);color:var(--ink);border-bottom-left-radius:4px}
+.tm-msg.student{align-self:flex-end;background:var(--blue);color:#fff;border-bottom-right-radius:4px}
+.tm-msg-meta{font-size:10px;opacity:.6;margin-top:3px}
+
 /* TIMER */
 .timer-card{text-align:center;padding:40px 24px}
 .timer-display{font-size:56px;font-weight:600;letter-spacing:-.02em;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1}
@@ -627,6 +635,8 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .student-id{font-size:12px;color:var(--ink-48)}
 .student-status{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--green-dark);margin-left:auto}
 .student-status-dot{width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0}
+.student-msg-btn{margin-left:auto;font-size:15px;line-height:1;padding:4px;border-radius:50%;transition:background var(--t),transform .12s ease;flex-shrink:0}
+.student-msg-btn:hover{background:var(--parchment)}
 .student-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;background:var(--parchment);border-radius:var(--radius-sm);padding:12px}
 .student-info-cell{}
 .student-info-label{font-size:10px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:var(--ink-48);margin-bottom:4px}
@@ -919,6 +929,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         <div class="nav-group-label">설정</div>
         <div class="nav-item" data-page="mypage" onclick="navigate('mypage')">
           <svg viewBox="0 0 24 24" style="stroke:#64748b"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>마이페이지
+          <span class="nav-badge-dot" id="mypage-unread-dot" style="display:none"></span>
         </div>
         <div class="nav-item" data-page="admin" onclick="navigate('admin')" id="nav-admin" style="display:none">
           <svg viewBox="0 0 24 24" style="stroke:#c026a8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>관리자
@@ -1469,6 +1480,16 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
             </div>
           </div>
 
+          <!-- 선생님 메시지 -->
+          <div class="card" id="mp-tm-card" style="margin-top:14px;display:none">
+            <div class="card-title" style="margin-bottom:12px">선생님 메시지 💬</div>
+            <div class="tm-thread" id="tm-thread"><div style="text-align:center;padding:20px;color:var(--ink-48);font-size:13px">아직 메시지가 없어요</div></div>
+            <div class="comment-input-row" style="margin-top:10px">
+              <input class="comment-input" id="tm-reply-input" placeholder="답장 보내기..." onkeydown="if(event.key==='Enter'&&!event.isComposing)sendMyReplyToTeacher()">
+              <button class="comment-submit" onclick="sendMyReplyToTeacher()">전송</button>
+            </div>
+          </div>
+
           <!-- 나의 다짐 -->
           <div class="card" style="margin-top:14px">
             <div class="card-title" style="margin-bottom:12px">나의 다짐 ✍️</div>
@@ -1569,6 +1590,20 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
             <div style="display:flex;justify-content:flex-end">
               <button class="btn-primary" style="font-size:14px;padding:8px 18px" onclick="saveSubjects()">저장</button>
             </div>
+          </div>
+
+          <!-- 알림 설정 -->
+          <div class="card" style="margin-top:14px">
+            <div class="card-title" style="margin-bottom:4px">푸시 알림</div>
+            <div class="card-sub">새 공지사항, 내 글에 달린 댓글, 선생님 메시지, 내 투표 참여를 알려드려요</div>
+            <div id="push-toggle-wrap" style="display:none;justify-content:flex-end;margin-top:12px">
+              <button class="btn-primary" id="push-toggle-btn" style="font-size:14px;padding:8px 18px">알림 켜기</button>
+            </div>
+            <div id="push-ios-hint" style="display:none;font-size:12px;color:var(--ink-48);margin-top:10px">
+              📱 아이폰에서는 이 화면을 홈 화면에 추가한 뒤에만 알림을 받을 수 있어요.
+              사파리 공유 버튼 → "홈 화면에 추가"를 먼저 해주세요.
+            </div>
+            <div id="push-unsupported" style="display:none;font-size:12px;color:var(--ink-48);margin-top:10px">이 브라우저는 푸시 알림을 지원하지 않아요.</div>
           </div>
 
           <!-- 기능 둘러보기 -->
@@ -1737,6 +1772,19 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
     <div class="modal-actions">
       <button class="btn-ghost" onclick="document.getElementById('add-subject-modal').classList.remove('open')">취소</button>
       <button class="btn-primary" onclick="addSubject()">추가</button>
+    </div>
+  </div>
+</div>
+
+<!-- 선생님 → 학생 메시지 모달 -->
+<div class="modal-overlay" id="teacher-message-modal">
+  <div class="modal" style="max-width:440px">
+    <button class="modal-close" onclick="closeTeacherMessageModal()">×</button>
+    <div class="modal-title" id="tmm-title">메시지</div>
+    <div class="tm-thread" id="tmm-thread" style="max-height:320px"></div>
+    <div class="comment-input-row" style="margin-top:12px">
+      <input class="comment-input" id="tmm-input" placeholder="메시지 입력..." onkeydown="if(event.key==='Enter'&&!event.isComposing)sendTeacherMessageToStudent()">
+      <button class="comment-submit" onclick="sendTeacherMessageToStudent()">전송</button>
     </div>
   </div>
 </div>
@@ -1961,6 +2009,9 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const SERVER_URL = 'https://bugwang-server-production.up.railway.app';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 const MAX_DEVICES = 2;
+// 백엔드에서 생성한 VAPID 키 쌍 중 공개키 — 공개키는 그대로 노출돼도 안전하다(개인키만
+// bugwang-server 쪽 환경변수로 비공개 보관). 서버와 반드시 같은 쌍이어야 구독이 유효함.
+const VAPID_PUBLIC_KEY = 'BKlgOPpkMz2NkgZjOqCiIjZAy3psUp1YneP6avxWh3gOKb9ZLV1atk6ZxmfSONocDq98FEltO0UrRxS1uZ3BHqY';
 
 // ── 기기제한 (계정당 캠스터디 입장 가능 기기 수 제한 — 로그인 자체는 무제한) ──
 function getDeviceId(){
@@ -2067,6 +2118,10 @@ function showSetupErr(msg){const e=document.getElementById('setup-error');e.text
 async function doLogout(){
   if(activeTimer)await stopCurrentTimer();
   if(marathonModalOpen)closeMarathonModalUI();
+  // signOut()으로 세션이 사라지기 전에 먼저 해지해야 access_token으로 서버에 알릴 수 있다 —
+  // 공용 기기에서 다음 로그인한 사람 화면에 이 사람 앞으로 온 알림(선생님 메시지 등)이
+  // 뜨지 않도록 이 기기의 푸시 구독 자체를 끊는다.
+  try{await unsubscribePushSilently()}catch(e){}
   await sb.auth.signOut();
   currentUser=null;currentStudentId='';currentName='';subjects=[];todaySessions=[];totalTodaySec=0;
   // 학교 컴퓨터/태블릿처럼 여러 학생이 같은 기기를 쓸 수 있으니, 다음 로그인한 사람이 이
@@ -2150,6 +2205,7 @@ async function initApp(user,sid,name){
   // 역할 로드 (실모반 상태도 함께 — loadNotices()가 실모반 전용 공지 노출 여부를 판단하는 데 필요)
   await Promise.all([loadMyRole(),loadSimoStatus()]);
   updateSimoNavVisibility();
+  checkUnreadTeacherMessages();
   loadMeal();loadNotices();
   // renderNews()가 loadMyRole()보다 먼저 끝나면 권한 확인(isStaffRole())이 아직 반영 전이라
   // 삭제 버튼이 안 뜰 수 있음 — 역할 로드가 끝난 시점에 이미 받아온 뉴스로 한 번 더 그려줌
@@ -2342,6 +2398,7 @@ function navigate(page){
   if(page==='teacher')loadMyRole().then(loadTeacherView);
   if(page==='planner')renderMyMonthCalendar();
   if(page==='simo')loadMyRole().then(renderSimoPage);
+  if(page==='mypage'){updatePushToggleUI();loadMyMessageThread()}
 }
 // 로그인 직후엔 항상 대시보드가 기본으로 떠 있는 상태이므로, 마지막으로 본 페이지가 그와
 // 다르고(대시보드는 굳이 다시 안 눌러도 됨) 지금 권한으로도 여전히 사이드바에 보이는
@@ -2763,6 +2820,7 @@ async function voteOnPoll(pollId,optionIndex){
   if(error){toast('투표 실패: '+error.message);return}
   toast('투표했습니다 ✓');
   await loadNotices();
+  triggerNotify('poll-vote',{poll_id:pollId});
 }
 
 // ── 공지 작성 (네이버 카페식 전체 페이지 글쓰기) ──
@@ -2840,6 +2898,7 @@ async function submitNotice(){
   closeNoticeWritePage();
   toast(`${audience==='simo'?'실모반 ':''}공지가 게시되었습니다 ✓`);
   await loadNotices();
+  triggerNotify('notice',{notice_id:noticeRow.id});
 }
 
 async function deleteNotice(event,id){
@@ -4042,6 +4101,188 @@ function resumeMiscTimersOnLoad(){
   resumeStopwatchIfAny();
 }
 
+// ── 푸시 알림 ──
+// iOS Safari는 홈 화면에 추가(standalone)하지 않으면 Notification/PushManager 자체가
+// 없거나 동작하지 않으므로, 그 경우엔 토글 대신 안내 문구만 보여준다.
+function pushSupported(){
+  return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+}
+function isIosNonStandalone(){
+  const isIos=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isStandalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+  return isIos&&!isStandalone;
+}
+function urlBase64ToUint8Array(base64String){
+  const padding='='.repeat((4-base64String.length%4)%4);
+  const base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');
+  const rawData=atob(base64);
+  const outputArray=new Uint8Array(rawData.length);
+  for(let i=0;i<rawData.length;i++)outputArray[i]=rawData.charCodeAt(i);
+  return outputArray;
+}
+async function getAccessToken(){
+  const {data:{session}}=await sb.auth.getSession();
+  return session?.access_token||null;
+}
+async function updatePushToggleUI(){
+  const wrap=document.getElementById('push-toggle-wrap');
+  const iosHintEl=document.getElementById('push-ios-hint');
+  const unsupportedEl=document.getElementById('push-unsupported');
+  if(!wrap)return;
+  if(isIosNonStandalone()){
+    wrap.style.display='none';iosHintEl.style.display='block';unsupportedEl.style.display='none';
+    return;
+  }
+  if(!pushSupported()){
+    wrap.style.display='none';iosHintEl.style.display='none';unsupportedEl.style.display='block';
+    return;
+  }
+  iosHintEl.style.display='none';unsupportedEl.style.display='none';wrap.style.display='flex';
+  const btn=document.getElementById('push-toggle-btn');
+  if(Notification.permission==='denied'){
+    btn.textContent='브라우저 설정에서 차단됨';btn.disabled=true;btn.onclick=null;
+    return;
+  }
+  const reg=await navigator.serviceWorker.getRegistration('./sw.js');
+  const sub=reg?await reg.pushManager.getSubscription():null;
+  if(sub){btn.textContent='알림 끄기';btn.disabled=false;btn.onclick=disablePush}
+  else{btn.textContent='알림 켜기';btn.disabled=false;btn.onclick=enablePush}
+}
+async function enablePush(){
+  if(!pushSupported()){toast('이 브라우저는 푸시 알림을 지원하지 않아요');return}
+  const permission=await Notification.requestPermission();
+  if(permission!=='granted'){toast('알림 권한이 거부됐어요');updatePushToggleUI();return}
+  try{
+    const reg=await navigator.serviceWorker.register('./sw.js');
+    await navigator.serviceWorker.ready;
+    const sub=await reg.pushManager.subscribe({
+      userVisibleOnly:true,
+      applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+    });
+    const token=await getAccessToken();
+    const subJson=sub.toJSON();
+    const res=await fetch(`${SERVER_URL}/api/push-subscribe`,{
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
+      body:JSON.stringify({endpoint:subJson.endpoint,keys:subJson.keys,device_label:getDeviceLabel()})
+    });
+    if(!res.ok)throw new Error((await res.json()).error||'구독 등록 실패');
+    toast('알림을 켰어요 ✓');
+  }catch(e){toast('알림 켜기 실패: '+e.message)}
+  updatePushToggleUI();
+}
+// 이 기기의 브라우저 푸시 구독 자체를 해지 — 학교 공용 기기에서 다음 사람이 로그인해도
+// 이전 사람 앞으로 온 알림(선생님 메시지 등 개인 정보 포함)이 이 화면에 뜨지 않도록,
+// 설정에서 끌 때뿐 아니라 로그아웃할 때도 이 함수를 그대로 재사용한다.
+async function unsubscribePushSilently(){
+  if(!pushSupported())return;
+  const reg=await navigator.serviceWorker.getRegistration('./sw.js');
+  const sub=reg?await reg.pushManager.getSubscription():null;
+  if(!sub)return;
+  const endpoint=sub.endpoint;
+  await sub.unsubscribe();
+  const token=await getAccessToken();
+  await fetch(`${SERVER_URL}/api/push-unsubscribe`,{
+    method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
+    body:JSON.stringify({endpoint})
+  }).catch(()=>{});
+}
+async function disablePush(){
+  try{
+    await unsubscribePushSilently();
+    toast('알림을 껐어요');
+  }catch(e){toast('알림 끄기 실패: '+e.message)}
+  updatePushToggleUI();
+}
+// 서버가 실제 발송을 담당하는 알림 트리거 호출 — 이 호출이 실패해도 원래 하려던 동작(글쓰기,
+// 댓글, 투표 등)은 이미 끝난 뒤라 막으면 안 되므로 항상 실패를 조용히 삼킨다.
+async function triggerNotify(type,body){
+  try{
+    const token=await getAccessToken();
+    if(!token)return;
+    await fetch(`${SERVER_URL}/api/notify/${type}`,{
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
+      body:JSON.stringify(body)
+    });
+  }catch(e){}
+}
+
+// ── 선생님 메시지 ──
+function renderMessageBubble(m){
+  const time=new Date(m.created_at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  return`<div class="tm-msg ${m.sender_role}"><div>${escHtml(m.content)}</div><div class="tm-msg-meta">${escHtml(m.author_name)} · ${time}</div></div>`;
+}
+
+// 학생 본인: 마이페이지의 메시지 카드 — 선생님/스태프 계정에는 의미가 없어서 숨김
+async function loadMyMessageThread(){
+  const wrap=document.getElementById('mp-tm-card');
+  if(!wrap)return;
+  if(currentIsTeacher){wrap.style.display='none';return}
+  wrap.style.display='block';
+  const {data}=await sb.from('teacher_messages').select('*').eq('student_id',currentStudentId).order('created_at');
+  const thread=document.getElementById('tm-thread');
+  thread.innerHTML=(data&&data.length)?data.map(renderMessageBubble).join(''):'<div style="text-align:center;padding:20px;color:var(--ink-48);font-size:13px">아직 메시지가 없어요</div>';
+  thread.scrollTop=thread.scrollHeight;
+  // 선생님이 보낸 메시지를 확인했으니 읽음 처리하고 사이드바 배지도 지운다
+  const hasUnread=(data||[]).some(m=>m.sender_role==='teacher'&&!m.is_read);
+  if(hasUnread)await sb.from('teacher_messages').update({is_read:true}).eq('student_id',currentStudentId).eq('sender_role','teacher').eq('is_read',false);
+  const dot=document.getElementById('mypage-unread-dot');if(dot)dot.style.display='none';
+}
+async function sendMyReplyToTeacher(){
+  const inp=document.getElementById('tm-reply-input');
+  const content=inp.value.trim();
+  if(!content)return;
+  const{error}=await sb.from('teacher_messages').insert({
+    student_id:currentStudentId,author_name:currentName||currentStudentId+'번',
+    content,sender_role:'student'
+  });
+  if(error){toast('전송 실패: '+error.message);return}
+  inp.value='';
+  await loadMyMessageThread();
+}
+
+// 선생님/스태프 쪽: 학생 카드의 메시지 아이콘을 누르면 여는 모달
+let tmmTargetSid=null;
+async function openTeacherMessageModal(sid,name){
+  tmmTargetSid=sid;
+  document.getElementById('tmm-title').textContent=`${name} (${sid}번)에게 메시지`;
+  document.getElementById('tmm-input').value='';
+  document.getElementById('teacher-message-modal').classList.add('open');
+  await loadTeacherMessageModalThread();
+}
+function closeTeacherMessageModal(){
+  document.getElementById('teacher-message-modal').classList.remove('open');
+  tmmTargetSid=null;
+}
+async function loadTeacherMessageModalThread(){
+  if(!tmmTargetSid)return;
+  const {data}=await sb.from('teacher_messages').select('*').eq('student_id',tmmTargetSid).order('created_at');
+  const thread=document.getElementById('tmm-thread');
+  thread.innerHTML=(data&&data.length)?data.map(renderMessageBubble).join(''):'<div style="text-align:center;padding:20px;color:var(--ink-48);font-size:13px">아직 메시지가 없어요</div>';
+  thread.scrollTop=thread.scrollHeight;
+}
+async function sendTeacherMessageToStudent(){
+  if(!tmmTargetSid)return;
+  const inp=document.getElementById('tmm-input');
+  const content=inp.value.trim();
+  if(!content)return;
+  const{data,error}=await sb.from('teacher_messages').insert({
+    student_id:tmmTargetSid,author_name:currentName||currentStudentId+'번',
+    content,sender_role:'teacher'
+  }).select().single();
+  if(error){toast('전송 실패: '+error.message);return}
+  inp.value='';
+  await loadTeacherMessageModalThread();
+  triggerNotify('teacher-message',{message_id:data.id});
+}
+
+// 로그인 시 안 읽은 선생님 메시지가 있으면 마이페이지 nav에 점 배지로 표시
+async function checkUnreadTeacherMessages(){
+  if(currentIsTeacher)return;
+  const{count}=await sb.from('teacher_messages').select('id',{count:'exact',head:true}).eq('student_id',currentStudentId).eq('sender_role','teacher').eq('is_read',false);
+  const dot=document.getElementById('mypage-unread-dot');
+  if(dot)dot.style.display=(count&&count>0)?'block':'none';
+}
+
 // ── BOARDS ──
 // createObjectURL로 만든 blob URL은 (data URL과 달리) 명시적으로 revokeObjectURL하지 않으면
 // 페이지가 떠 있는 동안 메모리에 계속 남는다. 하루 종일 켜두는 모바일 PWA에서 사진/동영상을
@@ -4229,6 +4470,7 @@ async function submitComment(postId,type){
     const btn=card.querySelector('.comment-toggle-btn');
     if(btn){const cur=list.children.length;btn.textContent=`💬 댓글 ${cur}개 보기`;}
   }
+  triggerNotify('comment',{comment_id:data.id});
 }
 
 async function deleteComment(commentId,postId,type){
@@ -5223,6 +5465,7 @@ function renderTeacherGrid(studentMap){
             <div class="student-id">${sid}번</div>
           </div>
           ${isStudying ? `<div class="student-status"><span class="student-status-dot"></span>공부 중</div>` : ''}
+          <button class="student-msg-btn" onclick="event.stopPropagation();openTeacherMessageModal('${sid}','${escAttr(name)}')" title="메시지 보내기">💬</button>
         </div>
         <div class="student-info-grid">
           <div class="student-info-cell"><div class="student-info-label">오늘 공부 시간</div><div class="student-info-val time">${fmtHM(data.totalSec)}</div></div>

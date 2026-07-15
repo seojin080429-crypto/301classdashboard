@@ -1540,14 +1540,14 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 </div>
 
 <!-- 타이머 실행 중 배지 -->
-<div class="timer-badge" id="timer-badge">
+<div class="timer-badge" id="timer-badge" onclick="reopenTimerView()" style="cursor:pointer">
   <div class="timer-badge-dot"></div>
   <div class="timer-badge-info">
     <div class="timer-badge-subject" id="badge-subject">—</div>
     <div class="timer-badge-task" id="badge-task">—</div>
   </div>
   <div class="timer-badge-time" id="badge-time">00:00:00</div>
-  <button class="timer-badge-stop" onclick="stopCurrentTimer()">
+  <button class="timer-badge-stop" onclick="event.stopPropagation();stopCurrentTimer()">
     <svg viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8" rx="1"/></svg>
   </button>
 </div>
@@ -2940,6 +2940,12 @@ async function editTaskTime(si,ti){
 // ── FULLSCREEN TIMER ──
 let tfInterval=null;let tfPaused=false;let tfCurrentSi=-1;let tfCurrentTi=-1;
 let tfRankData=[];let tfRankTick=0;
+
+// 우하단 미니 타이머 배지를 눌렀을 때, 재생 버튼을 처음 눌렀을 때 봤던 전체화면 타이머로 되돌아감
+function reopenTimerView(){
+  if(!activeTimer)return;
+  openTimerView(activeTimer.subjectIdx,activeTimer.taskIdx);
+}
 
 function openTimerView(si,ti){
   tfCurrentSi=si;tfCurrentTi=ti;

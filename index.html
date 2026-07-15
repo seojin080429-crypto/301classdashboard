@@ -280,6 +280,16 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 #toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:#1d1d1f;color:#fff;font-size:13px;padding:10px 20px;border-radius:var(--radius-pill);box-shadow:0 4px 24px rgba(0,0,0,.4);z-index:999;transition:transform .3s ease,opacity .3s ease;opacity:0;pointer-events:none;white-space:nowrap}
 #toast.show{transform:translateX(-50%) translateY(0);opacity:1}
 
+/* 새 버전 배포 알림 배너 */
+.update-banner{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(140%);display:flex;align-items:center;gap:10px;background:#1d1d1f;color:#fff;padding:10px 10px 10px 16px;border-radius:var(--radius-pill);box-shadow:0 8px 30px rgba(0,0,0,.35);z-index:998;transition:transform .3s ease;max-width:calc(100vw - 32px)}
+.update-banner.show{transform:translateX(-50%) translateY(0)}
+.update-banner-text{font-size:13px;white-space:nowrap}
+.update-banner-btn{background:var(--blue);color:#fff;font-size:13px;font-weight:600;padding:7px 14px;border-radius:var(--radius-pill);white-space:nowrap;flex-shrink:0}
+.update-banner-close{color:rgba(255,255,255,.5);font-size:16px;padding:0 4px;flex-shrink:0}
+@media(max-width:834px){
+  .update-banner{bottom:calc(20px + env(safe-area-inset-bottom))}
+}
+
 /* 기능 둘러보기 튜토리얼 */
 .tour-overlay{position:fixed;inset:0;z-index:500;display:none}
 .tour-overlay.open{display:block}
@@ -1932,6 +1942,13 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 </div>
 
 <div id="toast"></div>
+
+<!-- 새 버전 배포 시 새로고침 유도 배너 -->
+<div class="update-banner" id="update-banner">
+  <span class="update-banner-text">🚀 새 버전이 있어요</span>
+  <button class="update-banner-btn" onclick="applyUpdateAndReload()">새로고침하기</button>
+  <button class="update-banner-close" onclick="dismissUpdateBanner()">×</button>
+</div>
 
 <!-- 타이머(쪽잠/모의고사) 알람 전체화면 -->
 <div class="timer-alarm-overlay" id="timer-alarm-overlay">
@@ -4125,6 +4142,55 @@ async function getAccessToken(){
   const {data:{session}}=await sb.auth.getSession();
   return session?.access_token||null;
 }
+
+// ── 새 버전 배포 감지 (서비스 워커 업데이트) ──
+// 이 서비스 워커는 캐싱을 안 하지만, "새 버전이 배포됐다"는 신호로도 그대로 쓴다 — sw.js
+// 파일의 바이트가 바뀌면(SW_BUILD 상수를 배포마다 올려둠) 브라우저가 자동으로 새 워커를
+// 내려받아 설치하고 "대기(waiting)" 상태로 둔다. 그 상태를 감지해서 새로고침 배너를 띄우고,
+// "새로고침하기"를 누르면 새 워커를 즉시 활성화시킨 뒤 새로고침한다. 푸시 구독 여부와
+// 무관하게 항상 등록해야 하므로(누구나 업데이트 알림은 받아야 함) enablePush()와 별개로
+// 로그인 여부와도 무관하게 페이지 로드 시 바로 등록한다.
+let swRegistration=null;
+let pendingUpdateWorker=null;
+function showUpdateBanner(worker){
+  pendingUpdateWorker=worker;
+  document.getElementById('update-banner').classList.add('show');
+}
+function dismissUpdateBanner(){
+  document.getElementById('update-banner').classList.remove('show');
+}
+function applyUpdateAndReload(){
+  if(pendingUpdateWorker){
+    navigator.serviceWorker.addEventListener('controllerchange',()=>location.reload(),{once:true});
+    pendingUpdateWorker.postMessage({type:'SKIP_WAITING'});
+  }else{
+    location.reload();
+  }
+}
+async function initServiceWorker(){
+  if(!('serviceWorker' in navigator))return;
+  try{
+    swRegistration=await navigator.serviceWorker.register('./sw.js');
+    // 페이지를 켜는 바로 그 순간에 이미 새 버전이 설치돼서 대기 중이었을 수도 있음
+    if(swRegistration.waiting&&navigator.serviceWorker.controller)showUpdateBanner(swRegistration.waiting);
+    swRegistration.addEventListener('updatefound',()=>{
+      const newWorker=swRegistration.installing;
+      if(!newWorker)return;
+      newWorker.addEventListener('statechange',()=>{
+        // 이미 컨트롤 중인 워커가 있는 상태에서 새 워커가 설치 완료됐다 = 첫 설치가 아니라
+        // 업데이트. 첫 설치(controller가 아직 없음)는 배너를 띄울 필요가 없음.
+        if(newWorker.state==='installed'&&navigator.serviceWorker.controller){
+          showUpdateBanner(newWorker);
+        }
+      });
+    });
+    // 오래 켜둔 탭 대비 — 탭을 다시 볼 때, 그리고 30분마다 새 버전이 있는지 확인
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)swRegistration.update().catch(()=>{})});
+    setInterval(()=>swRegistration.update().catch(()=>{}),30*60*1000);
+  }catch(e){}
+}
+initServiceWorker();
+
 // 브라우저가 알림 권한을 한 번 "차단"으로 기억하면 JS로는 다시 물어볼 방법이 없어서(재요청해도
 // 대화상자 없이 바로 거부로 응답됨), 브라우저 종류를 대충 구분해서 어디서 풀어야 하는지
 // 안내 문구를 보여준다. 정확한 메뉴 이름은 버전마다 조금씩 다를 수 있어 일반적인 경로만 안내.
@@ -4156,7 +4222,7 @@ async function updatePushToggleUI(){
     deniedHintEl.textContent=pushDeniedHintText();deniedHintEl.style.display='block';
     return;
   }
-  const reg=await navigator.serviceWorker.getRegistration('./sw.js');
+  const reg=swRegistration||await navigator.serviceWorker.getRegistration('./sw.js');
   const sub=reg?await reg.pushManager.getSubscription():null;
   if(sub){btn.textContent='알림 끄기';btn.disabled=false;btn.onclick=disablePush}
   else{btn.textContent='알림 켜기';btn.disabled=false;btn.onclick=enablePush}
@@ -4166,7 +4232,7 @@ async function enablePush(){
   const permission=await Notification.requestPermission();
   if(permission!=='granted'){toast('알림 권한이 거부됐어요');updatePushToggleUI();return}
   try{
-    const reg=await navigator.serviceWorker.register('./sw.js');
+    const reg=swRegistration||await navigator.serviceWorker.register('./sw.js');
     await navigator.serviceWorker.ready;
     const sub=await reg.pushManager.subscribe({
       userVisibleOnly:true,
@@ -4188,7 +4254,7 @@ async function enablePush(){
 // 설정에서 끌 때뿐 아니라 로그아웃할 때도 이 함수를 그대로 재사용한다.
 async function unsubscribePushSilently(){
   if(!pushSupported())return;
-  const reg=await navigator.serviceWorker.getRegistration('./sw.js');
+  const reg=swRegistration||await navigator.serviceWorker.getRegistration('./sw.js');
   const sub=reg?await reg.pushManager.getSubscription():null;
   if(!sub)return;
   const endpoint=sub.endpoint;

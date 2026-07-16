@@ -736,6 +736,11 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .comment-input::placeholder{color:var(--ink-48)}
 .comment-submit{padding:7px 14px;background:var(--blue);color:#fff;font-size:12px;font-weight:600;border-radius:var(--radius-pill);border:none;cursor:pointer;transition:opacity var(--t)}
 .comment-submit:hover{opacity:.85}
+.board-like-row{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+.board-like-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 10px;border-radius:var(--radius-pill);border:1px solid var(--hairline);background:var(--parchment);color:var(--ink-80);font-size:12px;transition:all var(--t)}
+.board-like-btn:hover{border-color:var(--blue);color:var(--blue)}
+.board-like-btn.liked{background:rgba(226,32,91,.1);border-color:rgba(226,32,91,.3);color:#c81f56}
+.board-like-btn svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 
 /* MYPAGE */
 .mp-info-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--hairline);font-size:14px}
@@ -2208,6 +2213,7 @@ async function initApp(user,sid,name){
   await syncMyProfile();
   populateMypage(meta,name,sid);
   updateDday();renderTimetable();loadMeal();loadNotices();renderNews();initCalc();renderFavorites();
+  showFirstLaunchGuide();
   loadFreeBoard();loadQnaBoard();loadBugBoard();
   subjects=buildSubjectsFromMeta(meta);
   await loadTodaySessions();
@@ -4364,6 +4370,74 @@ async function checkUnreadTeacherMessages(){
   if(dot)dot.style.display=(count&&count>0)?'block':'none';
 }
 
+function isBoardModerator(){
+  return currentRole==='admin' || currentRole==='owner';
+}
+
+function getBoardLikeState(){
+  try{
+    return JSON.parse(localStorage.getItem('bugwang_board_like_state') || '{}');
+  }catch(e){
+    return {};
+  }
+}
+
+function setBoardLikeState(state){
+  localStorage.setItem('bugwang_board_like_state', JSON.stringify(state));
+}
+
+function ensureInstallGuideModal(){
+  let modal=document.getElementById('install-guide-modal');
+  if(modal)return modal;
+  modal=document.createElement('div');
+  modal.id='install-guide-modal';
+  modal.className='modal-overlay';
+  modal.innerHTML=`<div class="modal" style="max-width:460px">
+    <button class="modal-close" onclick="closeInstallGuideModal()">×</button>
+    <div class="modal-title">앱 설치 안내</div>
+    <div style="font-size:13px;color:var(--ink-80);line-height:1.7">
+      카카오톡 링크로 들어오면 <strong>Chrome(크롬)</strong>으로 열어 주세요.<br><br>
+      먼저 <strong>크롬에 추가</strong>하고 그다음 <strong>바탕화면에 추가</strong> 버튼을 눌러서 앱처럼 실행해 주세요.<br><br>
+      알림을 받으려면 브라우저 알림 설정도 반드시 <strong>켜기</strong> 해주세요.
+    </div>
+    <div class="modal-actions" style="margin-top:18px">
+      <button class="btn-primary full" id="install-guide-add-btn" onclick="triggerInstallPrompt()">크롬에 추가</button>
+    </div>
+    <div style="margin-top:10px;font-size:12px;color:var(--ink-48);text-align:center">이 안내는 처음 1번만 보여드려요.</div>
+  </div>`;
+  document.body.appendChild(modal);
+  return modal;
+}
+
+let deferredInstallPrompt=null;
+window.addEventListener('beforeinstallprompt', (event)=>{
+  event.preventDefault();
+  deferredInstallPrompt=event;
+});
+
+function closeInstallGuideModal(){
+  const modal=document.getElementById('install-guide-modal');
+  if(modal)modal.classList.remove('open');
+}
+
+async function triggerInstallPrompt(){
+  if(deferredInstallPrompt){
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt=null;
+    closeInstallGuideModal();
+    return;
+  }
+  toast('브라우저가 설치 프롬프트를 지원하지 않아요. 주소창에서 “홈 화면에 추가”를 직접 눌러주세요.');
+}
+
+function showFirstLaunchGuide(){
+  if(localStorage.getItem('bugwang_first_launch_guide_seen')==='1')return;
+  const modal=ensureInstallGuideModal();
+  modal.classList.add('open');
+  localStorage.setItem('bugwang_first_launch_guide_seen','1');
+}
+
 // ── BOARDS ──
 // createObjectURL로 만든 blob URL은 (data URL과 달리) 명시적으로 revokeObjectURL하지 않으면
 // 페이지가 떠 있는 동안 메모리에 계속 남는다. 하루 종일 켜두는 모바일 PWA에서 사진/동영상을
@@ -4452,6 +4526,14 @@ async function submitPost(type){
 
 async function deletePost(id,imageUrl,type){
   if(!confirm('정말 삭제할까요?'))return;
+  let postAuthorId=null;
+  try{
+    const {data:postRow,error}=await sb.from('posts').select('student_id').eq('id',id).single();
+    if(error){toast('게시글을 찾을 수 없어요');return}
+    postAuthorId=postRow?.student_id;
+  }catch(e){toast('게시글 권한 확인에 실패했어요');return}
+  const canManagePost=postAuthorId===currentStudentId || isBoardModerator();
+  if(!canManagePost){toast('권한이 없습니다');return}
   if(imageUrl){
     const parts=imageUrl.split('/board-photos/');
     if(parts[1])await sb.storage.from('board-photos').remove([parts[1]]);
@@ -4463,6 +4545,9 @@ async function deletePost(id,imageUrl,type){
 
 function renderPost(p,type,comments=[]){
   const isMe=p.student_id===currentStudentId;
+  const canManagePost=isMe || isBoardModerator();
+  const isLiked=!!getBoardLikeState()[p.id];
+  const likeCount=Math.max(0, Number(p.like_count || 0) + (isLiked ? 1 : 0));
   const date=new Date(p.created_at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
   // 업로드 시점에 파일명에 새겨둔 vid_/img_ 접두사로 우선 판단하고, 그 접두사가 없는(이
   // 방식 도입 전에 이미 올라간) 과거 첨부파일은 예전처럼 확장자로 대신 추측한다.
@@ -4471,9 +4556,11 @@ function renderPost(p,type,comments=[]){
     ?`<video class="post-img" src="${p.image_url}" controls playsinline></video>`
     :`<img class="post-img" src="${p.image_url}" alt="첨부사진" onclick="openLightbox('${p.image_url}')">`):'';
   const subjectPill=p.subject?`<span class="qna-subject-pill">${p.subject}</span>`:'';
-  const deleteBtn=isMe?`<button class="post-delete-btn" onclick="deletePost('${p.id}','${p.image_url||''}','${type}')">삭제</button>`:'';
+  const deleteBtn=canManagePost?`<button class="post-delete-btn" onclick="deletePost('${p.id}','${p.image_url||''}','${type}')">삭제</button>`:'';
+  const likeHtml=type==='free'?`<div class="board-like-row"><button class="board-like-btn ${isLiked?'liked':''}" id="board-like-btn-${p.id}" onclick="toggleLike('${p.id}')"><svg viewBox="0 0 24 24"><path d="M12 21s-6.716-4.443-9.192-8.143C.115 9.521 2.044 4 6.731 4c2.126 0 3.215 1.095 4.03 2.258C11.576 5.095 12.664 4 14.79 4 19.476 4 21.405 9.521 21.192 12.857 18.716 16.557 12 21 12 21z"></path></svg><span>${isLiked?'♥':'♡'}</span><span class="board-like-count" data-count="${likeCount}">${likeCount}</span></button></div>`:'';
   const commentsHtml=comments.map(c=>{
     const isMyComment=c.student_id===currentStudentId;
+    const canManageComment=isMyComment || isBoardModerator();
     const cDate=new Date(c.created_at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
     return`<div class="comment-item">
       <div class="comment-avatar">${c.author_name?c.author_name[0]:'?'}</div>
@@ -4481,7 +4568,7 @@ function renderPost(p,type,comments=[]){
         <div class="comment-meta">
           <span class="comment-author">${c.author_name}</span>
           <span class="comment-time">${cDate}</span>
-          ${isMyComment?`<button class="comment-del" onclick="deleteComment('${c.id}','${p.id}','${type}')">삭제</button>`:''}
+          ${canManageComment?`<button class="comment-del" onclick="deleteComment('${c.id}','${p.id}','${type}')">삭제</button>`:''}
         </div>
         <div class="comment-text">${c.content}</div>
       </div>
@@ -4497,6 +4584,7 @@ function renderPost(p,type,comments=[]){
     </div>
     <div class="qna-content">${p.content}</div>
     ${imgHtml}
+    ${likeHtml}
     <div class="comment-section">
       <button class="comment-toggle-btn" onclick="toggleComments('${p.id}')">
         💬 댓글 ${commentCount}개${commentCount?` 보기`:''}
@@ -4556,6 +4644,12 @@ async function submitComment(postId,type){
 
 async function deleteComment(commentId,postId,type){
   if(!confirm('댓글을 삭제할까요?'))return;
+  const {data:commentRow}=await sb.from('comments').select('student_id').eq('id',commentId).single();
+  if(!commentRow){toast('댓글을 찾을 수 없어요');return}
+  if(commentRow.student_id !== currentStudentId && !isBoardModerator()){
+    toast('권한이 없습니다');
+    return;
+  }
   await sb.from('comments').delete().eq('id',commentId);
   await boardLoader(type)();
 }

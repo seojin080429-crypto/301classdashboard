@@ -674,12 +674,69 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
   .dday-num{font-size:52px}
   .study-grid{grid-template-columns:1fr}
   .video-area,.study-chat{min-height:340px;max-height:none}
-  .dm-layout{flex-direction:column;height:auto;min-height:0}
-  .dm-room-list-panel{width:100%;height:calc(100vh - 260px);min-height:360px}
-  .dm-thread-panel{display:none;position:fixed;inset:0;z-index:120;border-radius:0;border:none;padding-top:env(safe-area-inset-top)}
-  .dm-layout.thread-open .dm-room-list-panel{display:none}
-  .dm-layout.thread-open .dm-thread-panel{display:flex}
-  .dm-back-btn{display:block}
+  .dm-layout {
+    flex-direction: column;
+    height: auto;
+    min-height: 0;
+  }
+  .dm-room-list-panel {
+    width: 100%;
+    height: calc(100dvh - 260px); /* 100vh를 동적 단위인 100dvh로 변경 */
+    min-height: 360px;
+  }
+  .dm-thread-panel {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    width: 100vw;
+    height: 100dvh; /* 주소창 유무에 유연하게 반응하도록 고정 */
+    z-index: 500; /* 상단 탑바를 완전히 덮도록 레이어 순위 상향 */
+    background: var(--canvas);
+    border-radius: 0;
+    border: none;
+    padding-top: calc(var(--nav-h) + env(safe-area-inset-top)); /* 탑바 높이만큼의 정확한 여백 확보 */
+    box-sizing: border-box;
+  }
+  .dm-layout.thread-open .dm-room-list-panel {
+    display: none;
+  }
+  .dm-layout.thread-open .dm-thread-panel {
+    display: flex;
+    flex-direction: column; /* 메시지창 내부 레이아웃 수직 정렬 강제 */
+  }
+  .dm-back-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    font-size: 24px;
+    line-height: 1;
+    color: var(--ink);
+    margin-right: 8px;
+  }
+  .dm-thread-active {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    height: 100%;
+    min-height: 0; /* 스레드 로그 영역의 무한 늘어남 방지 (스크롤 유도) */
+  }
+  .dm-thread-log {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    padding: 16px !important;
+    background: var(--parchment);
+  }
+  .dm-thread-input-row {
+    background: var(--canvas) !important;
+    padding: 12px 14px calc(12px + env(safe-area-inset-bottom)) 14px !important; /* 모바일 하단 홈 바 가림 방지 */
+    position: relative;
+    bottom: 0;
+    z-index: 10;
+    box-shadow: 0 -1px 0 var(--hairline);
+  }
   .auth-card{padding:36px 24px}
   .modal{padding:22px}
   input,select,textarea{font-size:16px!important}

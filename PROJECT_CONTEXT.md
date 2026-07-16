@@ -132,12 +132,12 @@
 - `push_subscriptions` — 기기별 웹 푸시 구독 정보(`endpoint`/`p256dh`/`auth_key`, `endpoint`
   유니크). RLS는 본인 것만 읽기/쓰기/삭제(진짜 제한). 실제 발송은 백엔드가 서비스 롤로 조회해서
   하므로 이 RLS는 프론트의 구독/해지 호출에서만 의미 있음. 2026-07-15 신설.
-- `posts.like_count`(integer, default 0, 2026-07-16 추가) — 자유게시판 좋아요 수. `posts`에는
-  UPDATE RLS 정책이 없어서 일반 update로는 못 건드리므로, 좋아요 수만 안전하게 ±1 하는
-  `toggle_post_like(post_id, delta)` SECURITY DEFINER 함수를 통해서만 갱신함(RLS 우회는 이
-  함수 안에서만, 그것도 delta가 1/-1일 때만 허용). "내가 눌렀는지"는 서버에 안 남기고
-  프론트 localStorage(`bugwang_board_like_state`)로만 기억 — 사용자별 좋아요 테이블이
-  따로 없어서, 기기를 바꾸면 하트 표시(♡/♥)는 초기화되지만 합산 카운트 자체는 정확함.
+- `post_likes`(2026-07-16 신설, 자유게시판 좋아요) — `post_id`(FK→posts, cascade)/`student_id`/
+  `user_id`, `(post_id,student_id)` PK. 처음엔 `posts.like_count` 정수 컬럼 + 증감 RPC로
+  만들었었는데, "누가 눌렀는지" 요구사항이 생기면서 `notice_poll_votes`와 동일한 패턴(참가자별
+  행 + SELECT는 전체 공개 `true`, INSERT/DELETE는 `auth.uid()=user_id`)으로 교체함 —
+  `like_count` 컬럼과 `toggle_post_like()` 함수는 삭제됨(더 이상 없음). 좋아요 수/좋아요
+  누른 사람 목록 둘 다 이 테이블만으로 클라이언트에서 계산(`boardLikesMap`).
 - `dm_rooms`/`dm_participants`/`dm_messages`(2026-07-16 신설, 학생 간 DM 기능) — 1:1은
   `is_group=false`, 단톡방은 `is_group=true`+`name`(선택). `dm_participants`는
   (room_id,student_id) 복합 PK로 참가자를 기록하고 `last_read_at`으로 읽음 여부를 계산.
@@ -211,6 +211,23 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-07-16: 게시판 글쓴이 이름을 항상 최신으로 표시하도록 수정 + 좋아요를 "누가 눌렀는지"
+  보이는 방식으로 재설계.
+  - **이름 변경이 게시판에도 반영되도록 수정**. `posts.author_name`/`comments.author_name`은
+    글을 쓴 시점의 스냅샷 텍스트라서, 마이페이지에서 나중에 이름을 바꿔도 예전 글/댓글은
+    옛날 이름 그대로 보이는 문제가 있었음 — 렌더링 시점에 항상 `user_profiles`에서 최신
+    `display_name`을 찾아 보여주도록 수정(`loadProfileMap()`, DM에서 쓰던
+    `loadDmProfileMap()`을 이름을 일반화해서 게시판과 공용으로 씀). 스냅샷 컬럼 자체는
+    그대로 둠(탈퇴 등으로 `user_profiles`에 없는 경우의 폴백 + 다른 기능에서 참고할 수
+    있어서) — DB 값을 지우거나 매번 갱신하는 대신 "보여줄 때만 최신 걸로 바꿔치기"하는
+    가벼운 방식을 택함.
+  - **좋아요를 사용자별 테이블로 재설계**. 원래 `posts.like_count` 정수 컬럼 + 증감 RPC로
+    막 만들었었는데, "누가 눌렀는지 보이게 해달라"는 요청이 들어와서 애초에 합산 카운터
+    방식으로는 답할 수 없는 질문이라 구조를 바꿈 — `post_likes` 테이블(자세한 내용은 위
+    "Supabase 스키마" 섹션)로 교체, `like_count` 컬럼/`toggle_post_like()` 함수는 삭제.
+    좋아요 수 옆의 "좋아요 N명" 글자를 누르면 이미 불러와 둔 명단으로(추가 쿼리 없이) 이름
+    목록 모달을 띄움. 부수 효과로 예전 localStorage 기반 "내가 눌렀는지" 추적(기기 바꾸면
+    초기화되던 문제)도 서버 기준으로 정확해짐.
 - 2026-07-16: DM(친구 1:1 / 단톡방) 기능 신설 + 마이페이지 이름 변경 기능 추가 + 자유게시판
   좋아요 버튼 동작 안 하던 버그 수정.
   - **DM 기능**. 사이드바 "실시간" 그룹에 새 페이지(`page-dm`) 추가 — 왼쪽 대화 목록 +

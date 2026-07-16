@@ -853,6 +853,10 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .board-like-btn:hover{border-color:var(--blue);color:var(--blue)}
 .board-like-btn.liked{background:rgba(226,32,91,.1);border-color:rgba(226,32,91,.3);color:#c81f56}
 .board-like-btn svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.board-like-count{font-size:12px;color:var(--ink-48);cursor:pointer}
+.board-like-count:not(:empty):hover{color:var(--blue);text-decoration:underline}
+.likers-modal-item{padding:8px 4px;font-size:14px;color:var(--ink);border-bottom:1px solid var(--hairline)}
+.likers-modal-item:last-child{border-bottom:none}
 
 /* MYPAGE */
 .mp-info-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--hairline);font-size:14px}
@@ -2012,6 +2016,15 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
       <button class="btn-ghost" onclick="closeInviteDmModal()">취소</button>
       <button class="btn-primary" onclick="inviteDmParticipants()">초대하기</button>
     </div>
+  </div>
+</div>
+
+<!-- 좋아요 누른 사람 목록 모달 -->
+<div class="modal-overlay" id="likers-modal">
+  <div class="modal" style="max-width:320px">
+    <button class="modal-close" onclick="closeLikersModal()">×</button>
+    <div class="modal-title">좋아요</div>
+    <div id="likers-modal-list" style="max-height:320px;overflow-y:auto"></div>
   </div>
 </div>
 
@@ -4619,7 +4632,10 @@ async function checkUnreadTeacherMessages(){
 // 비공개 버킷 + 서명URL(createSignedUrl)로 대화 참가자만 열람 가능하게 함.
 let dmRooms=[], dmActiveRoomId=null, dmPhotoFile=null, dmRosterCache=null, dmSelectedParticipants=new Set(), dmLastRenderedMsgId=null;
 
-async function loadDmProfileMap(){
+// DM뿐 아니라 게시판(작성자/댓글/좋아요 표시 이름)에서도 공용으로 쓰는 학번→프로필 맵.
+// posts.author_name처럼 글쓰기 시점에 박아둔 텍스트 스냅샷 대신 이 맵으로 항상 최신
+// user_profiles.display_name을 보여줘야, 마이페이지에서 이름을 바꾸면 예전 글에도 즉시 반영된다.
+async function loadProfileMap(){
   const {data}=await sb.from('user_profiles').select('student_id,display_name,avatar_url');
   const map={};
   (data||[]).forEach(p=>map[p.student_id]=p);
@@ -4636,7 +4652,7 @@ async function loadDmRooms(){
     sb.from('dm_rooms').select('*').in('id',roomIds),
     sb.from('dm_participants').select('room_id,student_id,user_id').in('room_id',roomIds),
     sb.from('dm_messages').select('id,room_id,content,image_url,sender_student_id,sender_name,created_at').in('room_id',roomIds).order('created_at',{ascending:false}),
-    loadDmProfileMap()
+    loadProfileMap()
   ]);
   const participantsByRoom={};
   (allParticipants||[]).forEach(p=>{(participantsByRoom[p.room_id]=participantsByRoom[p.room_id]||[]).push(p)});
@@ -4971,52 +4987,51 @@ function isBoardModerator(){
   return currentRole==='admin' || currentRole==='owner';
 }
 
-function getBoardLikeState(){
-  try{
-    return JSON.parse(localStorage.getItem('bugwang_board_like_state') || '{}');
-  }catch(e){
-    return {};
-  }
-}
-
-function setBoardLikeState(state){
-  localStorage.setItem('bugwang_board_like_state', JSON.stringify(state));
-}
-
-// 좋아요는 "내가 눌렀는지"만 이 기기 localStorage로 기억하고(사용자별 테이블 없음), 실제
-// 합산 카운트는 posts.like_count에 서버 함수(toggle_post_like)로 원자적으로 반영한다 — posts에는
-// UPDATE RLS 정책이 없어서 일반 update로는 막히므로, SECURITY DEFINER 함수로 좋아요 카운트만
-// 딱 그만큼 증감시킨다.
+// 좋아요는 posts.like_count 같은 합산 카운터가 아니라 notice_poll_votes와 동일하게
+// 사용자별 행(post_likes)으로 관리한다 — 그래야 "누가 눌렀는지"를 그대로 보여줄 수 있고,
+// 기기를 바꿔도(예전 localStorage 방식과 달리) 좋아요 여부가 정확히 유지된다.
 async function toggleLike(postId){
-  const btn=document.getElementById(`board-like-btn-${postId}`);
-  const countEl=btn?.querySelector('.board-like-count');
-  const heartEl=btn?.querySelector('span:not(.board-like-count)');
-  const state=getBoardLikeState();
-  const wasLiked=!!state[postId];
-  const delta=wasLiked?-1:1;
+  const wasLiked=(boardLikesMap[postId]||[]).includes(currentStudentId);
   // 낙관적 업데이트 — 서버 왕복을 기다리지 않고 바로 반영
-  state[postId]=!wasLiked;
-  setBoardLikeState(state);
-  if(btn)btn.classList.toggle('liked',!wasLiked);
-  if(heartEl)heartEl.textContent=wasLiked?'♡':'♥';
-  if(countEl){
-    const newCount=Math.max(0,Number(countEl.dataset.count||0)+delta);
-    countEl.textContent=newCount;countEl.dataset.count=newCount;
-  }
-  const {error}=await sb.rpc('toggle_post_like',{p_post_id:postId,p_delta:delta});
+  boardLikesMap[postId]=wasLiked
+    ?(boardLikesMap[postId]||[]).filter(sid=>sid!==currentStudentId)
+    :[...(boardLikesMap[postId]||[]),currentStudentId];
+  renderLikeButton(postId);
+  const {error}=wasLiked
+    ?await sb.from('post_likes').delete().eq('post_id',postId).eq('user_id',currentUser.id)
+    :await sb.from('post_likes').insert({post_id:postId,student_id:currentStudentId,user_id:currentUser.id});
   if(error){
     // 실패 시 원래 상태로 되돌림
-    state[postId]=wasLiked;
-    setBoardLikeState(state);
-    if(btn)btn.classList.toggle('liked',wasLiked);
-    if(heartEl)heartEl.textContent=wasLiked?'♥':'♡';
-    if(countEl){
-      const revertCount=Math.max(0,Number(countEl.dataset.count||0)-delta);
-      countEl.textContent=revertCount;countEl.dataset.count=revertCount;
-    }
+    boardLikesMap[postId]=wasLiked
+      ?[...(boardLikesMap[postId]||[]),currentStudentId]
+      :(boardLikesMap[postId]||[]).filter(sid=>sid!==currentStudentId);
+    renderLikeButton(postId);
     toast('좋아요 처리에 실패했어요');
   }
 }
+
+function renderLikeButton(postId){
+  const btn=document.getElementById(`board-like-btn-${postId}`);
+  const countEl=document.getElementById(`board-like-count-${postId}`);
+  if(!btn||!countEl)return;
+  const likerIds=boardLikesMap[postId]||[];
+  const isLiked=likerIds.includes(currentStudentId);
+  btn.classList.toggle('liked',isLiked);
+  const heartEl=btn.querySelector('.board-like-heart');
+  if(heartEl)heartEl.textContent=isLiked?'♥':'♡';
+  countEl.textContent=likerIds.length>0?`좋아요 ${likerIds.length}명`:'';
+}
+
+// 좋아요 카운트를 누르면 이미 불러와 둔 boardLikesMap/boardProfileMap만으로(추가 쿼리 없이)
+// 누가 눌렀는지 이름 목록을 보여준다.
+function viewLikers(postId){
+  const likerIds=boardLikesMap[postId]||[];
+  if(!likerIds.length)return;
+  const names=likerIds.map(sid=>boardProfileMap[sid]?.display_name||sid+'번');
+  document.getElementById('likers-modal-list').innerHTML=names.map(n=>`<div class="likers-modal-item">${escHtml(n)}</div>`).join('');
+  document.getElementById('likers-modal').classList.add('open');
+}
+function closeLikersModal(){document.getElementById('likers-modal').classList.remove('open')}
 
 function ensureInstallGuideModal(){
   let modal=document.getElementById('install-guide-modal');
@@ -5071,6 +5086,9 @@ function showFirstLaunchGuide(){
 }
 
 // ── BOARDS ──
+// renderPost()가 참조하는 학번→프로필 맵/좋아요 명단 — loadBoardPosts()가 게시판을 불러올
+// 때마다 최신으로 채운다.
+let boardProfileMap={}, boardLikesMap={};
 // createObjectURL로 만든 blob URL은 (data URL과 달리) 명시적으로 revokeObjectURL하지 않으면
 // 페이지가 떠 있는 동안 메모리에 계속 남는다. 하루 종일 켜두는 모바일 PWA에서 사진/동영상을
 // 여러 번 첨부·교체하며 게시하면 조금씩 누적되므로, 새 미리보기로 갈아끼우기 전/제출 후
@@ -5178,8 +5196,13 @@ async function deletePost(id,imageUrl,type){
 function renderPost(p,type,comments=[]){
   const isMe=p.student_id===currentStudentId;
   const canManagePost=isMe || isBoardModerator();
-  const isLiked=!!getBoardLikeState()[p.id];
-  const likeCount=Math.max(0, Number(p.like_count || 0));
+  // 글쓴이 이름은 글쓰기 시점 스냅샷(p.author_name)이 아니라 항상 최신 표시 이름으로
+  // 보여준다 — 그래야 마이페이지에서 이름을 바꾸면 예전 글에도 바로 반영됨. 탈퇴 등으로
+  // user_profiles에 없는 학번이면 스냅샷으로 폴백.
+  const authorName=boardProfileMap[p.student_id]?.display_name || p.author_name;
+  const likerIds=boardLikesMap[p.id]||[];
+  const isLiked=likerIds.includes(currentStudentId);
+  const likeCount=likerIds.length;
   const date=new Date(p.created_at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
   // 업로드 시점에 파일명에 새겨둔 vid_/img_ 접두사로 우선 판단하고, 그 접두사가 없는(이
   // 방식 도입 전에 이미 올라간) 과거 첨부파일은 예전처럼 확장자로 대신 추측한다.
@@ -5189,16 +5212,23 @@ function renderPost(p,type,comments=[]){
     :`<img class="post-img" src="${p.image_url}" alt="첨부사진" onclick="openLightbox('${p.image_url}')">`):'';
   const subjectPill=p.subject?`<span class="qna-subject-pill">${p.subject}</span>`:'';
   const deleteBtn=canManagePost?`<button class="post-delete-btn" onclick="deletePost('${p.id}','${p.image_url||''}','${type}')">삭제</button>`:'';
-  const likeHtml=type==='free'?`<div class="board-like-row"><button class="board-like-btn ${isLiked?'liked':''}" id="board-like-btn-${p.id}" onclick="toggleLike('${p.id}')"><svg viewBox="0 0 24 24"><path d="M12 21s-6.716-4.443-9.192-8.143C.115 9.521 2.044 4 6.731 4c2.126 0 3.215 1.095 4.03 2.258C11.576 5.095 12.664 4 14.79 4 19.476 4 21.405 9.521 21.192 12.857 18.716 16.557 12 21 12 21z"></path></svg><span>${isLiked?'♥':'♡'}</span><span class="board-like-count" data-count="${likeCount}">${likeCount}</span></button></div>`:'';
+  const likeHtml=type==='free'?`<div class="board-like-row">
+    <button class="board-like-btn ${isLiked?'liked':''}" id="board-like-btn-${p.id}" onclick="toggleLike('${p.id}')">
+      <svg viewBox="0 0 24 24"><path d="M12 21s-6.716-4.443-9.192-8.143C.115 9.521 2.044 4 6.731 4c2.126 0 3.215 1.095 4.03 2.258C11.576 5.095 12.664 4 14.79 4 19.476 4 21.405 9.521 21.192 12.857 18.716 16.557 12 21 12 21z"></path></svg>
+      <span class="board-like-heart">${isLiked?'♥':'♡'}</span>
+    </button>
+    <span class="board-like-count" id="board-like-count-${p.id}" onclick="viewLikers('${p.id}')">${likeCount>0?`좋아요 ${likeCount}명`:''}</span>
+  </div>`:'';
   const commentsHtml=comments.map(c=>{
     const isMyComment=c.student_id===currentStudentId;
     const canManageComment=isMyComment || isBoardModerator();
+    const commentAuthorName=boardProfileMap[c.student_id]?.display_name || c.author_name;
     const cDate=new Date(c.created_at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
     return`<div class="comment-item">
-      <div class="comment-avatar">${c.author_name?c.author_name[0]:'?'}</div>
+      <div class="comment-avatar">${commentAuthorName?commentAuthorName[0]:'?'}</div>
       <div class="comment-body">
         <div class="comment-meta">
-          <span class="comment-author">${c.author_name}</span>
+          <span class="comment-author">${commentAuthorName}</span>
           <span class="comment-time">${cDate}</span>
           ${canManageComment?`<button class="comment-del" onclick="deleteComment('${c.id}','${p.id}','${type}')">삭제</button>`:''}
         </div>
@@ -5209,8 +5239,8 @@ function renderPost(p,type,comments=[]){
   const commentCount=comments.length;
   return`<div class="qna-card" id="post-${p.id}">
     <div class="qna-header">
-      <div class="qna-avatar">${p.author_name?p.author_name[0]:'?'}</div>
-      <span class="qna-author">${p.author_name}</span>
+      <div class="qna-avatar">${authorName?authorName[0]:'?'}</div>
+      <span class="qna-author">${authorName}</span>
       <span class="qna-time" style="margin-left:6px;font-size:11px;color:var(--ink-48)">${date}</span>
       ${subjectPill}${deleteBtn}
     </div>
@@ -5291,7 +5321,13 @@ async function loadBoardPosts(category,listElId,emptyMsg,type){
   const el=document.getElementById(listElId);
   if(!posts||!posts.length){el.innerHTML=`<div style="text-align:center;padding:32px;color:var(--ink-48);font-size:13px">${emptyMsg}</div>`;return}
   const ids=posts.map(p=>p.id);
-  const {data:comments}=await sb.from('comments').select('*').in('post_id',ids).order('created_at');
+  const [{data:comments},{data:likes},profileMap]=await Promise.all([
+    sb.from('comments').select('*').in('post_id',ids).order('created_at'),
+    type==='free'?sb.from('post_likes').select('post_id,student_id').in('post_id',ids):Promise.resolve({data:[]}),
+    loadProfileMap()
+  ]);
+  boardProfileMap=profileMap;
+  boardLikesMap={};(likes||[]).forEach(l=>{(boardLikesMap[l.post_id]=boardLikesMap[l.post_id]||[]).push(l.student_id)});
   const commentMap={};(comments||[]).forEach(c=>{if(!commentMap[c.post_id])commentMap[c.post_id]=[];commentMap[c.post_id].push(c)});
   el.innerHTML=posts.map(p=>renderPost(p,type,commentMap[p.id]||[])).join('');
 }

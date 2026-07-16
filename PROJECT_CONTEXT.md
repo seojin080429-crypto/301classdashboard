@@ -145,8 +145,35 @@
   SELECT 정책이 자기 자신을 서브쿼리하면 "infinite recursion" 에러가 나서(정책 평가 중
   같은 테이블을 다시 조회) `is_dm_participant(room_id,user_id)` SECURITY DEFINER 함수로
   우회함 — 이 프로젝트에서 이런 다인원 멤버십 기반 RLS를 만들 때 표준으로 참고할 패턴.
-  이 함수는 REST RPC로 익명 호출은 안 되게 `public` 권한은 revoke하고 `authenticated`에만
-  execute를 부여함(정책 평가 자체에는 필요, 프론트에서 직접 rpc()로 호출하지는 않음).
+  이 함수는 REST RPC로 익명 호출은 안 되게 `public`과 `anon` 양쪽 다 execute를 revoke하고
+  `authenticated`에만 부여함(정책 평가 자체에는 필요, 프론트에서 직접 rpc()로 호출하지는
+  않음). **`REVOKE ... FROM PUBLIC`만으로는 부족함** — Supabase 프로젝트는 `public` 스키마에
+  새로 만든 함수에 기본적으로 `anon` 롤에도 별도의 직접 GRANT를 자동으로 붙여주기 때문에,
+  PUBLIC pseudo-role에서만 회수하면 `anon`은 여전히 실행 가능한 상태로 남는다(Supabase
+  보안 어드바이저가 `anon_security_definer_function_executable`로 잡아줌) — 새 SECURITY
+  DEFINER 함수를 만들 때마다 `revoke execute ... from public` **그리고**
+  `revoke execute ... from anon`을 둘 다 해줘야 함. `is_dm_room_creator(room_id,user_id)`
+  라는 두 번째 헬퍼 함수도 있는데, 이유는 아래 "겪은 문제" 참고.
+  - **겪은 문제 (RLS + INSERT...RETURNING 순환)**: `dm_rooms`를 만들 때 프론트가
+    `.insert(...).select().single()`로 방금 만든 행을 돌려받으려 했는데, 계속
+    "new row violates row-level security policy for table dm_rooms" 에러가 났음(INSERT의
+    WITH CHECK 자체는 분명 통과하는데도). 원인은 Postgres의 문서화된 동작 — `INSERT ...
+    RETURNING`은 새로 만든 행이 그 테이블의 **SELECT 정책도 통과해야** 실제로 반환되고,
+    SELECT 정책이 이걸 거부하면(RETURNING을 요청했으므로 조용히 0행 반환이 아니라) 이
+    RLS 위반 에러를 던짐. `dm_rooms`의 SELECT 정책은 "참가자만 조회"인데, 방을 막 만든
+    시점엔 아직 `dm_participants`에 아무도(만든 사람 자신조차) 없어서 방금 만든 방이
+    본인에게도 안 보였던 것 — 이후 `dm_participants`에 참가자 행을 넣는 다음 단계가
+    있어야 비로소 보이는데, 그 전에 `.select()`로 즉시 돌려받으려 한 게 문제. 해결은 방
+    `id`를 `crypto.randomUUID()`로 **클라이언트에서 미리 만들어서** 넣고, insert에서
+    `.select()`를 아예 빼서 RETURNING 자체를 요청하지 않는 것(어차피 id를 이미 알고
+    있으니 되돌려 받을 필요가 없음). 같은 이유로 `dm_participants`의 "방 생성자가 초대"
+    분기도 `dm_rooms`를 직접 서브쿼리했더니 똑같이 막혔음(자기가 막 만든 방이 아직
+    자기한테도 하나 안 보이는 상태라 서브쿼리가 0건) — `is_dm_room_creator()`
+    SECURITY DEFINER 함수로 감싸서 이 서브쿼리만 RLS를 우회하게 해서 해결. **교훈: RLS
+    정책(또는 그 정책이 참조하는 다른 테이블의 RLS)이 "지금 막 쓰려는 그 행/참가자 관계"
+    자체에 의존하는 순환 구조라면, INSERT 직후 `.select()`로 되돌려 받거나 다른 테이블을
+    직접 서브쿼리하지 말고 SECURITY DEFINER 헬퍼 함수를 쓰거나 미리 계산 가능한 값(id
+    등)을 클라이언트에서 준비해둘 것.**
   캠스터디 채팅(소켓 기반 실시간)과 달리 DM은 teacher_messages와 같은 저장형+폴링
   방식(7초 간격, DM 페이지가 열려 있을 때만) — 새 인프라 없이 기존 패턴 재사용.
   사진 첨부는 `dm-photos` 스토리지 버킷에 저장하는데, board-photos/avatars와 달리
@@ -199,9 +226,20 @@
     의도적으로 뺌(나가면 상대는 예전 방을 계속 보게 되는 애매함 때문). 로그아웃/세션
     만료 시 DM 상태(`dmRooms`/`dmActiveRoomId` 등)를 명시적으로 지워서 공용 기기에서
     다음 로그인한 사람이 이전 대화를 이어보지 못하게 함(이 저장소의 기존 컨벤션과 동일).
-    **아직 안 한 것**: 새 DM에 대한 푸시 알림 연동(백엔드 `bugwang-server`가 별도 저장소라
-    이번 범위에서 제외 — 필요하면 `/api/notify/*` 패턴대로 추가 가능), 그룹 채팅 멤버
-    초대/강퇴 UI(초대는 RLS상 기존 참가자 누구나 가능하게 열어뒀지만 프론트 UI는 아직 없음).
+    이후(같은 날) 아래 두 가지를 추가로 붙임:
+    - **푸시 알림 연동**. `bugwang-server`에 `POST /api/notify/dm-message`(requireAuth) 신설
+      — 호출자가 실제 그 메시지의 발신자인지(`sender_user_id`) 확인한 뒤, 본인 제외 나머지
+      참가자 전원에게 발송. 제목은 1:1이면 보낸 사람 이름, 단톡방이면 "이름 (방이름)".
+      `sendDmMessage()`가 메시지 insert 성공 후 `.select().single()`로 id를 받아서
+      `triggerNotify('dm-message',{message_id})` 호출(다른 알림들과 동일하게 실패해도
+      메시지 전송 자체는 막지 않음). 이번엔 발신 시점에 이미 참가자로 확정된 상태라 위
+      "겪은 문제"의 RLS+RETURNING 순환이 없어서 `.select()`를 그대로 붙여도 안전함.
+    - **단톡방 멤버 초대 UI 추가**. 스레드 헤더에 "+ 초대" 버튼(단톡방에서만 노출, 나가기
+      버튼과 동일 조건) → 이미 참가 중인 사람은 제외한 명단에서 여러 명 골라
+      `dm_participants`에 바로 insert. RLS는 "기존 참가자 누구나 초대 가능"으로 이미
+      열려 있었으므로 프론트 UI만 새로 만들면 됐음. 강퇴 기능은 아직 없음(필요하면
+      "본인이거나 스태프면 다른 참가자 행도 삭제 가능"하도록 DELETE 정책을 넓혀야 함 —
+      현재는 `본인만 나가기`만 있어서 그대로는 못 만듦).
   - **마이페이지 "이름 변경" 기능 추가**. 예전엔 최초 로그인 시(`saveName()`)에만 이름을
     정하고 이후엔 바꿀 방법이 없었음(사용 안 하는 계정 설정 모달에 입력칸만 있고
     `saveAccount()` 함수 자체가 없는 죽은 UI였음, 그대로 방치) — 마이페이지에 새 카드를

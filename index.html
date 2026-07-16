@@ -1732,6 +1732,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
             <div class="dm-thread-head">
               <button class="dm-back-btn" id="dm-back-btn" onclick="closeDmThreadMobile()">‹</button>
               <div class="dm-thread-title" id="dm-thread-title">—</div>
+              <button class="dm-leave-btn" id="dm-invite-btn" style="display:none" onclick="openInviteDmModal()">+ 초대</button>
               <button class="dm-leave-btn" id="dm-leave-btn" style="display:none" onclick="leaveDmRoom()">나가기</button>
             </div>
             <div class="dm-thread-log" id="dm-thread-log"></div>
@@ -1935,6 +1936,24 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
     <div class="modal-actions">
       <button class="btn-ghost" onclick="closeNewDmModal()">취소</button>
       <button class="btn-primary" onclick="createDmRoom()">대화 시작</button>
+    </div>
+  </div>
+</div>
+
+<!-- DM 단톡방 초대 모달 -->
+<div class="modal-overlay" id="dm-invite-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeInviteDmModal()">×</button>
+    <div class="modal-title">참가자 초대</div>
+    <div class="modal-field">
+      <label class="modal-label">초대할 사람 (여러 명 선택 가능)</label>
+      <input class="modal-input" id="dm-invite-search" type="text" placeholder="이름 또는 학번 검색" oninput="renderDmInvitePicker()">
+    </div>
+    <div class="dm-participant-list" id="dm-invite-list"></div>
+    <div class="auth-error" id="dm-invite-error"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeInviteDmModal()">취소</button>
+      <button class="btn-primary" onclick="inviteDmParticipants()">초대하기</button>
     </div>
   </div>
 </div>
@@ -4620,6 +4639,7 @@ async function openDmThread(roomId){
   const room=dmRooms.find(r=>r.id===roomId);
   document.getElementById('dm-thread-title').textContent=room?room.displayName:'대화';
   document.getElementById('dm-leave-btn').style.display=room?.is_group?'inline-block':'none';
+  document.getElementById('dm-invite-btn').style.display=room?.is_group?'inline-block':'none';
   renderDmRoomList();
   await loadDmMessages(roomId);
   await markDmRoomRead(roomId);
@@ -4707,16 +4727,17 @@ async function sendDmMessage(){
     if(upErr){toast('사진 업로드 실패: '+upErr.message);sendBtn.disabled=false;return}
     imagePath=path;
   }
-  const {error}=await sb.from('dm_messages').insert({
+  const {data,error}=await sb.from('dm_messages').insert({
     room_id:dmActiveRoomId,sender_student_id:currentStudentId,sender_user_id:currentUser.id,
     sender_name:currentName||currentStudentId+'번',content:content||null,image_url:imagePath
-  });
+  }).select().single();
   sendBtn.disabled=false;
   if(error){toast('전송 실패: '+error.message);return}
   inp.value='';
   clearDmPhoto();
   await loadDmMessages(dmActiveRoomId);
   await markDmRoomRead(dmActiveRoomId);
+  triggerNotify('dm-message',{message_id:data.id});
   await loadDmRooms();
 }
 
@@ -4820,18 +4841,73 @@ async function createDmRoom(){
     if(existing){closeNewDmModal();openDmThread(existing.id);return}
   }
   const groupName=isGroup?(document.getElementById('dm-group-name-input').value.trim()||null):null;
-  const {data:room,error}=await sb.from('dm_rooms').insert({is_group:isGroup,name:groupName,created_by:currentStudentId}).select().single();
+  // dm_rooms의 SELECT RLS("참가자만 조회")는 dm_participants에 내 행이 있어야 통과하는데,
+  // 방을 막 만든 시점엔 아직 참가자 행이 하나도 없다 — .insert().select()로 새로 만든 행을
+  // 돌려받으려 하면(RETURNING과 동일) Postgres가 SELECT 정책까지 같이 통과해야 한다고 보고
+  // "new row violates row-level security policy"로 막아버린다(INSERT 자체는 허용했는데도).
+  // id를 클라이언트에서 미리 만들어 두고 결과를 안 돌려받는 방식으로 이 순서 문제를 피한다.
+  const roomId=crypto.randomUUID();
+  const {error}=await sb.from('dm_rooms').insert({id:roomId,is_group:isGroup,name:groupName,created_by:currentStudentId});
   if(error){errEl.textContent='대화방 생성 실패: '+error.message;errEl.style.display='block';return}
-  const rows=[{room_id:room.id,student_id:currentStudentId,user_id:currentUser.id}];
+  const rows=[{room_id:roomId,student_id:currentStudentId,user_id:currentUser.id}];
   participantIds.forEach(sid=>{
     const u=(dmRosterCache||[]).find(r=>r.student_id===sid);
-    if(u)rows.push({room_id:room.id,student_id:sid,user_id:u.user_id});
+    if(u)rows.push({room_id:roomId,student_id:sid,user_id:u.user_id});
   });
   const {error:pErr}=await sb.from('dm_participants').insert(rows);
   if(pErr){errEl.textContent='참가자 추가 실패: '+pErr.message;errEl.style.display='block';return}
   closeNewDmModal();
   await loadDmRooms();
-  openDmThread(room.id);
+  openDmThread(roomId);
+}
+
+// ── DM 단톡방에 참가자 추가 초대 ──
+let dmInviteSelected=new Set();
+async function openInviteDmModal(){
+  if(!dmActiveRoomId)return;
+  dmInviteSelected=new Set();
+  document.getElementById('dm-invite-search').value='';
+  document.getElementById('dm-invite-error').style.display='none';
+  document.getElementById('dm-invite-list').innerHTML='<div style="text-align:center;padding:16px;color:var(--ink-48);font-size:13px">불러오는 중...</div>';
+  document.getElementById('dm-invite-modal').classList.add('open');
+  await loadDmRoster();
+  renderDmInvitePicker();
+}
+function closeInviteDmModal(){document.getElementById('dm-invite-modal').classList.remove('open')}
+
+function renderDmInvitePicker(){
+  const room=dmRooms.find(r=>r.id===dmActiveRoomId);
+  const existingIds=new Set((room?.participants||[]).map(p=>p.student_id));
+  const q=document.getElementById('dm-invite-search').value.trim().toLowerCase();
+  const list=(dmRosterCache||[]).filter(u=>!existingIds.has(u.student_id)&&(!q||u.display_name.toLowerCase().includes(q)||u.student_id.includes(q)));
+  const wrap=document.getElementById('dm-invite-list');
+  wrap.innerHTML=list.map(u=>{
+    const selected=dmInviteSelected.has(u.student_id);
+    const avatarHtml=u.avatar_url?`<img src="${u.avatar_url}" alt="">`:escHtml((u.display_name||'?')[0]);
+    return`<div class="dm-participant-row ${selected?'selected':''}" onclick="toggleDmInviteParticipant('${u.student_id}')">
+      <div class="dm-participant-avatar">${avatarHtml}</div>
+      <span class="dm-participant-name">${escHtml(u.display_name)}<span class="dm-participant-sid">${u.student_id}번</span></span>
+    </div>`;
+  }).join('')||'<div style="text-align:center;padding:16px;color:var(--ink-48);font-size:13px">초대할 수 있는 사람이 없어요</div>';
+}
+function toggleDmInviteParticipant(sid){
+  if(dmInviteSelected.has(sid))dmInviteSelected.delete(sid);else dmInviteSelected.add(sid);
+  renderDmInvitePicker();
+}
+async function inviteDmParticipants(){
+  const errEl=document.getElementById('dm-invite-error');
+  errEl.style.display='none';
+  if(dmInviteSelected.size===0){errEl.textContent='초대할 사람을 선택하세요.';errEl.style.display='block';return}
+  const rows=Array.from(dmInviteSelected).map(sid=>{
+    const u=(dmRosterCache||[]).find(r=>r.student_id===sid);
+    return u?{room_id:dmActiveRoomId,student_id:sid,user_id:u.user_id}:null;
+  }).filter(Boolean);
+  const {error}=await sb.from('dm_participants').insert(rows);
+  if(error){errEl.textContent='초대 실패: '+error.message;errEl.style.display='block';return}
+  closeInviteDmModal();
+  toast('초대했어요 ✓');
+  await loadDmRooms();
+  openDmThread(dmActiveRoomId);
 }
 
 function isBoardModerator(){

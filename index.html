@@ -1517,8 +1517,22 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 
         <!-- 설정 -->
         <div>
-          <!-- 비밀번호 변경 -->
+          <!-- 이름 변경 -->
           <div class="card">
+            <div class="card-title" style="margin-bottom:4px">이름 변경</div>
+            <div class="card-sub">학급 전체에 보이는 이름이에요 (랭킹, 게시판 등)</div>
+            <div class="modal-field">
+              <label class="modal-label">새 이름</label>
+              <input class="modal-input" id="mp-new-name" type="text" placeholder="새 이름" maxlength="20">
+            </div>
+            <div class="auth-error" id="mp-name-error"></div>
+            <div style="display:flex;justify-content:flex-end;margin-top:12px">
+              <button class="btn-primary" style="font-size:14px;padding:8px 18px" onclick="changeName()">변경하기</button>
+            </div>
+          </div>
+
+          <!-- 비밀번호 변경 -->
+          <div class="card" style="margin-top:14px">
             <div class="card-title" style="margin-bottom:4px">비밀번호 변경</div>
             <div class="card-sub">현재 비밀번호를 입력 후 새 비밀번호로 변경하세요</div>
             <div class="modal-field">
@@ -2309,6 +2323,28 @@ async function uploadMyAvatar(file){
 }
 
 // ── MYPAGE ──
+async function changeName(){
+  const newName=document.getElementById('mp-new-name').value.trim();
+  const errEl=document.getElementById('mp-name-error');
+  errEl.style.display='none';
+  if(!newName){errEl.textContent='새 이름을 입력하세요.';errEl.style.display='block';return}
+  if(newName.length>20){errEl.textContent='이름은 20자 이하로 입력하세요.';errEl.style.display='block';return}
+  if(newName===currentName){errEl.textContent='현재 이름과 같습니다.';errEl.style.display='block';return}
+  const newMeta={...currentUser.user_metadata,display_name:newName};
+  const {error}=await sb.auth.updateUser({data:newMeta});
+  if(error){errEl.textContent=error.message;errEl.style.display='block';return}
+  currentUser.user_metadata=newMeta;
+  currentName=newName;
+  // 랭킹/게시판 등 학급 전체에 보이는 이름도 함께 갱신
+  await sb.from('user_profiles').upsert({student_id:currentStudentId,user_id:currentUser.id,display_name:currentName});
+  document.getElementById('mp-name').textContent=currentName;
+  document.getElementById('user-display-name').textContent=currentName;
+  renderAvatarEl(document.getElementById('mp-avatar'),currentAvatarUrl,currentName,currentStudentId);
+  renderAvatarEl(document.getElementById('user-avatar-txt'),currentAvatarUrl,currentName,currentStudentId);
+  document.getElementById('mp-new-name').value='';
+  toast('이름이 변경되었습니다 ✓');
+}
+
 async function changePw(){
   const cur=document.getElementById('mp-cur-pw').value;
   const nw=document.getElementById('mp-new-pw').value;
@@ -4386,6 +4422,41 @@ function setBoardLikeState(state){
   localStorage.setItem('bugwang_board_like_state', JSON.stringify(state));
 }
 
+// 좋아요는 "내가 눌렀는지"만 이 기기 localStorage로 기억하고(사용자별 테이블 없음), 실제
+// 합산 카운트는 posts.like_count에 서버 함수(toggle_post_like)로 원자적으로 반영한다 — posts에는
+// UPDATE RLS 정책이 없어서 일반 update로는 막히므로, SECURITY DEFINER 함수로 좋아요 카운트만
+// 딱 그만큼 증감시킨다.
+async function toggleLike(postId){
+  const btn=document.getElementById(`board-like-btn-${postId}`);
+  const countEl=btn?.querySelector('.board-like-count');
+  const heartEl=btn?.querySelector('span:not(.board-like-count)');
+  const state=getBoardLikeState();
+  const wasLiked=!!state[postId];
+  const delta=wasLiked?-1:1;
+  // 낙관적 업데이트 — 서버 왕복을 기다리지 않고 바로 반영
+  state[postId]=!wasLiked;
+  setBoardLikeState(state);
+  if(btn)btn.classList.toggle('liked',!wasLiked);
+  if(heartEl)heartEl.textContent=wasLiked?'♡':'♥';
+  if(countEl){
+    const newCount=Math.max(0,Number(countEl.dataset.count||0)+delta);
+    countEl.textContent=newCount;countEl.dataset.count=newCount;
+  }
+  const {error}=await sb.rpc('toggle_post_like',{p_post_id:postId,p_delta:delta});
+  if(error){
+    // 실패 시 원래 상태로 되돌림
+    state[postId]=wasLiked;
+    setBoardLikeState(state);
+    if(btn)btn.classList.toggle('liked',wasLiked);
+    if(heartEl)heartEl.textContent=wasLiked?'♥':'♡';
+    if(countEl){
+      const revertCount=Math.max(0,Number(countEl.dataset.count||0)-delta);
+      countEl.textContent=revertCount;countEl.dataset.count=revertCount;
+    }
+    toast('좋아요 처리에 실패했어요');
+  }
+}
+
 function ensureInstallGuideModal(){
   let modal=document.getElementById('install-guide-modal');
   if(modal)return modal;
@@ -4547,7 +4618,7 @@ function renderPost(p,type,comments=[]){
   const isMe=p.student_id===currentStudentId;
   const canManagePost=isMe || isBoardModerator();
   const isLiked=!!getBoardLikeState()[p.id];
-  const likeCount=Math.max(0, Number(p.like_count || 0) + (isLiked ? 1 : 0));
+  const likeCount=Math.max(0, Number(p.like_count || 0));
   const date=new Date(p.created_at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
   // 업로드 시점에 파일명에 새겨둔 vid_/img_ 접두사로 우선 판단하고, 그 접두사가 없는(이
   // 방식 도입 전에 이미 올라간) 과거 첨부파일은 예전처럼 확장자로 대신 추측한다.

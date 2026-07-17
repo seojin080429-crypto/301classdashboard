@@ -63,12 +63,19 @@
   로드돼서 재로그인이 필요했음).
 
 ## Supabase 스키마 (주요 테이블, 2026-07-14 기준)
-- `study_sessions` — 공부 타이머 기록. `started_at`/`ended_at`/`duration_seconds`. **주의**:
-  `duration_seconds`는 타이머를 정지할 때만 기록되므로, 진행 중인 세션은 `ended_at IS NULL`이고
-  `duration_seconds`가 아직 0인 상태 — 실시간 경과 시간이 필요하면 `now() - started_at`으로
-  계산해야 함(친구 랭킹 로직 참고). 타이머를 켠 채 새로고침/탭 종료하면 `ended_at`이 영영 안
-  채워지는 고아 row가 생길 수 있어서, 로그인 시점(`initApp`→`closeOrphanSessions()`)에 본인의
-  안 끝난 세션을 자동 마감함(`duration_seconds=0`으로, 시간을 부풀리지 않음).
+- `study_sessions` — 공부 타이머 기록. `started_at`/`ended_at`/`duration_seconds` +
+  (2026-07-17 추가) `start_timestamp`(bigint, epoch ms — 실행 중일 때만 값 있고 일시정지/정지면
+  null)/`accumulated_seconds`(int, default 0 — 일시정지 시점까지 확정된 이번 행의 누적 초).
+  **주의**: `duration_seconds`는 타이머를 정지할 때만 최종 기록되므로, 진행 중이거나 일시정지된
+  세션은 `ended_at IS NULL`이고 `duration_seconds`가 아직 0인 상태 — 실시간 경과 시간은
+  `accumulated_seconds + (실행 중이면 now()-start_timestamp)`로 계산해야 함(학습 플래너 타이머
+  프론트의 `computeElapsedSeconds()`, 친구 랭킹 로직 참고). 타이머를 켠 채 새로고침/탭
+  종료하면 `ended_at`이 영영 안 채워지는 고아 row가 생길 수 있어서, 로그인 시점
+  (`initApp`→`resumeActiveTimerIfAny()`가 먼저 이어받고 →`closeOrphanSessions()`가 나머지만)에
+  본인의 안 끝난 세션을 정리함. `resumeActiveTimerIfAny()`는 **기기별 localStorage가 아니라
+  항상 DB의 `ended_at IS NULL` 행을 기준으로 이어받는다** — 같은 학생이 폰에서 시작한 타이머를
+  PC에서 처음 열어도 그대로 이어받아야 하기 때문(그렇지 않으면 `closeOrphanSessions()`가 그걸
+  고아로 오인해 0초로 마감시켜버림).
 - `study_tasks` — 플래너의 하루 할 일(투두) 목록. `user_id`/`subject`/`task_name`/`is_done`/
   `date`. **student_id 컬럼이 없다** — 다른 학생 걸 조회하려면 `/api/users` 응답의 uuid(`id`
   필드)로 `user_id`를 알아내야 함. RLS는 원래 본인만 SELECT 가능했는데(`study_sessions`와
@@ -211,6 +218,34 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-07-17: 학습 플래너 타이머를 클라이언트 카운트 방식에서 서버 타임스탬프 재계산 방식으로
+  전면 교체 + 같은 학생의 폰/PC 실시간 동기화(Socket.IO) 추가.
+  - **Supabase 마이그레이션**: `study_sessions`에 `start_timestamp`(bigint, epoch ms, 실행
+    중일 때만 값 있음)와 `accumulated_seconds`(int, default 0)를 추가. 화면에 보이는 경과
+    시간은 이제 항상 `computeElapsedSeconds(startTimestamp, accumulatedSeconds)`로 그때그때
+    다시 계산함 — `accumulated_seconds + (Date.now()-start_timestamp)`, `start_timestamp`가
+    없거나 숫자로 안 바뀌면 그 구간 기여분은 0으로 처리(NaN 가드). 기존엔 클라이언트가
+    `setInterval`로 `Date.now()-startedAt`을 계속 다시 계산하고는 있었지만 일시정지 상태를
+    서버에 전혀 저장하지 않아서, 일시정지→재개 시 `activeTimer.elapsed`가 `undefined`인 채로
+    더해져 `NaN`이 되는 실제 버그가 있었음 — 이번에 같이 고침.
+  - **일시정지/재개가 서버에 저장되도록 변경**. 예전엔 전체화면 타이머의 일시정지가 순수
+    클라이언트 로컬 상태였음(새로고침하면 날아감). 이제 일시정지 시 `study_sessions` 행에
+    `accumulated_seconds`를 확정하고 `start_timestamp=null`로, 재개 시 새
+    `start_timestamp`를 찍어서 저장(`pauseCurrentTimer`/`resumeCurrentTimer`).
+  - **다른 기기(폰/PC) 실시간 동기화**. `bugwang-server/server.js`의 Socket.IO 연결 시 학생을
+    본인 소유 개인 룸(`user:<studentId>`)에 자동 join시키고, `timer-sync` 이벤트를 그 룸으로만
+    릴레이(매초가 아니라 시작/일시정지/재개/정지 시점에만 emit). 프론트는 로그인 즉시(캠스터디
+    입장과 무관하게) 이 소켓에 연결하도록 `initApp`에서 `connectStudySocket()`을 호출하게
+    바꿈 — 원래 캠스터디 채팅 전용이던 소켓을 재사용.
+  - **DB 기반 다중 기기 이어받기로 교체**. `resumeActiveTimerIfAny()`가 예전엔 `localStorage`
+    (기기별)만 보고 이어받았는데, 그러면 폰에서 시작한 타이머를 PC에서 처음 열었을 때
+    `closeOrphanSessions()`가 그걸 "고아 세션"으로 오인해 0초로 마감시켜버리는 문제가 있었음
+    (이번 기능 자체를 무력화하는 버그라 같이 고침). 이제 항상 DB에서 `ended_at IS NULL`인
+    오늘자 세션을 조회해서 이어받고, `localStorage` 기반 활성 타이머 저장(`ACTIVE_TIMER_KEY`
+    등)은 완전히 제거함.
+  - 적용 범위는 **학습 플래너 과목/할일 타이머만**이고, 타이머 페이지의 자유 스톱워치
+    (`swState`)나 쪽잠/모의고사 알림 카운트다운은 그대로 로컬 전용으로 남아있음(요청 범위 아님).
+  - 백엔드 수정은 `bugwang-server/server.js`에만 적용(루트의 `server.js`는 안 쓰는 옛날 사본).
 - 2026-07-16: (사용자가 직접 수정, 커밋 `2f89b3f`) 모바일에서 DM 화면 UI가 깨지던 버그 수정.
   `.dm-thread-panel`의 모바일 전체화면 오버레이가 `100vh`를 썼는데, 모바일 브라우저는
   주소창이 나타났다 사라졌다 하면서 실제 보이는 높이가 달라져서 `100vh` 기준으로는 상단

@@ -2315,6 +2315,18 @@ function localDateStr(d=new Date()){
   return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
+// 학습 플래너 타이머 경과 시간 계산: 절대 누적 카운트를 그대로 더하지 않고, 항상 현재 시각
+// 기준으로 다시 계산한다(=서버에 저장된 start_timestamp/accumulated_seconds가 유일한 근거).
+// start_timestamp가 없거나(일시정지 중) 숫자로 변환 안 되는 값이면 그 구간의 경과는 0으로 취급.
+function computeElapsedSeconds(startTimestamp,accumulatedSeconds){
+  const acc=Number(accumulatedSeconds);
+  const safeAcc=Number.isFinite(acc)?acc:0;
+  const st=Number(startTimestamp);
+  if(!Number.isFinite(st)||st<=0)return safeAcc;
+  const live=Math.floor((Date.now()-st)/1000);
+  return safeAcc+(Number.isFinite(live)&&live>0?live:0);
+}
+
 // ── AUTH ──
 async function doLogin(){
   const id=document.getElementById('login-id').value.trim();
@@ -2381,10 +2393,11 @@ async function doLogout(){
   // 활성 타이머 정보를 이어받지 않도록 로그아웃 시 명시적으로 지운다.
   try{
     localStorage.removeItem('bugwang_last_page');
-    clearActiveTimerStorage();
     clearCountdownStorage('nap');clearCountdownStorage('exam');clearStopwatchStorage();
   }catch(e){}
   if(alarmInterval){clearInterval(alarmInterval);alarmInterval=null;document.getElementById('timer-alarm-overlay').classList.remove('open')}
+  // 다음 로그인한 사람(공용 기기 등)이 이 세션의 타이머 동기화 소켓을 이어받지 않도록 끊는다.
+  if(studySocket){try{studySocket.disconnect()}catch(e){} studySocket=null}
   document.getElementById('app-shell').classList.remove('visible');
   document.getElementById('name-setup-screen').classList.remove('visible');
   document.getElementById('auth-screen').style.display='flex';
@@ -2424,6 +2437,7 @@ sb.auth.onAuthStateChange((event,session)=>{
     document.getElementById('name-setup-screen').classList.remove('visible');
     document.getElementById('auth-screen').style.display='flex';
     showAuthErr('로그인이 만료됐어요. 다시 로그인해주세요.');
+    if(studySocket){try{studySocket.disconnect()}catch(e){} studySocket=null}
   }else if(event==='TOKEN_REFRESHED'&&session?.user&&currentUser){
     currentUser=session.user;
   }
@@ -2431,6 +2445,9 @@ sb.auth.onAuthStateChange((event,session)=>{
 
 async function initApp(user,sid,name){
   currentUser=user;currentStudentId=sid;currentName=name;
+  // 캠스터디 입장과 무관하게 로그인 즉시 소켓을 연결해둬야 학습 플래너 타이머를 다른
+  // 기기(폰/PC)와 실시간으로 동기화할 수 있다. 나머지 초기화를 막지 않도록 await하지 않음.
+  getStudyToken().then(t=>{if(t)connectStudySocket(t)}).catch(()=>{});
   const meta=user.user_metadata||{};
   document.getElementById('auth-screen').style.display='none';
   document.getElementById('name-setup-screen').classList.remove('visible');
@@ -3717,26 +3734,41 @@ function tfSwitchTask(si,ti){
 function tfTogglePause(){
   const btn=document.getElementById('tf-pause-btn');
   if(!tfPaused){
-    if(activeTimer){clearInterval(activeTimer.interval);tfPaused=true;}
+    pauseCurrentTimer();
+    tfPaused=true;
     btn.textContent='▶ 계속하기';
   }else{
-    if(activeTimer){
-      const activeSub=subjects[activeTimer.subjectIdx].name;
-      const prevElapsed=activeTimer.elapsed+(Math.floor((Date.now()-activeTimer.startedAt)/1000));
-      activeTimer.startedAt=new Date();activeTimer.elapsed=prevElapsed;
-      activeTimer.interval=setInterval(()=>{
-        const elapsed=Math.floor((Date.now()-activeTimer.startedAt)/1000);
-        subjects[activeTimer.subjectIdx].tasks[activeTimer.taskIdx].seconds=activeTimer.elapsed+elapsed;
-        totalTodaySec=(todaySessions.reduce((s,r)=>s+r.duration_seconds,0))+activeTimer.elapsed+elapsed;
-        updateTimerBadge(activeSub,subjects[activeTimer.subjectIdx].tasks[activeTimer.taskIdx].name,fmtSec(subjects[activeTimer.subjectIdx].tasks[activeTimer.taskIdx].seconds));
-        document.getElementById('stat-total-time').textContent=fmtSec(totalTodaySec);
-        document.getElementById('dash-today-time').textContent=fmtHM(totalTodaySec);
-        document.getElementById('rep-today').textContent=fmtHM(totalTodaySec);
-      },1000);
-      tfPaused=false;
-    }
+    resumeCurrentTimer();
+    tfPaused=false;
     btn.textContent='⏸ 일시정지';
   }
+}
+
+// 일시정지: 지금까지 이번 구간에서 흐른 시간을 accumulated_seconds로 확정해 서버에 저장하고
+// start_timestamp는 비운다. 다른 기기가 이 상태를 즉시 반영하도록 timer-sync도 emit한다.
+async function pauseCurrentTimer(){
+  if(!activeTimer||activeTimer.startTimestamp==null)return;
+  clearInterval(activeTimer.interval);
+  const rowElapsed=computeElapsedSeconds(activeTimer.startTimestamp,activeTimer.accumulatedSeconds);
+  activeTimer.accumulatedSeconds=rowElapsed;
+  activeTimer.startTimestamp=null;
+  if(activeTimer.sessionId){
+    await sb.from('study_sessions').update({start_timestamp:null,accumulated_seconds:rowElapsed}).eq('id',activeTimer.sessionId);
+  }
+  broadcastTimerSync('paused');
+}
+
+// 재개: 새 start_timestamp를 찍어 서버에 저장하고, 이후 화면은 accumulated_seconds +
+// (Date.now()-start_timestamp)로 매초 재계산한다.
+async function resumeCurrentTimer(){
+  if(!activeTimer||activeTimer.startTimestamp!=null)return;
+  const startTimestamp=Date.now();
+  activeTimer.startTimestamp=startTimestamp;
+  if(activeTimer.sessionId){
+    await sb.from('study_sessions').update({start_timestamp:startTimestamp}).eq('id',activeTimer.sessionId);
+  }
+  attachTimerInterval();
+  broadcastTimerSync('running');
 }
 
 async function tfStop(){
@@ -3806,9 +3838,7 @@ let marathonCountdownInterval=null;
 let marathonPendingResume=null;
 function getActiveContinuousElapsed(){
   if(!activeTimer)return 0;
-  const base=activeTimer.elapsed||0;
-  if(tfPaused)return base;
-  return base+Math.floor((Date.now()-activeTimer.startedAt)/1000);
+  return computeElapsedSeconds(activeTimer.startTimestamp,activeTimer.accumulatedSeconds);
 }
 async function checkStudyMarathon(){
   if(!activeTimer||tfPaused||marathonModalOpen)return;
@@ -3863,35 +3893,75 @@ function dismissMarathonModal(){
 // 잠그는 락으로는 이 정지↔시작 간 경쟁까지는 못 막아서, 시작/정지 각 "시도"에 순번(timerGen)을
 // 매겨 자기보다 더 최신 시도가 이미 있었으면 activeTimer를 건드리지 않고 조용히 물러나게 한다.
 let timerGen=0;
-// 새로고침해도 기록 중이던 타이머가 끊기지 않도록, 시작할 때마다 localStorage에 재개에
-// 필요한 최소 정보(과목/할일 인덱스, DB 세션 id, 시작 시각, 시작 전 누적 시간)를 저장해두고
-// 앱을 다시 켤 때(resumeActiveTimerIfAny) 그 세션이 아직 열려있으면 이어서 시작한다.
-const ACTIVE_TIMER_KEY='bugwang_active_timer';
-function saveActiveTimerToStorage(){
+
+// 학습 플래너 타이머 상태(시작/일시정지/재개/정지)가 바뀔 때만 같은 학생의 다른 기기(폰/PC)로
+// Socket.IO 이벤트를 보낸다. 매초 값을 보내는 게 아니라 start_timestamp/accumulated_seconds/
+// status만 보내고, 받는 쪽은 그 값으로 Date.now() 기준 재계산만 한다.
+function broadcastTimerSync(status){
+  if(!studySocket||!studySocket.connected)return;
+  if(status==='stopped'){
+    studySocket.emit('timer-sync',{sessionId:null,subject:null,taskName:null,startTimestamp:null,accumulatedSeconds:0,status:'stopped'});
+    return;
+  }
   if(!activeTimer)return;
-  try{localStorage.setItem(ACTIVE_TIMER_KEY,JSON.stringify({
-    userId:currentUser.id, // 학교 공용기기에서 다른 학생이 로그인했을 때 이어받지 않도록 소유자 확인용
-    subjectIdx:activeTimer.subjectIdx,taskIdx:activeTimer.taskIdx,
-    sessionId:activeTimer.sessionId,startedAtISO:activeTimer.startedAt.toISOString(),
-    prevSeconds:activeTimer.prevSeconds
-  }))}catch(e){}
-}
-function clearActiveTimerStorage(){
-  try{localStorage.removeItem(ACTIVE_TIMER_KEY)}catch(e){}
+  const sub=subjects[activeTimer.subjectIdx];const task=sub?.tasks[activeTimer.taskIdx];
+  if(!sub||!task)return;
+  studySocket.emit('timer-sync',{
+    sessionId:activeTimer.sessionId,
+    subject:sub.name,taskName:task.name,
+    startTimestamp:activeTimer.startTimestamp,
+    accumulatedSeconds:activeTimer.accumulatedSeconds,
+    status,
+  });
 }
 
-// 매초 화면을 갱신하는 인터벌 — 새로 시작할 때(startTaskTimer)와 새로고침 후 이어서
-// 시작할 때(resumeActiveTimerIfAny) 둘 다 이미 채워진 전역 activeTimer를 그대로 읽어서
-// 붙이기만 하면 되므로 공용으로 뺐다.
+// 다른 기기에서 온 timer-sync를 반영. subject/task 이름으로 매칭하고(기기마다 배열 순서가
+// 어긋나도 안전하도록), 이 태스크의 "이번 세션 이전" 누적은 오늘자 세션들 합에서 방금 그
+// 세션 id만 제외해서 다시 구한다.
+async function handleRemoteTimerSync(state){
+  if(!state||typeof state!=='object')return;
+  if(state.status==='stopped'){
+    if(activeTimer)clearInterval(activeTimer.interval);
+    activeTimer=null;hideTimerBadge();
+    await loadTodaySessionsOnly();
+    renderSubjects();await refreshStats();
+    return;
+  }
+  const si=subjects.findIndex(s=>s.name===state.subject);
+  const ti=si>=0?subjects[si].tasks.findIndex(t=>t.name===state.taskName):-1;
+  if(si<0||ti<0)return;
+  if(activeTimer)clearInterval(activeTimer.interval);
+  await loadTodaySessionsOnly();
+  const prevSeconds=todaySessions.filter(r=>r.subject===state.subject&&r.task_name===state.taskName&&r.id!==state.sessionId).reduce((s,r)=>s+(r.duration_seconds||0),0);
+  activeTimer={
+    subjectIdx:si,taskIdx:ti,sessionId:state.sessionId,prevSeconds,
+    startTimestamp:state.status==='running'?state.startTimestamp:null,
+    accumulatedSeconds:Number(state.accumulatedSeconds)||0,
+  };
+  tfPaused=activeTimer.startTimestamp==null;
+  if(activeTimer.startTimestamp!=null){
+    attachTimerInterval();
+  }else{
+    subjects[si].tasks[ti].seconds=prevSeconds+activeTimer.accumulatedSeconds;
+    showTimerBadge(subjects[si].name,subjects[si].tasks[ti].name);
+    updateTimerBadge(subjects[si].name,subjects[si].tasks[ti].name,fmtSec(subjects[si].tasks[ti].seconds));
+    renderSubjects();
+  }
+}
+
+// 매초 화면을 갱신하는 인터벌 — 새로 시작할 때(startTaskTimer)와 새로고침/다른 기기로부터
+// 이어받을 때 둘 다 이미 채워진 전역 activeTimer를 그대로 읽어서 붙이기만 하면 되므로 공용으로 뺐다.
+// elapsed는 항상 computeElapsedSeconds(start_timestamp, accumulated_seconds)로 다시 계산한다
+// (누적 카운트를 그대로 더하지 않음).
 function attachTimerInterval(){
-  const {subjectIdx:si,taskIdx:ti,startedAt,prevSeconds}=activeTimer;
+  const {subjectIdx:si,taskIdx:ti,prevSeconds}=activeTimer;
   const sub=subjects[si];const task=sub.tasks[ti];
   activeTimer.interval=setInterval(()=>{
-    const elapsed=Math.floor((Date.now()-startedAt)/1000);
-    subjects[si].tasks[ti].seconds=prevSeconds+elapsed;
-    // 오늘 총 시간 = DB에 저장된 완료 세션들 + 현재 진행 중 elapsed
+    const rowElapsed=computeElapsedSeconds(activeTimer.startTimestamp,activeTimer.accumulatedSeconds);
+    subjects[si].tasks[ti].seconds=prevSeconds+rowElapsed;
+    // 오늘 총 시간 = DB에 저장된 완료 세션들 + 현재 진행 중 rowElapsed
     const dbTotal=todaySessions.reduce((s,r)=>s+r.duration_seconds,0);
-    totalTodaySec=dbTotal+elapsed;
+    totalTodaySec=dbTotal+rowElapsed;
     // UI 업데이트
     updateTimerBadge(sub.name,task.name,fmtSec(subjects[si].tasks[ti].seconds));
     document.getElementById('stat-total-time').textContent=fmtSec(totalTodaySec);
@@ -3905,7 +3975,6 @@ function attachTimerInterval(){
   },1000);
   showTimerBadge(sub.name,task.name);
   renderSubjects();
-  saveActiveTimerToStorage();
 }
 
 async function startTaskTimer(si,ti){
@@ -3913,40 +3982,61 @@ async function startTaskTimer(si,ti){
   const myGen=++timerGen;
   if(marathonModalOpen)closeMarathonModalUI();
   const sub=subjects[si];const task=sub.tasks[ti];
-  const startedAt=new Date();
+  const startTimestamp=Date.now();
   const prevSeconds=task.seconds; // 이전까지 쌓인 시간 보존
-  // 새 세션 insert (이번 구간 기록용)
+  // 새 세션 insert (이번 구간 기록용) — 시작 시각은 epoch ms(start_timestamp)로 저장해서
+  // 어느 기기에서 열어도 Date.now() 기준으로 그대로 재계산할 수 있게 한다.
   const {data:sess}=await sb.from('study_sessions').insert({
     user_id:currentUser.id,student_id:currentStudentId,
     subject:sub.name,task_name:task.name,
-    duration_seconds:0,started_at:startedAt.toISOString(),
-    date:localDateStr(startedAt)
+    duration_seconds:0,started_at:new Date(startTimestamp).toISOString(),
+    start_timestamp:startTimestamp,accumulated_seconds:0,
+    date:localDateStr(new Date(startTimestamp))
   }).select().single();
   if(myGen!==timerGen)return; // 그 사이에 더 최신 시작/정지 시도가 있었으면 이 결과는 버림
   const sessionId=sess?.id;
-  activeTimer={subjectIdx:si,taskIdx:ti,startedAt,sessionId,prevSeconds};
+  activeTimer={subjectIdx:si,taskIdx:ti,sessionId,prevSeconds,startTimestamp,accumulatedSeconds:0};
   attachTimerInterval();
+  broadcastTimerSync('running');
 }
 
-// 앱을 새로 켤 때(새로고침 포함) localStorage에 남은 활성 타이머 정보가 있으면, 그 DB 세션이
-// 아직 열려있는지(다른 기기에서 정지되지 않았는지) 확인한 뒤 이어서 시작한다. 성공하면 이어받은
-// 세션 id를 반환 — closeOrphanSessions()가 이 세션까지 0으로 마감해버리지 않도록 제외시키는 데 쓴다.
+// 앱을 새로 켤 때(새로고침, 또는 같은 학생이 다른 기기에서 이미 타이머를 켜둔 채 이 기기의
+// 앱을 여는 경우) DB에 열려 있는(ended_at이 null인) 오늘자 세션을 기준으로 이어받는다.
+// localStorage가 아니라 항상 DB를 조회하는 이유: 폰에서 시작한 타이머를 PC에서 처음 열어도
+// 바로 이어받아야 하기 때문. 성공하면 이어받은 세션 id를 반환 — closeOrphanSessions()가 이
+// 세션까지 0으로 마감해버리지 않도록 제외시키는 데 쓴다.
 async function resumeActiveTimerIfAny(){
-  let saved;
-  try{saved=JSON.parse(localStorage.getItem(ACTIVE_TIMER_KEY)||'null')}catch(e){saved=null}
-  if(!saved)return null;
-  // 학교 공용 컴퓨터/태블릿처럼 여러 학생이 같은 기기·브라우저를 쓸 수 있으므로, 저장된
-  // 타이머가 지금 로그인한 사람 것이 아니면(기기를 안 씻고 다른 학번으로 로그인한 경우 등)
-  // 무조건 버린다 — 다른 사람의 진행 중인 세션을 내 화면에서 이어받아 조작하면 안 됨.
-  if(saved.userId!==currentUser.id){clearActiveTimerStorage();return null}
-  const {subjectIdx:si,taskIdx:ti,sessionId,startedAtISO,prevSeconds}=saved;
-  const sub=subjects[si];
-  if(!sub||!sub.tasks[ti]){clearActiveTimerStorage();return null} // 그 사이 과목/할일이 삭제된 경우
-  const {data:row}=await sb.from('study_sessions').select('id,ended_at,user_id').eq('id',sessionId).maybeSingle();
-  if(!row||row.ended_at||row.user_id!==currentUser.id){clearActiveTimerStorage();return null} // 이미 끝났거나, 없거나, 남의 세션
-  activeTimer={subjectIdx:si,taskIdx:ti,startedAt:new Date(startedAtISO),sessionId,prevSeconds};
-  attachTimerInterval();
-  return sessionId;
+  const today=localDateStr();
+  const {data:openRows}=await sb.from('study_sessions')
+    .select('id,subject,task_name,start_timestamp,accumulated_seconds')
+    .eq('user_id',currentUser.id).eq('date',today).is('ended_at',null)
+    .order('started_at',{ascending:false}).limit(1);
+  const row=openRows&&openRows[0];
+  if(!row)return null;
+  const si=subjects.findIndex(s=>s.name===row.subject);
+  const ti=si>=0?subjects[si].tasks.findIndex(t=>t.name===row.task_name):-1;
+  if(si<0||ti<0){
+    // 그 사이 과목/할일이 삭제된 경우 — 세션만 정리하고 이어받지 않음
+    await sb.from('study_sessions').update({ended_at:new Date().toISOString(),duration_seconds:Number(row.accumulated_seconds)||0,start_timestamp:null}).eq('id',row.id);
+    return null;
+  }
+  const {data:pastRows}=await sb.from('study_sessions').select('duration_seconds').eq('user_id',currentUser.id).eq('date',today).eq('subject',row.subject).eq('task_name',row.task_name).neq('id',row.id);
+  const prevSeconds=(pastRows||[]).reduce((s,r)=>s+(r.duration_seconds||0),0);
+  const startTimestamp=Number(row.start_timestamp);
+  activeTimer={
+    subjectIdx:si,taskIdx:ti,sessionId:row.id,prevSeconds,
+    startTimestamp:Number.isFinite(startTimestamp)&&startTimestamp>0?startTimestamp:null,
+    accumulatedSeconds:Number(row.accumulated_seconds)||0,
+  };
+  tfPaused=activeTimer.startTimestamp==null;
+  if(activeTimer.startTimestamp!=null){
+    attachTimerInterval();
+  }else{
+    subjects[si].tasks[ti].seconds=prevSeconds+activeTimer.accumulatedSeconds;
+    showTimerBadge(subjects[si].name,subjects[si].tasks[ti].name);
+    updateTimerBadge(subjects[si].name,subjects[si].tasks[ti].name,fmtSec(subjects[si].tasks[ti].seconds));
+  }
+  return row.id;
 }
 
 async function stopCurrentTimer(){
@@ -3954,18 +4044,18 @@ async function stopCurrentTimer(){
   const myGen=++timerGen;
   const stopped=activeTimer; // 정지 대상 스냅샷 — await 도중 activeTimer가 다른 타이머로 바뀌어도 안전하게
   clearInterval(stopped.interval);
-  const elapsed=Math.floor((Date.now()-stopped.startedAt)/1000);
+  const rowElapsed=computeElapsedSeconds(stopped.startTimestamp,stopped.accumulatedSeconds);
   const endedAt=new Date().toISOString();
   // 이번 구간만 DB에 저장
   if(stopped.sessionId){
-    await sb.from('study_sessions').update({duration_seconds:elapsed,ended_at:endedAt}).eq('id',stopped.sessionId);
+    await sb.from('study_sessions').update({duration_seconds:rowElapsed,ended_at:endedAt,start_timestamp:null,accumulated_seconds:rowElapsed}).eq('id',stopped.sessionId);
   }
   // 태스크 누적 시간 확정 (그 사이 다른 타이머가 시작됐어도 이 값 자체는 항상 반영해야 함)
-  subjects[stopped.subjectIdx].tasks[stopped.taskIdx].seconds=stopped.prevSeconds+elapsed;
+  subjects[stopped.subjectIdx].tasks[stopped.taskIdx].seconds=stopped.prevSeconds+rowElapsed;
   const savedSeconds=subjects[stopped.subjectIdx].tasks[stopped.taskIdx].seconds;
   // activeTimer/배지는 그 사이에 더 최신 시작 시도가 없었을 때만 정리 — 있었다면 그건 이미
   // 새 타이머가 차지한 자리이므로 여기서 지우면 안 됨
-  if(myGen===timerGen){activeTimer=null;hideTimerBadge();clearActiveTimerStorage()}
+  if(myGen===timerGen){activeTimer=null;hideTimerBadge();broadcastTimerSync('stopped')}
   // DB 세션 다시 로드 (리스트/타임블록 갱신) — 단, task.seconds는 위에서 이미 확정했으므로 덮어쓰지 않음
   await loadTodaySessionsOnly();
   // 확정된 시간 복원 (loadTodaySessionsOnly가 덮어쓸 수 있으므로)
@@ -5579,6 +5669,10 @@ function loadJitsiScript(appId){
   });
 }
 
+// 캠스터디(화상 자습방) 채팅용으로만 쓰이던 소켓이지만, 로그인하면 캠스터디 입장 여부와
+// 무관하게 바로 연결해서 학습 플래너 타이머의 기기 간(폰/PC) 실시간 동기화(timer-sync)에도
+// 그대로 재사용한다 — 서버가 인증 토큰으로 학생을 식별해 본인 소유 룸(user:<studentId>)에
+// 자동으로 넣어주므로, 같은 계정으로 로그인한 다른 기기에만 조용히 전달된다.
 function connectStudySocket(token){
   if(studySocket)return;
   studySocket=io(SERVER_URL,{auth:{token}});
@@ -5589,6 +5683,7 @@ function connectStudySocket(token){
     if(el)el.remove();
   });
   studySocket.on('force-leave-study',({reason})=>{toast(reason||'다른 기기에서 입장했어요.');leaveStudy()});
+  studySocket.on('timer-sync',handleRemoteTimerSync);
 }
 
 function toggleStudy(){inStudy?leaveStudy():joinStudy()}

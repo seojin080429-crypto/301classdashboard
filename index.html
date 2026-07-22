@@ -471,13 +471,13 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .list-session-time{font-size:12px;color:var(--ink-48)}
 .list-session-dur{font-size:13px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
 
-/* time block view */
-.timeblock-wrap{position:relative;overflow-y:auto;max-height:500px}
-.timeblock-grid{display:flex;flex-direction:column}
-.timeblock-hour-row{display:flex;align-items:flex-start;min-height:48px;position:relative}
-.timeblock-hour-label{font-size:11px;color:var(--ink-48);width:40px;flex-shrink:0;padding-top:4px;text-align:right;padding-right:8px}
-.timeblock-hour-line{flex:1;border-top:1px solid var(--hairline);position:relative;min-height:48px}
-.timeblock-block{position:absolute;left:4px;right:4px;border-radius:5px;padding:3px 7px;font-size:11px;font-weight:600;color:#fff;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+/* time table view — 시간대별로 이어지는 하나의 캔버스에 세션을 절대좌표로 배치해서(예전처럼
+   시간당 행을 따로 나누지 않음) 1시간을 넘는 세션도 행 경계에서 끊기지 않고 매끄럽게 이어짐 */
+.timeblock-wrap{display:flex;border:1px solid var(--hairline);border-radius:var(--radius-md);overflow-y:auto;max-height:500px;background:var(--canvas)}
+.timeblock-labels{flex-shrink:0;width:34px}
+.timeblock-label-cell{height:48px;box-sizing:border-box;font-size:11px;color:var(--ink-48);text-align:right;padding:2px 8px 0 0;font-variant-numeric:tabular-nums}
+.timeblock-canvas{position:relative;flex:1;border-left:1px solid var(--hairline);background-image:repeating-linear-gradient(to bottom,var(--hairline) 0,var(--hairline) 1px,transparent 1px,transparent 48px)}
+.timeblock-block{position:absolute;left:6px;right:6px;border-radius:6px;min-height:5px;cursor:pointer}
 
 /* REPORT */
 .week-chart{display:flex;align-items:flex-end;gap:6px;height:64px;margin:12px 0 6px}
@@ -905,6 +905,27 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .dm-msg-menu button:hover{background:var(--parchment)}
 .dm-msg-menu button.danger{color:#c00}
 .dm-msg-row{-webkit-touch-callout:none}
+
+/* 알림센터 (종모양 버튼 + 드롭다운) */
+.notif-badge{position:absolute;top:-2px;right:-2px;min-width:15px;height:15px;padding:0 3px;border-radius:8px;background:#e2205b;color:#fff;font-size:9px;font-weight:700;display:none;align-items:center;justify-content:center;line-height:1;box-shadow:0 0 0 2px var(--canvas)}
+.notif-dropdown{position:fixed;display:none;flex-direction:column;width:340px;max-width:calc(100vw - 24px);max-height:min(70vh,520px);background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--radius-lg);box-shadow:0 12px 50px rgba(0,0,0,.2);z-index:600;overflow:hidden}
+.notif-dropdown-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--hairline);flex-shrink:0}
+.notif-dropdown-title{font-size:15px;font-weight:700;color:var(--ink)}
+.notif-dropdown-actions{display:flex;gap:12px;font-size:12px;color:var(--blue)}
+.notif-dropdown-actions span{cursor:pointer}
+.notif-dropdown-actions span:hover{text-decoration:underline}
+.notif-dropdown-list{overflow-y:auto;flex:1}
+.notif-item{display:flex;gap:10px;padding:12px 16px;border-bottom:1px solid var(--hairline);cursor:pointer;transition:background var(--t)}
+.notif-item:last-child{border-bottom:none}
+.notif-item:hover{background:var(--parchment)}
+.notif-item.unread{background:rgba(0,102,204,.05)}
+.notif-item-icon{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px}
+.notif-item-body{flex:1;min-width:0}
+.notif-item-title{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:2px}
+.notif-item-desc{font-size:12px;color:var(--ink-80);line-height:1.4;margin-bottom:3px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical}
+.notif-item-time{font-size:11px;color:var(--ink-48)}
+.notif-item-unread-dot{width:8px;height:8px;border-radius:50%;background:var(--blue);flex-shrink:0;margin-top:5px}
+.notif-empty{text-align:center;padding:32px 16px;color:var(--ink-48);font-size:13px}
 </style>
 </head>
 <body>
@@ -1013,6 +1034,10 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
     <div class="sidebar-header">
       <div class="sidebar-wordmark">부광 <span>3-1</span></div>
       <div style="display:flex;align-items:center;gap:2px">
+        <button class="theme-toggle-btn notif-bell-btn" style="position:relative" onclick="event.stopPropagation();toggleNotifDropdown(this)" title="알림">
+          <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+          <span class="notif-badge">0</span>
+        </button>
         <button class="theme-toggle-btn" onclick="refreshApp()" title="새로고침">
           <svg viewBox="0 0 24 24"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0115-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 01-15 6.7L3 16"/></svg>
         </button>
@@ -1112,9 +1137,15 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
   <div class="topbar" id="topbar">
     <button class="hamburger-btn" onclick="openSidebar()"><span></span><span></span><span></span></button>
     <div class="topbar-wordmark">부광 <span>3-1</span></div>
-    <button class="theme-toggle-btn" onclick="refreshApp()" title="새로고침">
-      <svg viewBox="0 0 24 24"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0115-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 01-15 6.7L3 16"/></svg>
-    </button>
+    <div style="display:flex;align-items:center;gap:2px">
+      <button class="theme-toggle-btn notif-bell-btn" style="position:relative" onclick="event.stopPropagation();toggleNotifDropdown(this)" title="알림">
+        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+        <span class="notif-badge">0</span>
+      </button>
+      <button class="theme-toggle-btn" onclick="refreshApp()" title="새로고침">
+        <svg viewBox="0 0 24 24"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0115-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 01-15 6.7L3 16"/></svg>
+      </button>
+    </div>
   </div>
 
   <main class="main-content">
@@ -1259,7 +1290,8 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
           </div>
           <div id="block-view" style="display:none">
             <div class="timeblock-wrap">
-              <div class="timeblock-grid" id="timeblock-grid"></div>
+              <div class="timeblock-labels" id="timeblock-labels"></div>
+              <div class="timeblock-canvas" id="timeblock-canvas"></div>
             </div>
           </div>
         </div>
@@ -2247,6 +2279,30 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 <!-- DM 메시지 삭제/수정 메뉴 (모바일 꾹 누르기 / PC 우클릭 시 showDmMsgMenu가 내용을 채우고 위치를 잡음) -->
 <div class="dm-msg-menu" id="dm-msg-menu" onclick="event.stopPropagation()"></div>
 
+<!-- 알림센터 드롭다운 (사이드바/모바일 상단바 종모양 버튼 둘 다 이 하나를 공유해서 위치만 옮김) -->
+<div class="notif-dropdown" id="notif-dropdown" onclick="event.stopPropagation()">
+  <div class="notif-dropdown-head">
+    <span class="notif-dropdown-title">알림</span>
+    <div class="notif-dropdown-actions">
+      <span onclick="markAllNotifsRead()">모두 읽음</span>
+      <span onclick="clearAllNotifs()">전체 삭제</span>
+    </div>
+  </div>
+  <div class="notif-dropdown-list" id="notif-dropdown-list"></div>
+</div>
+
+<!-- 알림 미설정자 강제 유도 팝업 -->
+<div class="modal-overlay" id="force-push-modal">
+  <div class="modal">
+    <div class="modal-title">🔔 알림을 켜주세요</div>
+    <div class="card-sub" style="margin-bottom:18px">새 공지사항, 내 글에 달린 댓글, 선생님 메시지, DM, 캠스터디 참여 소식을 놓치지 않으려면 알림을 켜야 해요.</div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="dismissForcePushModal()">나중에</button>
+      <button class="btn-primary" onclick="enablePushFromForceModal()">지금 켜기</button>
+    </div>
+  </div>
+</div>
+
 <!-- 전체화면 타이머 -->
 <div id="timer-fullscreen">
   <div class="tf-topbar">
@@ -2429,6 +2485,9 @@ async function doLogout(){
   document.getElementById('dm-layout')?.classList.remove('thread-open');
   document.body.style.overflow='';
   const dmEmptyEl=document.getElementById('dm-thread-empty');if(dmEmptyEl)dmEmptyEl.style.display='flex';
+  // 알림센터도 같은 이유(공용 기기)로 다음 사람이 이어보지 못하게 지운다.
+  notifItems=[];closeNotifDropdown();updateNotifBadge(0);
+  document.getElementById('force-push-modal')?.classList.remove('open');
   // 학교 컴퓨터/태블릿처럼 여러 학생이 같은 기기를 쓸 수 있으니, 다음 로그인한 사람이 이
   // 사람의 마지막 화면이나(권한상 못 볼 페이지를 기억해뒀다 튕기는 것도 이상함) 혹시 못 지운
   // 활성 타이머 정보를 이어받지 않도록 로그아웃 시 명시적으로 지운다.
@@ -2527,6 +2586,8 @@ async function initApp(user,sid,name){
   resumeMiscTimersOnLoad();
   restoreLastPage();
   maybeAutoStartTour();
+  loadNotifCount();
+  maybeShowForcePushModal();
 }
 
 function populateMypage(meta,name,sid){
@@ -3097,7 +3158,7 @@ async function loadNotices(){
     const pollHtml=poll?renderPollBlock(poll,votesByPoll[poll.id]||[],uid):'';
     return`<div class="notice-item">
       <div class="notice-item-row" onclick="toggleNotice('${uid}')">
-        <div class="notice-icon">📋</div>
+        <div class="notice-icon">🚨</div>
         <div class="notice-title">${escHtml(n.title)}${simoBadge}${pollBadge}${isNew?'<span class="badge-new">NEW</span>':''}</div>
         <div class="notice-date">${dateStr}</div>
       </div>
@@ -4285,25 +4346,40 @@ function renderSessionLog(){
   `).join('');
 }
 
-// TIMEBLOCK
+// TIME TABLE — 시간당 행을 나눠서 그리던 예전 "타임블록" 방식은 1시간 넘는 세션이 행 경계마다
+// 끊겨 보이거나 다음 행의 다른 세션에 가려질 수 있었음. 6시~23시 전체를 하나의 캔버스로 두고
+// 세션을 절대좌표(top/height, px-per-hour 기준)로 배치해서 여러 시간에 걸친 공부도 하나의
+// 이어진 색 블록으로 자연스럽게 표시한다(사진처럼 텍스트 없이 색상 블록만).
+const TB_HOUR_START=6, TB_HOUR_END=23, TB_ROW_H=48;
 function renderTimeblock(){
-  const el=document.getElementById('timeblock-grid');el.innerHTML='';
-  const colors={};subjects.forEach(s=>colors[s.name]=s.color);
-  for(let h=6;h<=23;h++){
-    const row=document.createElement('div');row.className='timeblock-hour-row';
-    row.innerHTML=`<div class="timeblock-hour-label">${String(h).padStart(2,'0')}:00</div><div class="timeblock-hour-line" id="tbline-${h}" style="position:relative;flex:1;border-top:1px solid var(--hairline);min-height:48px"></div>`;
-    el.appendChild(row);
+  const labelsEl=document.getElementById('timeblock-labels');
+  const canvasEl=document.getElementById('timeblock-canvas');
+  const hourCount=TB_HOUR_END-TB_HOUR_START+1;
+  labelsEl.innerHTML='';
+  for(let h=TB_HOUR_START;h<=TB_HOUR_END;h++){
+    const label=document.createElement('div');label.className='timeblock-label-cell';
+    label.textContent=String(h%12===0?12:h%12);
+    labelsEl.appendChild(label);
   }
+  canvasEl.style.height=`${hourCount*TB_ROW_H}px`;
+  canvasEl.innerHTML='';
+  const colors={};subjects.forEach(s=>colors[s.name]=s.color);
   todaySessions.forEach(s=>{
-    if(!s.started_at)return;
-    const start=new Date(s.started_at);const sh=start.getHours();const sm=start.getMinutes();
-    if(sh<6||sh>23)return;
-    const topPx=(sm/60)*48;const heightPx=Math.max((s.duration_seconds/3600)*48,18);
-    const line=document.getElementById(`tbline-${sh}`);if(!line)return;
+    if(!s.started_at||!s.duration_seconds)return;
+    const start=new Date(s.started_at);
+    const minutesFromStart=(start.getHours()-TB_HOUR_START)*60+start.getMinutes();
+    if(minutesFromStart<0||start.getHours()>TB_HOUR_END)return;
+    const topPx=(minutesFromStart/60)*TB_ROW_H;
+    const heightPx=Math.max((s.duration_seconds/3600)*TB_ROW_H,5);
     const block=document.createElement('div');
-    block.style.cssText=`position:absolute;top:${topPx}px;left:4px;right:4px;height:${heightPx}px;background:${colors[s.subject]||'#7a7a7a'};border-radius:5px;padding:3px 7px;font-size:11px;font-weight:600;color:#fff;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;`;
-    block.textContent=`${s.subject} · ${s.task_name}`;
-    line.appendChild(block);
+    block.className='timeblock-block';
+    block.style.top=`${topPx}px`;block.style.height=`${heightPx}px`;
+    block.style.background=colors[s.subject]||'#7a7a7a';
+    const end=new Date(start.getTime()+s.duration_seconds*1000);
+    const fmt=d=>d.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+    block.title=`${s.subject} · ${s.task_name} (${fmt(start)}~${fmt(end)})`;
+    block.onclick=()=>toast(block.title);
+    canvasEl.appendChild(block);
   });
 }
 
@@ -4792,6 +4868,135 @@ async function triggerNotify(type,body){
       body:JSON.stringify(body)
     });
   }catch(e){}
+}
+
+// ── 알림센터 (종모양 버튼 + 드롭다운) ──
+// triggerNotify()가 부르는 백엔드 /api/notify/* 가 웹 푸시와 동시에 notifications 테이블에도
+// 같은 내용을 남겨두므로(bugwang-server의 insertNotifications), 여기선 그 테이블을 읽기만 한다.
+const NOTIF_TYPE_META={
+  'notice':{icon:'🚨',bg:'rgba(232,162,61,.18)'},
+  'comment':{icon:'💬',bg:'rgba(0,102,204,.14)'},
+  'poll-vote':{icon:'📊',bg:'rgba(139,92,246,.16)'},
+  'teacher-message':{icon:'👩‍🏫',bg:'rgba(46,204,113,.16)'},
+  'dm-message':{icon:'✉️',bg:'rgba(226,32,91,.14)'},
+  'camstudy-join':{icon:'📹',bg:'rgba(0,163,163,.16)'},
+};
+let notifItems=[], notifDropdownOpen=false;
+
+function updateNotifBadge(count){
+  document.querySelectorAll('.notif-badge').forEach(b=>{
+    b.textContent=count>99?'99+':String(count);
+    b.style.display=count>0?'flex':'none';
+  });
+}
+async function loadNotifCount(){
+  if(!currentUser)return;
+  const {count}=await sb.from('notifications').select('id',{count:'exact',head:true}).eq('recipient_user_id',currentUser.id).eq('is_read',false);
+  updateNotifBadge(count||0);
+}
+function timeAgo(dateStr){
+  const diff=(Date.now()-new Date(dateStr).getTime())/1000;
+  if(diff<60)return'방금 전';
+  if(diff<3600)return`${Math.floor(diff/60)}분 전`;
+  if(diff<86400)return`${Math.floor(diff/3600)}시간 전`;
+  if(diff<86400*7)return`${Math.floor(diff/86400)}일 전`;
+  return new Date(dateStr).toLocaleDateString('ko-KR',{month:'numeric',day:'numeric'});
+}
+function renderNotifList(){
+  const list=document.getElementById('notif-dropdown-list');
+  if(!notifItems.length){list.innerHTML='<div class="notif-empty">아직 알림이 없어요</div>';return}
+  list.innerHTML=notifItems.map(n=>{
+    const meta=NOTIF_TYPE_META[n.type]||{icon:'🔔',bg:'rgba(0,0,0,.06)'};
+    return`<div class="notif-item ${n.is_read?'':'unread'}" onclick="openNotifItem('${n.id}')">
+      <div class="notif-item-icon" style="background:${meta.bg}">${meta.icon}</div>
+      <div class="notif-item-body">
+        <div class="notif-item-title">${escHtml(n.title)}</div>
+        <div class="notif-item-desc">${escHtml(n.body)}</div>
+        <div class="notif-item-time">${timeAgo(n.created_at)}</div>
+      </div>
+      ${n.is_read?'':'<div class="notif-item-unread-dot"></div>'}
+    </div>`;
+  }).join('');
+}
+async function loadNotifList(){
+  const {data,error}=await sb.from('notifications').select('*').eq('recipient_user_id',currentUser.id).order('created_at',{ascending:false}).limit(30);
+  if(error)return;
+  notifItems=data||[];
+  renderNotifList();
+}
+// 데스크톱 사이드바/모바일 상단바 종 버튼이 서로 다른 DOM 위치에 있어서, 드롭다운 패널은
+// 하나만 두고 클릭된 버튼(btn) 기준으로 매번 위치만 다시 잡는다(DM 메시지 메뉴와 동일한 패턴).
+function positionNotifDropdown(btn){
+  const panel=document.getElementById('notif-dropdown');
+  const width=Math.min(340,window.innerWidth-24);
+  const rect=btn.getBoundingClientRect();
+  const left=Math.max(12,Math.min(rect.right-width,window.innerWidth-width-12));
+  const top=Math.min(rect.bottom+8,window.innerHeight-100);
+  panel.style.width=`${width}px`;
+  panel.style.left=`${left}px`;
+  panel.style.top=`${top}px`;
+}
+async function toggleNotifDropdown(btn){
+  if(notifDropdownOpen){closeNotifDropdown();return}
+  notifDropdownOpen=true;
+  const panel=document.getElementById('notif-dropdown');
+  panel.style.display='flex';
+  positionNotifDropdown(btn);
+  await loadNotifList();
+}
+function closeNotifDropdown(){
+  notifDropdownOpen=false;
+  document.getElementById('notif-dropdown').style.display='none';
+}
+document.addEventListener('click',()=>{if(notifDropdownOpen)closeNotifDropdown()});
+async function openNotifItem(id){
+  const n=notifItems.find(x=>x.id===id);
+  if(!n)return;
+  closeNotifDropdown();
+  if(!n.is_read){
+    n.is_read=true;
+    await sb.from('notifications').update({is_read:true}).eq('id',id);
+    loadNotifCount();
+  }
+  if(n.link)navigate(n.link);
+}
+async function markAllNotifsRead(){
+  if(!currentUser)return;
+  await sb.from('notifications').update({is_read:true}).eq('recipient_user_id',currentUser.id).eq('is_read',false);
+  notifItems.forEach(n=>n.is_read=true);
+  renderNotifList();
+  updateNotifBadge(0);
+}
+async function clearAllNotifs(){
+  if(!currentUser)return;
+  if(!confirm('모든 알림을 삭제할까요?'))return;
+  await sb.from('notifications').delete().eq('recipient_user_id',currentUser.id);
+  notifItems=[];
+  renderNotifList();
+  updateNotifBadge(0);
+}
+setInterval(()=>{if(currentUser&&!notifDropdownOpen)loadNotifCount()},30000);
+
+// ── 알림 미설정자에게 강제로 켜기를 유도하는 팝업 ──
+// iOS를 홈 화면에 추가 안 한 경우(isIosNonStandalone)는 애초에 이 화면에서 켤 방법이 없어
+// 첫 실행 안내(showFirstLaunchGuide)에서 이미 "홈 화면에 추가" 안내를 하므로 여기선 건너뛴다.
+// 브라우저에서 이미 거부(denied)한 경우도 이 팝업의 "지금 켜기" 버튼으로는 해결이 안 되므로
+// (브라우저 설정에서 직접 풀어야 함) 반복해서 띄우지 않는다. "나중에"를 눌러도 다음 로그인
+// 때 다시 뜬다(강제 요청) — 완전히 안 뜨게 하려면 실제로 알림을 켜야 한다.
+async function maybeShowForcePushModal(){
+  if(isIosNonStandalone()||!pushSupported())return;
+  if(Notification.permission==='denied')return;
+  const reg=swRegistration||await navigator.serviceWorker.getRegistration('./sw.js');
+  const sub=reg?await reg.pushManager.getSubscription():null;
+  if(sub)return;
+  document.getElementById('force-push-modal').classList.add('open');
+}
+function dismissForcePushModal(){
+  document.getElementById('force-push-modal').classList.remove('open');
+}
+async function enablePushFromForceModal(){
+  dismissForcePushModal();
+  await enablePush();
 }
 
 // ── 선생님 메시지 ──
@@ -6017,6 +6222,7 @@ async function joinStudy(){
     document.getElementById('study-chat-send').disabled=false;
     document.getElementById('study-empty').style.display='none';
     studySocket.emit('join-study');
+    triggerNotify('camstudy-join',{});
   }catch(e){
     toast(e.message||'입장에 실패했어요.');
     btn.textContent='참여하기';btn.disabled=false;

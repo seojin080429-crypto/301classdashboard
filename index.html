@@ -5287,14 +5287,26 @@ async function saveEditDmMessage(id){
 // dm-photos는 비공개 버킷이라 image_url 컬럼엔 실제 URL이 아니라 storage 경로만 저장돼 있음
 // — 렌더링 시점마다 서명URL(1시간 유효)을 새로 발급해서 대화 참가자만 열람 가능하게 한다.
 async function hydrateDmPhotoUrls(){
+  const log=document.getElementById('dm-thread-log');
   const imgs=Array.from(document.querySelectorAll('#dm-thread-log .dm-msg-img[data-path]'));
   if(!imgs.length)return;
+  // 서명URL을 받아오기 전엔 이미지가 placeholder 높이(min-height:60px)뿐이라, 나중에 실제
+  // 사진 높이(최대 260px)로 로드되는 순간 로그 전체 높이가 늘어나면서 스크롤 위치가 상대적으로
+  // 위로 밀려 보이는 문제가 있었음 — 로드를 시작하는 시점에 이미 맨 아래를 보고 있었을 때만,
+  // 각 사진이 실제로 로드될 때마다 다시 맨 아래로 붙여준다(과거 사진을 보려고 위로 스크롤해둔
+  // 상태라면 건드리지 않음).
+  const wasNearBottom=log.scrollHeight-log.scrollTop-log.clientHeight<40;
   const paths=[...new Set(imgs.map(el=>el.dataset.path))];
   const {data,error}=await sb.storage.from('dm-photos').createSignedUrls(paths,3600);
   if(error||!data)return;
   const urlMap={};
   data.forEach(d=>{if(d.signedUrl)urlMap[d.path]=d.signedUrl});
-  imgs.forEach(el=>{const u=urlMap[el.dataset.path];if(u)el.src=u});
+  imgs.forEach(el=>{
+    const u=urlMap[el.dataset.path];
+    if(!u)return;
+    if(wasNearBottom)el.onload=()=>{log.scrollTop=log.scrollHeight};
+    el.src=u;
+  });
 }
 
 function handleDmPhotoSelect(file){

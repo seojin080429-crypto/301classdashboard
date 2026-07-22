@@ -309,7 +309,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .tour-card-actions .btn-ghost,.tour-card-actions .btn-primary{padding:7px 14px;font-size:13px}
 
 /* MODAL */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;overflow-y:auto;opacity:0;pointer-events:none;transition:opacity .18s ease}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:550;padding:20px;overflow-y:auto;opacity:0;pointer-events:none;transition:opacity .18s ease}
 .modal-overlay.open{opacity:1;pointer-events:auto}
 .modal{background:var(--canvas);border-radius:var(--radius-lg);padding:28px;width:100%;max-width:400px;max-height:calc(100vh - 40px);max-height:calc(100dvh - 40px);overflow-y:auto;box-shadow:0 8px 60px rgba(0,0,0,.15);margin:auto;transform:scale(.96);transition:transform .18s ease}
 .modal-overlay.open .modal{transform:scale(1)}
@@ -325,6 +325,12 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .btn-ghost:hover{background:var(--hairline)}
 .btn-danger{padding:9px 18px;background:rgba(200,0,0,.08);color:#c00;font-size:14px;border-radius:var(--radius-pill);border:1px solid rgba(200,0,0,.2)}
 .btn-danger:hover{background:rgba(200,0,0,.14)}
+
+/* 공부 기록 수정 모달 (몇시~몇시) */
+.erm-row{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.erm-row .modal-input{flex:1;min-width:0;padding:8px 10px;font-size:13px}
+.erm-tilde{color:var(--ink-48);font-size:12px;flex-shrink:0}
+.erm-empty{text-align:center;padding:18px 0;color:var(--ink-48);font-size:13px}
 
 /* ══════ PLANNER ══════ */
 .planner-layout{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
@@ -1191,7 +1197,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         <div class="auth-error" id="notice-error"></div>
         <div class="modal-actions">
           <button class="btn-ghost" onclick="closeNoticeWritePage()">취소</button>
-          <button class="btn-primary" onclick="submitNotice()">게시하기</button>
+          <button class="btn-primary" id="notice-submit-btn" onclick="submitNotice()">게시하기</button>
         </div>
       </div>
     </div>
@@ -1950,6 +1956,20 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
   </div>
 </div>
 
+<!-- 공부 기록 수정 모달 -->
+<div class="modal-overlay" id="edit-record-modal">
+  <div class="modal" style="max-width:440px">
+    <button class="modal-close" onclick="closeEditRecordModal()">×</button>
+    <div class="modal-title" id="erm-title" style="margin-bottom:6px">공부 시간 수정</div>
+    <div class="card-sub" style="margin-bottom:16px">시작 시간과 종료 시간을 직접 고칠 수 있어요. 실행 중인 구간은 먼저 타이머를 멈춘 뒤 수정하세요.</div>
+    <div id="erm-rows"></div>
+    <button class="btn-ghost" style="width:100%;margin-top:4px" onclick="addManualRecordRow()">+ 구간 직접 추가</button>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeEditRecordModal()" style="margin-left:auto">닫기</button>
+    </div>
+  </div>
+</div>
+
 <!-- 과목 추가 모달 -->
 <div class="modal-overlay" id="add-subject-modal">
   <div class="modal">
@@ -2387,6 +2407,7 @@ async function doLogout(){
   dmRooms=[];dmActiveRoomId=null;dmRosterCache=null;dmSelectedParticipants=new Set();
   document.getElementById('dm-thread-active')?.classList.remove('open');
   document.getElementById('dm-layout')?.classList.remove('thread-open');
+  document.body.style.overflow='';
   const dmEmptyEl=document.getElementById('dm-thread-empty');if(dmEmptyEl)dmEmptyEl.style.display='flex';
   // 학교 컴퓨터/태블릿처럼 여러 학생이 같은 기기를 쓸 수 있으니, 다음 로그인한 사람이 이
   // 사람의 마지막 화면이나(권한상 못 볼 페이지를 기억해뒀다 튕기는 것도 이상함) 혹시 못 지운
@@ -2679,6 +2700,15 @@ function toggleTheme(){
 
 // ── NAVIGATION ──
 function navigate(page){
+  // DM 모바일 전체화면 스레드(openDmThread가 잠근 body 스크롤)를 열어둔 채 사이드바로 다른
+  // 페이지에 이동하면 잠금이 풀리지 않고 남을 수 있어, 그 잠금을 우리가 건 상태일 때만 정리한다.
+  if(page!=='dm'){
+    const dmLayout=document.getElementById('dm-layout');
+    if(dmLayout&&dmLayout.classList.contains('thread-open')){
+      dmLayout.classList.remove('thread-open');
+      document.body.style.overflow='';
+    }
+  }
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
@@ -3162,6 +3192,10 @@ function removePollOptionInput(btn){
 
 async function submitNotice(){
   if(!isStaffRole()){toast('권한이 없습니다');return}
+  const submitBtn=document.getElementById('notice-submit-btn');
+  // 렉이 걸린 상태에서 "게시하기"를 두 번 누르거나 두 번 탭하면 같은 공지가 두 번 게시될 수
+  // 있었다 — submitPost()의 게시판 글쓰기와 동일하게 버튼을 잠가서 막는다.
+  if(submitBtn.disabled)return;
   const title=document.getElementById('notice-title-input').value.trim();
   const content=document.getElementById('notice-content-input').value.trim();
   const audience=isOwnerTier()?document.getElementById('notice-audience-input').value:'all';
@@ -3179,10 +3213,11 @@ async function submitNotice(){
     if(pollOptions.length<2){errEl.textContent='투표 선택지를 2개 이상 입력하세요.';errEl.style.display='block';return}
   }
 
+  submitBtn.disabled=true;
   const {data:noticeRow,error}=await sb.from('notices').insert({
     title,content,audience,author_name:currentName||currentStudentId+'번',student_id:currentStudentId
   }).select().single();
-  if(error){errEl.textContent='게시 실패: '+error.message;errEl.style.display='block';return}
+  if(error){errEl.textContent='게시 실패: '+error.message;errEl.style.display='block';submitBtn.disabled=false;return}
 
   if(addPoll){
     const {error:pollErr}=await sb.from('notice_polls').insert({
@@ -3192,6 +3227,7 @@ async function submitNotice(){
     if(pollErr)toast('공지는 게시됐지만 투표 등록에 실패했어요: '+pollErr.message);
   }
 
+  submitBtn.disabled=false;
   closeNoticeWritePage();
   toast(`${audience==='simo'?'실모반 ':''}공지가 게시되었습니다 ✓`);
   await loadNotices();
@@ -3529,7 +3565,7 @@ function renderTaskHTML(si,ti,t,color){
     <button class="task-edit-btn" onclick="editTask(${si},${ti})" title="수정">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M11.5 2.5l2 2-8 8H3.5v-2l8-8z"/></svg>
     </button>
-    ${isRunning?'':`<button class="task-edit-btn" onclick="editTaskTime(${si},${ti})" title="공부 시간 수정">
+    ${isRunning?'':`<button class="task-edit-btn" onclick="openEditRecordModal(${si},${ti})" title="공부 시간 수정">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><circle cx="8" cy="8" r="6.5"/><path d="M8 4.5V8l2.5 1.5"/></svg>
     </button>`}
     <button class="task-del-btn" onclick="deleteTask(${si},${ti})" title="삭제">×</button>
@@ -3549,11 +3585,14 @@ function openAddTaskForm(si){
 async function addTask(si){
   const inp=document.getElementById(`task-input-${si}`);
   const name=inp.value.trim();if(!name)return;
+  // 엔터를 두 번 누르거나 렉이 걸려 핸들러가 겹쳐 불려도 같은 내용이 두 번 추가되지 않도록,
+  // DB 응답을 기다리기 전에 입력칸부터 즉시 비운다 — 뒤이은 호출은 빈 값이라 위에서 걸러진다.
+  inp.value='';
   const today=localDateStr();
   const {data,error}=await sb.from('study_tasks').insert({user_id:currentUser.id,subject:subjects[si].name,task_name:name,is_done:false,date:today}).select().single();
-  if(error){toast('추가 실패: '+error.message);return}
+  if(error){toast('추가 실패: '+error.message);inp.value=name;return}
   subjects[si].tasks.push({id:data.id,name,done:false,seconds:0,dbId:data.id});
-  inp.value='';renderSubjects();
+  renderSubjects();
 }
 
 async function toggleTaskDone(si,ti){
@@ -3564,6 +3603,7 @@ async function toggleTaskDone(si,ti){
 
 async function deleteTask(si,ti){
   const task=subjects[si].tasks[ti];
+  if(!confirm(`"${task.name}" 계획을 삭제할까요? 기록된 공부 시간은 남아있어요.`))return;
   if(task.dbId)await sb.from('study_tasks').delete().eq('id',task.dbId);
   subjects[si].tasks.splice(ti,1);
   renderSubjects();
@@ -3581,46 +3621,94 @@ async function editTask(si,ti){
 }
 
 // 오늘 기록된 공부 시간을 직접 보정 (예: 타이머를 끄는 걸 깜빡해서 시간이 부풀려진 경우).
-// study_sessions은 시작/정지 때마다 여러 행으로 쌓이므로, 늘어난 시간은 가장 최근 행에 더하고
-// 줄어든 시간은 최근 행부터 순서대로 깎아서 정확히 목표 총합에 맞춘다.
-async function editTaskTime(si,ti){
+// 예전엔 하루 총 분(分)만 입력받아서 가장 최근 행에 몰아 더하거나 깎는 방식이었는데, 여러
+// 구간이 있을 때 정확히 어느 구간이 왜 늘고 줄었는지 알기 어렵고 분 단위 암산도 오류가
+// 잦았다 — 구간별로 "몇시부터 몇시까지"를 직접 입력하는 방식으로 교체(네이티브
+// <input type="time">, 모바일에서도 기기 자체의 시간 선택 UI가 떠서 오타로 인한 오류가 적음).
+let ermState={si:-1,ti:-1};
+function fmtHHMM(d){return`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
+
+function openEditRecordModal(si,ti){
+  ermState={si,ti};
+  const task=subjects[si].tasks[ti];
+  document.getElementById('erm-title').textContent=`"${task.name}" 공부 시간 수정`;
+  renderEditRecordRows();
+  document.getElementById('edit-record-modal').classList.add('open');
+}
+function closeEditRecordModal(){
+  document.getElementById('edit-record-modal').classList.remove('open');
+}
+function renderEditRecordRows(){
+  const {si,ti}=ermState;
   const sub=subjects[si];const task=sub.tasks[ti];
-  const curMin=Math.round(task.seconds/60);
-  const input=prompt(`"${task.name}" 오늘 공부 시간을 분 단위로 수정하세요 (현재 ${curMin}분):`,String(curMin));
-  if(input===null)return;
-  const newMin=Number(input);
-  if(!Number.isFinite(newMin)||newMin<0){toast('올바른 숫자(분)를 입력하세요');return}
-  const newSec=Math.round(newMin*60);
-  const delta=newSec-task.seconds;
-  if(delta===0)return;
-  const rows=todaySessions.filter(s=>s.subject===sub.name&&s.task_name===task.name).sort((a,b)=>new Date(b.started_at)-new Date(a.started_at));
-  try{
-    if(delta>0){
-      if(rows.length){
-        const target=rows[0];
-        const{error}=await sb.from('study_sessions').update({duration_seconds:target.duration_seconds+delta}).eq('id',target.id);
-        if(error)throw error;
-      }else{
-        const today=localDateStr();
-        const{error}=await sb.from('study_sessions').insert({user_id:currentUser.id,student_id:currentStudentId,subject:sub.name,task_name:task.name,duration_seconds:delta,started_at:new Date().toISOString(),ended_at:new Date().toISOString(),date:today});
-        if(error)throw error;
-      }
-    }else{
-      let remaining=-delta;
-      for(const row of rows){
-        if(remaining<=0)break;
-        const take=Math.min(row.duration_seconds,remaining);
-        if(take<=0)continue;
-        const{error}=await sb.from('study_sessions').update({duration_seconds:row.duration_seconds-take}).eq('id',row.id);
-        if(error)throw error;
-        remaining-=take;
-      }
-    }
-  }catch(e){toast('수정 실패: '+(e.message||e));return}
-  task.seconds=newSec;
+  const rows=todaySessions.filter(s=>s.subject===sub.name&&s.task_name===task.name&&s.ended_at)
+    .sort((a,b)=>new Date(a.started_at)-new Date(b.started_at));
+  const wrap=document.getElementById('erm-rows');
+  const checkIcon=`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M3 8.5l3.2 3.2L13 4.5"/></svg>`;
+  wrap.innerHTML=(rows.length?rows.map(s=>{
+    const start=new Date(s.started_at);
+    const end=new Date(start.getTime()+s.duration_seconds*1000);
+    return`<div class="erm-row" data-id="${s.id}">
+      <input type="time" class="modal-input erm-start" value="${fmtHHMM(start)}">
+      <span class="erm-tilde">~</span>
+      <input type="time" class="modal-input erm-end" value="${fmtHHMM(end)}">
+      <button class="task-edit-btn" onclick="saveRecordRow('${s.id}',this)" title="저장">${checkIcon}</button>
+      <button class="task-del-btn" onclick="deleteRecordRow('${s.id}')" title="삭제">×</button>
+    </div>`;
+  }).join(''):'<div class="erm-empty">오늘 기록된 구간이 없어요</div>')
+  +'<div id="erm-new-rows"></div>';
+}
+function addManualRecordRow(){
+  const container=document.getElementById('erm-new-rows');
+  if(container.children.length){toast('먼저 추가 중인 구간을 저장하거나 취소하세요');return}
+  const now=fmtHHMM(new Date());
+  const checkIcon=`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M3 8.5l3.2 3.2L13 4.5"/></svg>`;
+  container.innerHTML=`<div class="erm-row" data-id="new">
+    <input type="time" class="modal-input erm-start" value="${now}">
+    <span class="erm-tilde">~</span>
+    <input type="time" class="modal-input erm-end" value="${now}">
+    <button class="task-edit-btn" onclick="saveRecordRow('new',this)" title="저장">${checkIcon}</button>
+    <button class="task-del-btn" onclick="document.getElementById('erm-new-rows').innerHTML=''" title="취소">×</button>
+  </div>`;
+}
+async function saveRecordRow(id,btnEl){
+  const row=btnEl.closest('.erm-row');
+  const startStr=row.querySelector('.erm-start').value;
+  const endStr=row.querySelector('.erm-end').value;
+  if(!startStr||!endStr){toast('시작/종료 시간을 모두 입력하세요');return}
+  const today=localDateStr();
+  const start=new Date(`${today}T${startStr}:00`);
+  const end=new Date(`${today}T${endStr}:00`);
+  if(end<=start){toast('종료 시간은 시작 시간보다 늦어야 해요');return}
+  const durationSec=Math.round((end-start)/1000);
+  const {si,ti}=ermState;
+  const sub=subjects[si];const task=sub.tasks[ti];
+  if(id==='new'){
+    const {error}=await sb.from('study_sessions').insert({
+      user_id:currentUser.id,student_id:currentStudentId,subject:sub.name,task_name:task.name,
+      duration_seconds:durationSec,started_at:start.toISOString(),ended_at:end.toISOString(),date:today
+    });
+    if(error){toast('추가 실패: '+error.message);return}
+  }else{
+    const {error}=await sb.from('study_sessions').update({
+      started_at:start.toISOString(),ended_at:end.toISOString(),duration_seconds:durationSec
+    }).eq('id',id);
+    if(error){toast('수정 실패: '+error.message);return}
+  }
+  toast('저장했어요 ✓');
   await loadTodaySessions();
   await refreshStats();
-  toast('공부 시간이 수정되었습니다 ✓');
+  renderSubjects();
+  renderEditRecordRows();
+}
+async function deleteRecordRow(id){
+  if(!confirm('이 구간 기록을 삭제할까요?'))return;
+  const {error}=await sb.from('study_sessions').delete().eq('id',id);
+  if(error){toast('삭제 실패: '+error.message);return}
+  await loadTodaySessions();
+  await refreshStats();
+  renderSubjects();
+  renderEditRecordRows();
 }
 
 // ── FULLSCREEN TIMER ──
@@ -3633,13 +3721,22 @@ function reopenTimerView(){
   openTimerView(activeTimer.subjectIdx,activeTimer.taskIdx);
 }
 
-function openTimerView(si,ti){
+// 타이머를 다른 태스크로 전환할 때 공용으로 쓰는 함수. 이미 실행 중인 타이머가 있으면
+// 반드시 완전히(서버 저장까지) 멈춘 뒤에 새 타이머를 시작하도록 순서를 강제한다.
+// stopCurrentTimer()는 activeTimer를 비동기로만(DB 저장이 끝난 뒤) null 처리하므로, 예전처럼
+// await 없이 stopCurrentTimer(); startTaskTimer();를 연달아 호출하면 startTaskTimer 시작 시점에
+// activeTimer가 아직 이전 값 그대로 남아있어 "이미 실행 중"으로 오인해 새 타이머가 아예 시작되지
+// 않거나, 반대로 두 태스크의 세션이 동시에 DB에 열린 채로 남는 경합이 있었다(할 일 두 개가
+// 동시에 카운트되는 것처럼 보이는 원인).
+async function switchActiveTimer(si,ti){
+  if(activeTimer&&activeTimer.subjectIdx===si&&activeTimer.taskIdx===ti)return;
+  if(activeTimer)await stopCurrentTimer();
+  await startTaskTimer(si,ti);
+}
+
+async function openTimerView(si,ti){
   tfCurrentSi=si;tfCurrentTi=ti;
-  // 타이머가 다른 태스크에서 실행 중이면 먼저 멈춤
-  if(activeTimer&&(activeTimer.subjectIdx!==si||activeTimer.taskIdx!==ti))stopCurrentTimer();
-  // 타이머 시작
-  if(!activeTimer)startTaskTimer(si,ti);
-  // 전체화면 열기
+  // 전체화면부터 먼저 열어 반응성을 유지하고, 타이머 전환은 아래에서 순서를 보장해 처리한다.
   const fs=document.getElementById('timer-fullscreen');
   fs.classList.add('open');
   document.body.style.overflow='hidden';
@@ -3660,6 +3757,8 @@ function openTimerView(si,ti){
     if(tfRankTick%5===0)fetchTfRankData();
     else renderTfRankGrid();
   },1000);
+  await switchActiveTimer(si,ti);
+  renderTfSubjectList();
 }
 
 function closeTimerView(){
@@ -3723,10 +3822,10 @@ function renderTfSubjectList(){
   });
 }
 
-function tfSwitchTask(si,ti){
-  if(activeTimer)stopCurrentTimer();
+async function tfSwitchTask(si,ti){
   tfCurrentSi=si;tfCurrentTi=ti;
-  startTaskTimer(si,ti);
+  renderTfSubjectList();
+  await switchActiveTimer(si,ti);
   renderTfSubjectList();
   updateTfDisplay();
 }
@@ -3818,12 +3917,9 @@ function renderTfRankGrid(){
 }
 
 // ── TIMER ──
-function toggleTaskTimer(si,ti){
-  if(activeTimer){
-    if(activeTimer.subjectIdx===si&&activeTimer.taskIdx===ti){stopCurrentTimer();return}
-    else stopCurrentTimer();
-  }
-  startTaskTimer(si,ti);
+async function toggleTaskTimer(si,ti){
+  if(activeTimer&&activeTimer.subjectIdx===si&&activeTimer.taskIdx===ti){await stopCurrentTimer();return}
+  await switchActiveTimer(si,ti);
 }
 
 // ── 4시간 연속 집중 확인 (마라톤 가드) ──
@@ -4662,12 +4758,12 @@ async function sendMyReplyToTeacher(){
   const inp=document.getElementById('tm-reply-input');
   const content=inp.value.trim();
   if(!content)return;
+  inp.value='';
   const{error}=await sb.from('teacher_messages').insert({
     student_id:currentStudentId,author_name:currentName||currentStudentId+'번',
     content,sender_role:'student'
   });
-  if(error){toast('전송 실패: '+error.message);return}
-  inp.value='';
+  if(error){toast('전송 실패: '+error.message);inp.value=content;return}
   await loadMyMessageThread();
 }
 
@@ -4696,12 +4792,12 @@ async function sendTeacherMessageToStudent(){
   const inp=document.getElementById('tmm-input');
   const content=inp.value.trim();
   if(!content)return;
+  inp.value='';
   const{data,error}=await sb.from('teacher_messages').insert({
     student_id:tmmTargetSid,author_name:currentName||currentStudentId+'번',
     content,sender_role:'teacher'
   }).select().single();
-  if(error){toast('전송 실패: '+error.message);return}
-  inp.value='';
+  if(error){toast('전송 실패: '+error.message);inp.value=content;return}
   await loadTeacherMessageModalThread();
   triggerNotify('teacher-message',{message_id:data.id});
 }
@@ -4798,6 +4894,10 @@ async function openDmThread(roomId){
   document.getElementById('dm-layout').classList.add('thread-open');
   document.getElementById('dm-thread-empty').style.display='none';
   document.getElementById('dm-thread-active').classList.add('open');
+  // 모바일에서는 스레드가 화면을 꽉 채우는 고정 오버레이라, 뒤의 페이지가 계속 스크롤
+  // 가능한 상태로 남아있으면(특히 iOS) 키보드가 열리고 닫힐 때 배경이 같이 밀리면서
+  // 스레드 자체가 위로 끌려 올라가듯 보이는 버그가 있었음 — 열려있는 동안 배경 스크롤을 막는다.
+  if(window.innerWidth<=834)document.body.style.overflow='hidden';
   clearDmPhoto();
   const room=dmRooms.find(r=>r.id===roomId);
   document.getElementById('dm-thread-title').textContent=room?room.displayName:'대화';
@@ -4810,6 +4910,7 @@ async function openDmThread(roomId){
 
 function closeDmThreadMobile(){
   document.getElementById('dm-layout').classList.remove('thread-open');
+  document.body.style.overflow='';
 }
 
 async function loadDmMessages(roomId){
@@ -4880,6 +4981,9 @@ async function sendDmMessage(){
   const content=inp.value.trim();
   if(!content&&!dmPhotoFile)return;
   const sendBtn=document.getElementById('dm-send-btn');
+  // 버튼 클릭 두 번은 disabled로 막혀도, 엔터를 연달아 두 번 누르면 이 disabled 상태를 확인하지
+  // 않고 그대로 다시 호출돼 같은 메시지가 두 번 전송될 수 있었다 — 여기서 한 번 더 막는다.
+  if(sendBtn.disabled)return;
   sendBtn.disabled=true;
   let imagePath=null;
   if(dmPhotoFile){
@@ -4935,6 +5039,7 @@ async function leaveDmRoom(){
   document.getElementById('dm-thread-active').classList.remove('open');
   document.getElementById('dm-thread-empty').style.display='flex';
   document.getElementById('dm-layout').classList.remove('thread-open');
+  document.body.style.overflow='';
   await loadDmRooms();
 }
 
@@ -5362,14 +5467,15 @@ async function submitComment(postId,type){
   const inp=document.getElementById(`comment-input-${postId}`);
   const content=inp.value.trim();
   if(!content)return;
+  // 더블 엔터/렉으로 핸들러가 겹쳐 불려도 중복 등록되지 않도록 요청 전에 입력칸을 먼저 비운다.
+  inp.value='';
   const {data,error}=await sb.from('comments').insert({
     post_id:postId,user_id:currentUser.id,
     student_id:currentStudentId,
     author_name:currentName||currentStudentId+'번',
     content
   }).select().single();
-  if(error){toast('댓글 등록 실패: '+error.message);return}
-  inp.value='';
+  if(error){toast('댓글 등록 실패: '+error.message);inp.value=content;return}
   // 댓글 목록에 바로 추가
   const list=document.getElementById(`comment-list-${postId}`);
   const cDate=new Date(data.created_at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});

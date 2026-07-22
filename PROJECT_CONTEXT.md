@@ -218,6 +218,69 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-07-22: 사용자 제보 4건(모바일/iOS UI 겹침, DM 타이핑 중 화면 튐, 학습 타이머 동시 카운트,
+  더블 엔터로 인한 중복 게시) 조사 후 수정. `sw.js`의 `SW_BUILD`도 같이 올림.
+  - **모바일에서 모달이 안 보이던 버그(z-index)**. `.modal-overlay`(대부분의 모달이 공유하는
+    공통 오버레이)가 `z-index:200`이었는데, 그보다 위에 있는 전체화면 레이어들
+    — 모바일 DM 스레드 패널(`z-index:500`), 학습 타이머 전체화면(`#timer-fullscreen`,
+    `z-index:300`), 선생님용 학생 상세 전체화면(`#student-detail-fullscreen`,
+    `z-index:300`) — 위에서 모달을 열면(예: DM 단톡방 "+ 초대", 전체화면 타이머 중 뜨는
+    "아직 공부하고 있나요?" 4시간 확인 모달) 모달이 그 뒤로 완전히 가려져 아무것도
+    안 보이는 상태였음(배경 어둡게만 깔리고 내용이 없는 것처럼 보임). `.modal-overlay`를
+    `z-index:550`으로 올려서 이 세 레이어보다 항상 위에 오도록 통일. 앞으로 새 전체화면
+    오버레이를 추가할 때도 550 미만으로 유지하거나, 그 위에서 모달을 띄울 일이 있으면
+    이 값을 참고할 것.
+  - **모바일 DM에서 타이핑 중 화면이 위로 끌려 올라가는 버그**. 모바일 DM 스레드
+    (`.dm-thread-panel`, `position:fixed`로 전체화면을 덮는 패널)가 열려 있는 동안 뒤쪽
+    `body`가 계속 스크롤 가능한 상태로 남아있었음 — iOS Safari에서 메시지 입력창 포커스/
+    키보드 열림·닫힘마다 배경이 스크롤되면서 `position:fixed` 패널이 같이 밀리는 것처럼
+    보이는 현상의 원인이었음. `openTimerView`/`openStudentDetail`이 이미 쓰던
+    `document.body.style.overflow='hidden'` 잠금 패턴을 `openDmThread()`에도 적용(모바일
+    폭에서만, `window.innerWidth<=834`). 스레드를 닫는 경로가 여러 곳(`closeDmThreadMobile`,
+    `leaveDmRoom`, DM 페이지를 벗어나는 `navigate()`, `doLogout()`)이라 전부 짝을 맞춰
+    잠금 해제하도록 같이 손봄 — 특히 `navigate()`는 DM 스레드를 연 채로 사이드바의 다른
+    메뉴를 눌러도(모바일에서 실제 발생 가능) 잠금이 안 풀린 채 남는 걸 막기 위해, "우리가
+    연 잠금일 때만"(`dm-layout.thread-open` 클래스 존재 여부로 판단) 풀도록 가드를 넣음.
+  - **학습 타이머가 두 할 일을 동시에 세는 것처럼 보이던 버그**. 할 일 목록의 재생 버튼이
+    호출하는 `openTimerView(si,ti)`에 `if(activeTimer&&...)stopCurrentTimer();` 다음 줄에
+    `if(!activeTimer)startTaskTimer(si,ti);`라는 가드가 있었는데, `stopCurrentTimer()`는
+    DB 저장이 끝난 뒤에야(비동기로) `activeTimer=null` 처리를 하기 때문에, 바로 다음 줄이
+    실행되는 시점엔 `activeTimer`가 아직 이전 값 그대로 남아있어 `!activeTimer`가 거짓이 되고
+    — 결과적으로 다른 할 일이 실행 중일 때 새 할 일의 재생 버튼을 눌러도 새 타이머가 아예
+    시작되지 않거나(첫 클릭으로는 이전 것만 멈추고, 다시 눌러야 시작), 빠르게 연달아 누르면
+    두 할 일의 `study_sessions` 행이 동시에 열린 채로 남는 경합이 있었음. 이 전환 로직을
+    `openTimerView`/`tfSwitchTask`(전체화면 안에서 할 일 전환)/`toggleTaskTimer`(현재 미사용,
+    정의만 있음) 세 곳에서 각자 비슷하게 구현하고 있던 것도 함께 정리해서, `switchActiveTimer(si,ti)`
+    공용 함수 하나로 통합 — 반드시 `await stopCurrentTimer()`로 이전 타이머가 완전히 멈추는
+    걸 기다린 뒤에 `await startTaskTimer()`로 새 타이머를 시작하도록 순서를 강제함. 전체화면은
+    이 전환을 기다리지 않고 먼저 열어(반응성 유지) UI가 느려 보이지 않게 함.
+  - **공부 시간 수정 UI를 "몇 시부터 몇 시까지" 방식으로 전면 교체**. 예전 `editTaskTime()`은
+    `prompt()`로 하루 총 "분(分)" 수를 입력받아서, 늘어난 만큼은 가장 최근 `study_sessions`
+    행에 더하고 줄어든 만큼은 최근 행부터 깎아나가는 방식이었음 — 여러 구간이 있을 때 정확히
+    어느 구간이 왜 바뀌는지 사용자가 알 수 없고, 분 단위 암산도 오류가 잦다는 제보가 있었음.
+    새 모달(`#edit-record-modal`, `openEditRecordModal(si,ti)`)이 그 날의 `study_sessions`
+    행을 구간별로 나열하고 각 행의 시작/종료 시각을 네이티브 `<input type="time">` 두 개로
+    직접 입력·저장(`saveRecordRow`)·삭제(`deleteRecordRow`, `confirm` 확인)할 수 있게 했고,
+    "+ 구간 직접 추가"로 수동 구간(`study_sessions` 신규 insert)도 넣을 수 있음. 외부 라이브러리
+    (예: flatpickr류 시간 선택 UI)는 검토했지만, 이미 CDN 스크립트를 쓰는 프로젝트이긴 해도
+    `<input type="time">`이 모바일에서 기기 자체의 네이티브 피커를 띄워주고 추가 의존성/CSP
+    리스크가 없어 이 앱 규모엔 더 적합하다고 판단해 그쪽으로 감. 진행 중(미종료)인 세션은
+    목록에서 제외(`s.ended_at` 있는 행만) — 실행 중인 타이머는 먼저 멈추고 수정하도록 유도.
+  - **플래너 할 일(계획) 삭제 시 확인 문구 추가**. `deleteTask(si,ti)`에 확인 문구 자체가
+    없어서 실수로 삭제 버튼(×)을 눌러도 바로 지워졌음 — 다른 삭제 액션들(공지, DM 메시지,
+    게시글 등)과 동일하게 `confirm()`을 추가.
+  - **더블 엔터/렉으로 인한 중복 게시 방지**. 텍스트 입력 후 엔터로 전송하는 곳들
+    (`addTask`/플래너 할 일 추가, `submitComment`/게시판 댓글, `sendDmMessage`/DM,
+    `sendMyReplyToTeacher`·`sendTeacherMessageToStudent`/선생님 메시지)은 공통적으로
+    "DB 응답이 온 뒤에야 입력창을 비우는" 구조라, 렉이 걸린 상태에서 엔터를 두 번 누르면
+    같은 내용이 입력창에 그대로 남아있어 두 번째 호출도 똑같은 내용으로 다시 전송되는
+    문제가 있었음 — DB 요청을 보내기 *전에* 입력창부터 먼저 비우도록 순서를 바꿔서, 겹쳐
+    불린 두 번째 호출은 빈 값으로 조기 반환되게 함(실패 시엔 입력값을 다시 채워 넣어 사용자가
+    잃지 않게 함). `sendDmMessage`는 버튼 클릭 두 번은 이미 `sendBtn.disabled`로 막고
+    있었지만 엔터 키 경로는 그 disabled 상태를 확인하지 않아 여전히 뚫려있었던 것도 같이 막음.
+    버튼 클릭형인 `submitNotice`(공지 작성)는 게시판 글쓰기(`submitPost`)가 이미 쓰던
+    "제출 버튼을 요청 시작 시 `disabled` 처리했다가 끝나면 푸는" 패턴이 통일돼 있지 않았던
+    것을 발견해 동일하게 맞춤.
 - 2026-07-17: 학습 플래너 타이머를 클라이언트 카운트 방식에서 서버 타임스탬프 재계산 방식으로
   전면 교체 + 같은 학생의 폰/PC 실시간 동기화(Socket.IO) 추가.
   - **Supabase 마이그레이션**: `study_sessions`에 `start_timestamp`(bigint, epoch ms, 실행

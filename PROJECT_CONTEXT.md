@@ -218,6 +218,63 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-07-22 (2차): 관리자/운영자/선생님이 모든 게시글·댓글·공지를 실제로 삭제/수정할 수 있도록
+  권한 보강 + 게시글/댓글/공지 수정 기능 신설 + DM 메시지 삭제/수정을 꾹 누르기(모바일)·
+  우클릭(PC) 컨텍스트 메뉴로 전환. `sw.js`의 `SW_BUILD`도 같이 올림.
+  - **DB 차원의 진짜 버그를 발견함**: 프론트의 `isBoardModerator()`는 `admin`/`owner`만 보고
+    `is_teacher`가 빠져 있어서 선생님 계정은 애초에 삭제 버튼 자체가 안 보였고, 설사 버튼이
+    보이는 관리자/운영자라 해도 `posts`/`comments`의 실제 RLS DELETE 정책이 `auth.uid() =
+    user_id`(작성자 본인만)로 걸려있어서 — 관리자가 남의 글을 삭제해도 RLS에 막혀 매칭되는
+    행이 0개라 에러 없이 "삭제되었습니다" 토스트만 뜨고 실제로는 아무것도 안 지워지는 상태였음
+    (Postgres RLS의 잘 알려진 함정: RLS로 막힌 delete/update는 보통 에러가 아니라 조용히 0행
+    반영으로 끝남). UI만 고쳐서는 해결이 안 되는 문제라 Supabase 마이그레이션을 같이 적용함.
+  - **`is_staff(uuid)` SECURITY DEFINER 함수 신설**(`user_roles`+`user_profiles`를 조인해
+    `role in (admin,owner) or is_teacher` 판단, `teacher_messages` RLS에서 쓰던 것과 동일한
+    조건을 재사용 가능한 함수로 뺌). `is_dm_participant`/`is_dm_room_creator`와 동일하게
+    `public`/`anon` 양쪽 다 EXECUTE 회수하고 `authenticated`에만 부여.
+  - **`posts`/`comments` RLS 정책 변경**: DELETE 정책(`본인만 삭제`)을 `auth.uid()=user_id or
+    is_staff(auth.uid())`로 넓히고, 원래 아예 없던 UPDATE 정책을 새로 추가(`본인 또는
+    스태프만 수정`, 마찬가지로 작성자 본인 또는 스태프). 이제 관리자/운영자/선생님이 실제로
+    남의 글·댓글을 삭제·수정할 수 있음.
+  - **`dm_messages`에 UPDATE 정책 신설**(`본인 메시지만 수정`, `sender_user_id=auth.uid()`만
+    허용). DM은 참가자 간 사적인 대화라 이번엔 스태프 열람/수정 권한을 주지 않음 — 삭제와
+    동일하게 본인 메시지만.
+  - **`isBoardModerator()`를 `isStaffRole()`과 동일 기준으로 통일**(더 이상 `currentRole` 직접
+    비교 안 함) — 이제 프론트 판단과 DB RLS 판단이 정확히 일치함.
+  - **게시글/댓글 인라인 수정 UI 신설**. "수정" 버튼(작성자 본인 또는 스태프에게만 노출)을
+    누르면 본문이 `<textarea>`로 바뀌고 저장/취소 버튼이 뜨는 방식(`startEditPost`/
+    `saveEditPost`/`cancelEditPost`, 댓글은 `startEditComment`류로 동일 패턴). 취소는 원본
+    텍스트를 `textContent`로 미리 담아뒀다가 그대로 복원(재조회 없음), 저장은
+    `boardLoader(type)()`로 목록 전체를 다시 불러옴 — 이 부분은 기존 `deletePost`/
+    `deleteComment`와 동일한 트레이드오프(저장/삭제 시 게시판 전체가 다시 그려지면서 펼쳐둔
+    댓글창이 다시 접힘)라 이번에 새로 생긴 문제는 아님.
+  - **게시글/댓글에 있던 저장형 XSS 이스케이프 누락을 같이 고침**. `renderPost()`가 `p.content`/
+    `c.content`(둘 다 학생이면 누구나 쓸 수 있는 값)를 `escHtml()` 없이 그대로 `innerHTML`에
+    꽂고 있었음 — `<img onerror=...>` 같은 걸 글/댓글에 쓰면 보는 사람 전원(운영자 포함)의
+    브라우저에서 그대로 실행되는 저장형 XSS였음. 이번에 수정 기능을 만들며 이 코드를 다시
+    손대는 김에 `escHtml()`을 씌움(신규 댓글을 DOM에 바로 추가하는 `submitComment()`의
+    경로도 동일하게 처리). `notices.content`도 같은 문제가 있어서(공지는 스태프만 쓸 수 있어
+    학생 게시글보다는 위험도가 낮지만) 같이 이스케이프함. 이스케이프해도 줄바꿈이 깨지지
+    않도록 `.qna-content`/`.comment-text`에 `white-space:pre-wrap`을 추가(`.notice-content`는
+    원래부터 있었음 — 애초에 순수 텍스트를 전제로 설계된 CSS였다는 뜻이라, 그동안의 raw HTML
+    삽입이 의도가 아니라 누락이었다는 정황).
+  - **공지 수정 기능 신설**. 기존 "공지 작성" 페이지(`page-notice-write`)를 그대로 재활용 —
+    `editNotice(id)`가 해당 공지를 다시 불러와 제목/내용/대상을 채우고 `editingNoticeId`를
+    세팅, `submitNotice()`가 이 값이 있으면 insert 대신 update로 분기함. 투표가 달린 공지는
+    수정 범위에서 제외(질문/선택지를 바꾸면 이미 쌓인 투표 기록과 안 맞게 되는 문제가 있어서)
+    — 수정 화면에서는 "투표 추가" 섹션 자체를 숨김.
+  - **DM 메시지 삭제/수정을 꾹 누르기(모바일)/우클릭(PC) 메뉴로 전환**. 예전엔 내 메시지
+    아래에 항상 보이는 "· 삭제" 텍스트 링크였는데, 사용자 요청으로 길게 누르면(모바일)/
+    우클릭하면(PC) 뜨는 컨텍스트 메뉴(`#dm-msg-menu`, `showDmMsgMenu`)로 바꾸고 "수정"도
+    추가함(텍스트가 있는 메시지만 — 사진 전용 메시지는 수정 대상에서 제외). 모바일은
+    `touchstart`에서 500ms 타이머로 롱프레스를 직접 판정(`dmTouchStart`/`dmTouchEnd`,
+    `touchmove`가 오면 스크롤로 간주해 타이머 취소) — 브라우저 네이티브 `contextmenu`
+    롱프레스 감지가 iOS/Android/기종마다 들쭉날쭉해서 못 믿고 직접 구현함. **롱프레스로
+    메뉴가 뜬 직후 손가락을 떼면 브라우저가 뒤이어 합성(synthetic) click 이벤트를 쏘는데,
+    이걸 막지 않으면 메뉴를 닫는 전역 click 리스너에 뜨자마자 바로 닫혀버림** — 롱프레스가
+    실제로 발동했을 때만 `touchend`에서 `preventDefault()`로 이 합성 클릭을 막아서 해결.
+    메뉴는 화면 밖으로 안 나가게 위치를 clamp함. 수정(`startEditDmMessage`/
+    `saveEditDmMessage`)은 게시글/댓글과 같은 인라인 textarea 방식.
 - 2026-07-22: 사용자 제보 4건(모바일/iOS UI 겹침, DM 타이핑 중 화면 튐, 학습 타이머 동시 카운트,
   더블 엔터로 인한 중복 게시) 조사 후 수정. `sw.js`의 `SW_BUILD`도 같이 올림.
   - **모바일에서 모달이 안 보이던 버그(z-index)**. `.modal-overlay`(대부분의 모달이 공유하는

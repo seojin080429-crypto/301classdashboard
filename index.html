@@ -218,6 +218,8 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .notice-author{font-size:11px;color:var(--ink-48)}
 .notice-del-btn{font-size:11px;color:var(--ink-48);background:none;border:none;cursor:pointer;margin-left:auto;transition:color var(--t),transform .12s ease}
 .notice-del-btn:hover{color:#c00}
+.notice-edit-btn{font-size:11px;color:var(--ink-48);background:none;border:none;cursor:pointer;margin-left:auto;transition:color var(--t)}
+.notice-edit-btn:hover{color:var(--blue)}
 
 /* 공지 투표 */
 .poll-block{white-space:normal;margin-top:14px;padding:14px;background:var(--parchment);border-radius:var(--radius-md);border:1px solid var(--hairline)}
@@ -609,7 +611,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .qna-author{font-size:12px;font-weight:600;color:var(--ink)}
 .qna-time{font-size:11px;color:var(--ink-48)}
 .qna-subject-pill{font-size:10px;font-weight:600;padding:2px 7px;border-radius:var(--radius-pill);background:rgba(0,102,204,.1);color:var(--blue);margin-left:auto}
-.qna-content{font-size:13px;color:var(--ink);line-height:1.6;margin-bottom:8px}
+.qna-content{font-size:13px;color:var(--ink);line-height:1.6;margin-bottom:8px;white-space:pre-wrap}
 .qna-reply-btn{font-size:12px;color:var(--blue);background:none;border:none;cursor:pointer;padding:0}
 .qna-reply-btn:hover{text-decoration:underline}
 .write-form{background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--radius-lg);padding:18px;margin-bottom:16px}
@@ -845,7 +847,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .comment-meta{display:flex;align-items:center;gap:6px;margin-bottom:2px}
 .comment-author{font-size:12px;font-weight:600;color:var(--ink)}
 .comment-time{font-size:11px;color:var(--ink-48)}
-.comment-text{font-size:13px;color:var(--ink);line-height:1.5;word-break:break-word}
+.comment-text{font-size:13px;color:var(--ink);line-height:1.5;word-break:break-word;white-space:pre-wrap}
 .comment-del{font-size:11px;color:var(--ink-48);background:none;border:none;cursor:pointer;margin-left:auto;flex-shrink:0;transition:color var(--t),transform .12s ease}
 .comment-del:hover{color:#c00}
 .comment-input-row{display:flex;gap:6px}
@@ -888,6 +890,21 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 #img-lightbox img{max-width:90vw;max-height:90vh;object-fit:contain;border-radius:var(--radius-md)}
 .post-delete-btn{font-size:12px;color:var(--ink-48);background:none;border:none;cursor:pointer;padding:0;margin-left:auto;transition:color var(--t),transform .12s ease}
 .post-delete-btn:hover{color:#c00}
+.post-edit-btn{font-size:12px;color:var(--ink-48);background:none;border:none;cursor:pointer;padding:0;margin-left:auto;transition:color var(--t)}
+.post-edit-btn:hover{color:var(--blue)}
+.comment-edit{font-size:11px;color:var(--ink-48);background:none;border:none;cursor:pointer;margin-left:auto;flex-shrink:0;transition:color var(--t)}
+.comment-edit:hover{color:var(--blue)}
+.inline-edit-textarea{width:100%;min-height:70px;padding:8px 10px;border:1px solid var(--hairline);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;color:var(--ink);background:var(--canvas);resize:vertical}
+.inline-edit-textarea:focus{border-color:var(--blue-focus)}
+.inline-edit-actions{display:flex;gap:6px;justify-content:flex-end;margin-top:6px}
+.inline-edit-actions button{padding:5px 12px;font-size:12px}
+
+/* DM 메시지 컨텍스트 메뉴 (모바일 꾹 누르기 / PC 우클릭) */
+.dm-msg-menu{position:fixed;display:none;flex-direction:column;background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--radius-md);box-shadow:0 8px 30px rgba(0,0,0,.2);z-index:600;overflow:hidden;min-width:120px}
+.dm-msg-menu button{display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:13px;color:var(--ink);background:none;border:none;text-align:left;cursor:pointer;white-space:nowrap}
+.dm-msg-menu button:hover{background:var(--parchment)}
+.dm-msg-menu button.danger{color:#c00}
+.dm-msg-row{-webkit-touch-callout:none}
 </style>
 </head>
 <body>
@@ -1152,7 +1169,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
     <!-- NOTICE WRITE (네이버 카페식 전체 페이지 글쓰기) -->
     <div class="page" id="page-notice-write">
       <span class="section-hd-link" onclick="closeNoticeWritePage()">← 공지사항으로</span>
-      <div class="page-title" style="margin-top:10px">공지 작성</div>
+      <div class="page-title" id="notice-write-title" style="margin-top:10px">공지 작성</div>
       <div class="page-sub">학급에 공개되는 공지를 작성하세요</div>
       <div class="card spacer">
         <div class="modal-field">
@@ -1170,7 +1187,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
             <option value="simo">실모반 전용</option>
           </select>
         </div>
-        <div class="modal-field">
+        <div class="modal-field" id="notice-poll-toggle-field">
           <label class="modal-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
             <input type="checkbox" id="notice-poll-toggle" style="width:15px;height:15px;accent-color:var(--blue)" onchange="syncPollSectionVisibility()">
             투표 추가
@@ -2227,6 +2244,9 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
   <img id="lightbox-img" src="" alt="">
 </div>
 
+<!-- DM 메시지 삭제/수정 메뉴 (모바일 꾹 누르기 / PC 우클릭 시 showDmMsgMenu가 내용을 채우고 위치를 잡음) -->
+<div class="dm-msg-menu" id="dm-msg-menu" onclick="event.stopPropagation()"></div>
+
 <!-- 전체화면 타이머 -->
 <div id="timer-fullscreen">
   <div class="tf-topbar">
@@ -3069,6 +3089,7 @@ async function loadNotices(){
     const isNew=(Date.now()-created.getTime())<1000*60*60*24*3; // 3일 이내
     const dateStr=created.toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'}).replace(/\. /g,'.');
     const uid=`${prefix}-${n.id}`;
+    const editBtn=canManage?`<button class="notice-edit-btn" onclick="event.stopPropagation();editNotice('${n.id}')">수정</button>`:'';
     const delBtn=canManage?`<button class="notice-del-btn" onclick="deleteNotice(event,'${n.id}')">삭제</button>`:'';
     const simoBadge=n.audience==='simo'?'<span class="badge-new" style="background:var(--green-dark)">실모반</span>':'';
     const poll=pollsByNotice[n.id];
@@ -3081,9 +3102,9 @@ async function loadNotices(){
         <div class="notice-date">${dateStr}</div>
       </div>
       <div class="notice-content" id="notice-content-${uid}">
-        ${n.content}
+        ${escHtml(n.content)}
         ${pollHtml}
-        <div class="notice-meta-row"><span class="notice-author">${n.author_name} 작성</span>${delBtn}</div>
+        <div class="notice-meta-row"><span class="notice-author">${escHtml(n.author_name)} 작성</span>${editBtn}${delBtn}</div>
       </div>
     </div>`;
   }).join('');
@@ -3151,12 +3172,18 @@ async function voteOnPoll(pollId,optionIndex){
 }
 
 // ── 공지 작성 (네이버 카페식 전체 페이지 글쓰기) ──
+// editingNoticeId가 있으면 submitNotice()가 insert 대신 update를 한다(editNotice() 참고).
+let editingNoticeId=null;
 function openNoticeWritePage(){
+  editingNoticeId=null;
+  document.getElementById('notice-write-title').textContent='공지 작성';
+  document.getElementById('notice-submit-btn').textContent='게시하기';
   document.getElementById('notice-title-input').value='';
   document.getElementById('notice-content-input').value='';
   document.getElementById('notice-error').style.display='none';
   document.getElementById('notice-audience-input').value='all';
   document.getElementById('notice-audience-field').style.display=isOwnerTier()?'block':'none';
+  document.getElementById('notice-poll-toggle-field').style.display='block';
   document.getElementById('notice-poll-toggle').checked=false;
   document.getElementById('notice-poll-section').style.display='none';
   document.getElementById('notice-poll-question-input').value='';
@@ -3166,7 +3193,29 @@ function openNoticeWritePage(){
   document.getElementById('page-notice-write').classList.add('active');
   window.scrollTo(0,0);
 }
-function closeNoticeWritePage(){navigate('notice')}
+// 공지 수정 — 투표가 달린 공지는 투표 결과와 응답이 이미 쌓여있어 "수정"의 의미가 애매해지므로
+// (질문/선택지를 바꾸면 기존 투표 기록과 안 맞게 됨) 범위를 제목/내용만으로 제한하고, 수정
+// 화면에서는 투표 추가 옵션 자체를 숨긴다.
+async function editNotice(id){
+  if(!isStaffRole()){toast('권한이 없습니다');return}
+  const {data:notice,error}=await sb.from('notices').select('*').eq('id',id).single();
+  if(error||!notice){toast('공지를 찾을 수 없어요');return}
+  editingNoticeId=id;
+  document.getElementById('notice-write-title').textContent='공지 수정';
+  document.getElementById('notice-submit-btn').textContent='수정하기';
+  document.getElementById('notice-title-input').value=notice.title;
+  document.getElementById('notice-content-input').value=notice.content;
+  document.getElementById('notice-error').style.display='none';
+  document.getElementById('notice-audience-input').value=notice.audience||'all';
+  document.getElementById('notice-audience-field').style.display=isOwnerTier()?'block':'none';
+  document.getElementById('notice-poll-toggle-field').style.display='none';
+  document.getElementById('notice-poll-toggle').checked=false;
+  document.getElementById('notice-poll-section').style.display='none';
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-notice-write').classList.add('active');
+  window.scrollTo(0,0);
+}
+function closeNoticeWritePage(){editingNoticeId=null;navigate('notice')}
 
 function syncPollSectionVisibility(){
   document.getElementById('notice-poll-section').style.display=document.getElementById('notice-poll-toggle').checked?'block':'none';
@@ -3202,6 +3251,18 @@ async function submitNotice(){
   const errEl=document.getElementById('notice-error');
   errEl.style.display='none';
   if(!title||!content){errEl.textContent='제목과 내용을 모두 입력하세요.';errEl.style.display='block';return}
+
+  // 수정 모드에서는 투표 섹션 자체를 숨겨뒀으므로 항상 새 투표를 안 만든다(editNotice() 참고).
+  if(editingNoticeId){
+    submitBtn.disabled=true;
+    const {error}=await sb.from('notices').update({title,content,audience}).eq('id',editingNoticeId);
+    submitBtn.disabled=false;
+    if(error){errEl.textContent='수정 실패: '+error.message;errEl.style.display='block';return}
+    closeNoticeWritePage();
+    toast('공지가 수정되었습니다 ✓');
+    await loadNotices();
+    return;
+  }
 
   const addPoll=document.getElementById('notice-poll-toggle').checked;
   let pollQuestion='',pollOptions=[],pollAnon=false;
@@ -4920,7 +4981,10 @@ async function loadDmMessages(roomId){
   renderDmThreadMessages(data||[]);
 }
 
+// 내 메시지 목록을 편집(startEditDmMessage)에서 원문을 다시 찾아 쓸 수 있도록 캐시해둔다.
+let dmCurrentMessages=[];
 function renderDmThreadMessages(messages){
+  dmCurrentMessages=messages;
   const log=document.getElementById('dm-thread-log');
   const room=dmRooms.find(r=>r.id===dmActiveRoomId);
   const isGroup=room?.is_group;
@@ -4929,15 +4993,90 @@ function renderDmThreadMessages(messages){
     const time=new Date(m.created_at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
     const senderHtml=(!mine&&isGroup)?`<div class="dm-msg-sender">${escHtml(m.sender_name)}</div>`:'';
     const imgHtml=m.image_url?`<img class="dm-msg-img" data-path="${m.image_url}" onclick="if(this.src)openLightbox(this.src)" alt="사진">`:'';
-    const textHtml=m.content?`<div class="dm-msg-bubble">${escHtml(m.content)}</div>`:'';
-    const delHtml=mine?` · <span class="dm-msg-del" onclick="deleteDmMessage('${m.id}')">삭제</span>`:'';
-    return`<div class="dm-msg-row ${mine?'mine':'theirs'}">
+    const textHtml=m.content?`<div class="dm-msg-bubble" id="dm-msg-bubble-${m.id}">${escHtml(m.content)}</div>`:'';
+    // 내 메시지만 모바일 꾹 누르기/PC 우클릭으로 삭제·수정 메뉴를 띄운다(showDmMsgMenu).
+    const menuAttrs=mine?`oncontextmenu="showDmMsgMenu(event,'${m.id}')" ontouchstart="dmTouchStart(event,'${m.id}')" ontouchend="dmTouchEnd(event)" ontouchmove="dmTouchEnd(event)"`:'';
+    return`<div class="dm-msg-row ${mine?'mine':'theirs'}" data-msg-id="${m.id}" ${menuAttrs}>
       ${senderHtml}${imgHtml}${textHtml}
-      <div class="dm-msg-meta">${time}${delHtml}</div>
+      <div class="dm-msg-meta">${time}</div>
     </div>`;
   }).join('')||'<div style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">아직 메시지가 없어요. 첫 메시지를 보내보세요!</div>';
   log.scrollTop=log.scrollHeight;
   hydrateDmPhotoUrls();
+}
+
+// ── DM 메시지 삭제/수정 메뉴 (모바일 꾹 누르기 / PC 우클릭) ──
+let dmMsgMenuTargetId=null, dmLongPressTimer=null, dmLongPressFired=false;
+function dmTouchStart(e,id){
+  dmLongPressFired=false;
+  const touch=e.touches[0];
+  const x=touch.clientX,y=touch.clientY;
+  clearTimeout(dmLongPressTimer);
+  dmLongPressTimer=setTimeout(()=>{
+    dmLongPressTimer=null;
+    dmLongPressFired=true;
+    if(navigator.vibrate)navigator.vibrate(15);
+    showDmMsgMenu(null,id,x,y);
+  },500);
+}
+// 꾹 눌러서 메뉴가 뜬 직후엔 손가락을 뗄 때 브라우저가 뒤이어 합성 click 이벤트를 쏘는데,
+// 이걸 막지 않으면 메뉴가 뜨자마자 전역 click 리스너(closeDmMsgMenu)에 바로 닫혀버린다.
+function dmTouchEnd(e){
+  if(dmLongPressTimer){clearTimeout(dmLongPressTimer);dmLongPressTimer=null}
+  if(dmLongPressFired&&e?.cancelable)e.preventDefault();
+}
+function showDmMsgMenu(event,id,touchX,touchY){
+  if(event)event.preventDefault();
+  const msg=dmCurrentMessages.find(m=>m.id===id);
+  if(!msg)return;
+  dmMsgMenuTargetId=id;
+  const x=event?event.clientX:touchX, y=event?event.clientY:touchY;
+  const menu=document.getElementById('dm-msg-menu');
+  menu.innerHTML=(msg.content?`<button onclick="dmMsgMenuAction('edit')">✏️ 수정</button>`:'')
+    +`<button class="danger" onclick="dmMsgMenuAction('delete')">🗑 삭제</button>`;
+  menu.style.display='flex';
+  // 메뉴가 화면 밖으로 나가지 않도록 위치 보정
+  const menuW=130,menuH=msg.content?86:44;
+  menu.style.left=`${Math.max(8,Math.min(x,window.innerWidth-menuW-8))}px`;
+  menu.style.top=`${Math.max(8,Math.min(y,window.innerHeight-menuH-8))}px`;
+}
+function closeDmMsgMenu(){
+  const menu=document.getElementById('dm-msg-menu');
+  if(menu)menu.style.display='none';
+  dmMsgMenuTargetId=null;
+}
+document.addEventListener('click',()=>closeDmMsgMenu());
+document.addEventListener('contextmenu',(e)=>{
+  const menu=document.getElementById('dm-msg-menu');
+  if(menu&&menu.style.display!=='none'&&!menu.contains(e.target))closeDmMsgMenu();
+});
+function dmMsgMenuAction(action){
+  const id=dmMsgMenuTargetId;
+  closeDmMsgMenu();
+  if(!id)return;
+  if(action==='delete')deleteDmMessage(id);
+  else if(action==='edit')startEditDmMessage(id);
+}
+
+function startEditDmMessage(id){
+  const msg=dmCurrentMessages.find(m=>m.id===id);
+  const bubble=document.getElementById(`dm-msg-bubble-${id}`);
+  if(!msg||!bubble)return;
+  bubble.innerHTML=`<textarea class="inline-edit-textarea" id="dm-msg-edit-input-${id}" style="min-height:44px;font-size:14px">${escHtml(msg.content)}</textarea>
+    <div class="inline-edit-actions">
+      <button class="btn-ghost" onclick="loadDmMessages(dmActiveRoomId)">취소</button>
+      <button class="btn-primary" onclick="saveEditDmMessage('${id}')">저장</button>
+    </div>`;
+  document.getElementById(`dm-msg-edit-input-${id}`).focus();
+}
+async function saveEditDmMessage(id){
+  const inp=document.getElementById(`dm-msg-edit-input-${id}`);
+  if(!inp)return;
+  const content=inp.value.trim();
+  if(!content){toast('내용을 입력하세요');return}
+  const {error}=await sb.from('dm_messages').update({content}).eq('id',id);
+  if(error){toast('수정 실패: '+error.message);return}
+  await loadDmMessages(dmActiveRoomId);
 }
 
 // dm-photos는 비공개 버킷이라 image_url 컬럼엔 실제 URL이 아니라 storage 경로만 저장돼 있음
@@ -5178,8 +5317,10 @@ async function inviteDmParticipants(){
   openDmThread(dmActiveRoomId);
 }
 
+// 관리자/운영자/선생님 모두 남의 글·댓글을 관리(삭제/수정)할 수 있어야 하는데, 예전엔
+// role만 보고 is_teacher는 빠져 있었음 — isStaffRole()과 동일 기준으로 통일.
 function isBoardModerator(){
-  return currentRole==='admin' || currentRole==='owner';
+  return isStaffRole();
 }
 
 // 좋아요는 posts.like_count 같은 합산 카운터가 아니라 notice_poll_votes와 동일하게
@@ -5388,6 +5529,35 @@ async function deletePost(id,imageUrl,type){
   await boardLoader(type)();
 }
 
+// 게시글 인라인 수정. 원본 텍스트는 textContent로 그대로 보관해뒀다가(escHtml() 라운드트립
+// 걱정 없이) 취소하면 그대로 복원한다 — RLS도 posts UPDATE 정책이 작성자 또는 스태프
+// (admin/owner/선생님)만 허용하도록 함께 갱신해뒀다(관리자 탭에서 남의 글도 실제로 수정 가능).
+function startEditPost(id,type){
+  const el=document.getElementById(`post-content-${id}`);
+  if(!el)return;
+  el._rawContent=el.textContent;
+  el.innerHTML=`<textarea class="inline-edit-textarea" id="post-edit-input-${id}">${escHtml(el._rawContent)}</textarea>
+    <div class="inline-edit-actions">
+      <button class="btn-ghost" onclick="cancelEditPost('${id}')">취소</button>
+      <button class="btn-primary" onclick="saveEditPost('${id}','${type}')">저장</button>
+    </div>`;
+  document.getElementById(`post-edit-input-${id}`).focus();
+}
+function cancelEditPost(id){
+  const el=document.getElementById(`post-content-${id}`);
+  if(!el||el._rawContent===undefined)return;
+  el.textContent=el._rawContent;
+}
+async function saveEditPost(id,type){
+  const inp=document.getElementById(`post-edit-input-${id}`);
+  const content=inp.value.trim();
+  if(!content){toast('내용을 입력하세요');return}
+  const {error}=await sb.from('posts').update({content}).eq('id',id);
+  if(error){toast('수정 실패: '+error.message);return}
+  toast('수정되었습니다 ✓');
+  await boardLoader(type)();
+}
+
 function renderPost(p,type,comments=[]){
   const isMe=p.student_id===currentStudentId;
   const canManagePost=isMe || isBoardModerator();
@@ -5406,6 +5576,7 @@ function renderPost(p,type,comments=[]){
     ?`<video class="post-img" src="${p.image_url}" controls playsinline></video>`
     :`<img class="post-img" src="${p.image_url}" alt="첨부사진" onclick="openLightbox('${p.image_url}')">`):'';
   const subjectPill=p.subject?`<span class="qna-subject-pill">${p.subject}</span>`:'';
+  const editBtn=canManagePost?`<button class="post-edit-btn" onclick="startEditPost('${p.id}','${type}')">수정</button>`:'';
   const deleteBtn=canManagePost?`<button class="post-delete-btn" onclick="deletePost('${p.id}','${p.image_url||''}','${type}')">삭제</button>`:'';
   const likeHtml=type==='free'?`<div class="board-like-row">
     <button class="board-like-btn ${isLiked?'liked':''}" id="board-like-btn-${p.id}" onclick="toggleLike('${p.id}')">
@@ -5425,9 +5596,9 @@ function renderPost(p,type,comments=[]){
         <div class="comment-meta">
           <span class="comment-author">${commentAuthorName}</span>
           <span class="comment-time">${cDate}</span>
-          ${canManageComment?`<button class="comment-del" onclick="deleteComment('${c.id}','${p.id}','${type}')">삭제</button>`:''}
+          ${canManageComment?`<button class="comment-edit" onclick="startEditComment('${c.id}','${p.id}','${type}')">수정</button><button class="comment-del" onclick="deleteComment('${c.id}','${p.id}','${type}')">삭제</button>`:''}
         </div>
-        <div class="comment-text">${c.content}</div>
+        <div class="comment-text" id="comment-text-${c.id}">${escHtml(c.content)}</div>
       </div>
     </div>`;
   }).join('');
@@ -5437,9 +5608,9 @@ function renderPost(p,type,comments=[]){
       <div class="qna-avatar">${authorName?authorName[0]:'?'}</div>
       <span class="qna-author">${authorName}</span>
       <span class="qna-time" style="margin-left:6px;font-size:11px;color:var(--ink-48)">${date}</span>
-      ${subjectPill}${deleteBtn}
+      ${subjectPill}${editBtn}${deleteBtn}
     </div>
-    <div class="qna-content">${p.content}</div>
+    <div class="qna-content" id="post-content-${p.id}">${escHtml(p.content)}</div>
     ${imgHtml}
     ${likeHtml}
     <div class="comment-section">
@@ -5481,14 +5652,15 @@ async function submitComment(postId,type){
   const cDate=new Date(data.created_at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
   const item=document.createElement('div');item.className='comment-item';
   item.innerHTML=`
-    <div class="comment-avatar">${data.author_name[0]}</div>
+    <div class="comment-avatar">${escHtml(data.author_name[0])}</div>
     <div class="comment-body">
       <div class="comment-meta">
-        <span class="comment-author">${data.author_name}</span>
+        <span class="comment-author">${escHtml(data.author_name)}</span>
         <span class="comment-time">${cDate}</span>
+        <button class="comment-edit" onclick="startEditComment('${data.id}','${postId}','${type}')">수정</button>
         <button class="comment-del" onclick="deleteComment('${data.id}','${postId}','${type}')">삭제</button>
       </div>
-      <div class="comment-text">${data.content}</div>
+      <div class="comment-text" id="comment-text-${data.id}">${escHtml(data.content)}</div>
     </div>`;
   list.appendChild(item);
   // 버튼 카운트 업데이트
@@ -5509,6 +5681,32 @@ async function deleteComment(commentId,postId,type){
     return;
   }
   await sb.from('comments').delete().eq('id',commentId);
+  await boardLoader(type)();
+}
+
+function startEditComment(commentId,postId,type){
+  const el=document.getElementById(`comment-text-${commentId}`);
+  if(!el)return;
+  el._rawContent=el.textContent;
+  el.innerHTML=`<textarea class="inline-edit-textarea" id="comment-edit-input-${commentId}" style="min-height:44px">${escHtml(el._rawContent)}</textarea>
+    <div class="inline-edit-actions">
+      <button class="btn-ghost" onclick="cancelEditComment('${commentId}')">취소</button>
+      <button class="btn-primary" onclick="saveEditComment('${commentId}','${postId}','${type}')">저장</button>
+    </div>`;
+  document.getElementById(`comment-edit-input-${commentId}`).focus();
+}
+function cancelEditComment(commentId){
+  const el=document.getElementById(`comment-text-${commentId}`);
+  if(!el||el._rawContent===undefined)return;
+  el.textContent=el._rawContent;
+}
+async function saveEditComment(commentId,postId,type){
+  const inp=document.getElementById(`comment-edit-input-${commentId}`);
+  const content=inp.value.trim();
+  if(!content){toast('내용을 입력하세요');return}
+  const {error}=await sb.from('comments').update({content}).eq('id',commentId);
+  if(error){toast('수정 실패: '+error.message);return}
+  toast('수정되었습니다 ✓');
   await boardLoader(type)();
 }
 

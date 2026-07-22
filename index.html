@@ -1056,7 +1056,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
           <svg viewBox="0 0 24 24" style="stroke:#0071e3"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>대시보드
         </div>
         <div class="nav-item" data-page="notice" onclick="navigate('notice')">
-          <svg viewBox="0 0 24 24" style="stroke:#e8a23d"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>공지사항
+          <svg viewBox="0 0 24 24" style="stroke:#e8a23d"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>공지사항
         </div>
         <div class="nav-item" data-page="favorites" onclick="navigate('favorites')">
           <svg viewBox="0 0 24 24" style="stroke:#f5c518"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>즐겨찾기
@@ -3158,7 +3158,7 @@ async function loadNotices(){
     const pollHtml=poll?renderPollBlock(poll,votesByPoll[poll.id]||[],uid):'';
     return`<div class="notice-item">
       <div class="notice-item-row" onclick="toggleNotice('${uid}')">
-        <div class="notice-icon">🚨</div>
+        <div class="notice-icon">📢</div>
         <div class="notice-title">${escHtml(n.title)}${simoBadge}${pollBadge}${isNew?'<span class="badge-new">NEW</span>':''}</div>
         <div class="notice-date">${dateStr}</div>
       </div>
@@ -4874,7 +4874,7 @@ async function triggerNotify(type,body){
 // triggerNotify()가 부르는 백엔드 /api/notify/* 가 웹 푸시와 동시에 notifications 테이블에도
 // 같은 내용을 남겨두므로(bugwang-server의 insertNotifications), 여기선 그 테이블을 읽기만 한다.
 const NOTIF_TYPE_META={
-  'notice':{icon:'🚨',bg:'rgba(232,162,61,.18)'},
+  'notice':{icon:'📢',bg:'rgba(232,162,61,.18)'},
   'comment':{icon:'💬',bg:'rgba(0,102,204,.14)'},
   'poll-vote':{icon:'📊',bg:'rgba(139,92,246,.16)'},
   'teacher-message':{icon:'👩‍🏫',bg:'rgba(46,204,113,.16)'},

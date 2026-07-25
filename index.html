@@ -483,6 +483,15 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .view-btn{padding:6px 14px;font-size:12px;border-radius:var(--radius-pill);border:1px solid var(--hairline);color:var(--ink-48);background:var(--canvas);transition:all var(--t)}
 .view-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
 
+/* 일지 뷰(리스트/타임테이블)에서 오늘이 아닌 다른 날짜의 기록도 훑어볼 수 있는 날짜 네비게이션 */
+.planner-log-datenav{display:flex;align-items:center;gap:4px;position:relative;margin-left:auto}
+.planner-log-datenav button{width:26px;height:26px;border-radius:50%;border:1px solid var(--hairline);background:var(--canvas);color:var(--ink-80);font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:border-color var(--t),color var(--t),transform .12s ease}
+.planner-log-datenav button:hover{border-color:var(--blue);color:var(--blue)}
+.planner-log-datenav button:active{transform:scale(.9)}
+.planner-log-date-label{font-size:12px;font-weight:600;color:var(--ink-48);min-width:70px;text-align:center;cursor:pointer;user-select:none}
+.planner-log-date-label:hover{color:var(--blue)}
+#planner-log-date-input{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;bottom:0;right:0}
+
 /* list view */
 .list-view-rows{display:flex;flex-direction:column;gap:8px}
 .list-session-row{background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--radius-sm);padding:12px 16px;display:flex;align-items:center;gap:12px}
@@ -1319,6 +1328,13 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
           <div class="view-toggle">
             <button class="view-btn active" id="btn-list-view" onclick="switchView('list')">≡ 리스트</button>
             <button class="view-btn" id="btn-block-view" onclick="switchView('block')">⊞ 타임테이블</button>
+            <div class="planner-log-datenav">
+              <button onclick="shiftPlannerViewDate(-1)" title="이전 날">‹</button>
+              <span class="planner-log-date-label" id="planner-log-date" onclick="openPlannerDatePicker()">오늘</span>
+              <button onclick="shiftPlannerViewDate(1)" title="다음 날">›</button>
+              <button onclick="openPlannerDatePicker()" title="날짜 선택">🗓</button>
+              <input type="date" id="planner-log-date-input" onchange="pickPlannerViewDate(this.value)">
+            </div>
           </div>
           <div id="list-view">
             <div class="list-view-rows" id="session-log-list">
@@ -2885,7 +2901,7 @@ function navigate(page){
   if(page==='admin')loadMyRole().then(loadAdminList);
   if(page==='report')loadReportData();
   if(page==='teacher')loadMyRole().then(loadTeacherView);
-  if(page==='planner')renderMyMonthCalendar();
+  if(page==='planner'){plannerViewDate=new Date();loadPlannerViewDateData();renderMyMonthCalendar();}
   if(page==='simo')loadMyRole().then(renderSimoPage);
   if(page==='mypage'){updatePushToggleUI();loadMyMessageThread()}
   if(page==='dm')loadDmRooms();
@@ -4562,6 +4578,11 @@ function addSubject(){
 
 // SESSION LOG
 function renderSessionLog(){
+  // 이 함수는 "오늘"의 실시간 상태(진행 중인 타이머 포함)를 반영하는 용도라, 사용자가 일지
+  // 뷰 날짜 내비게이션으로 다른 날짜를 보고 있을 때 타이머 tick 등으로 호출되면 그 화면을
+  // 오늘 데이터로 덮어써버릴 수 있다 — 그럴 땐 조용히 건너뛴다(과거 날짜 렌더는
+  // renderSessionLogForDate()가 따로 담당).
+  if(!isPlannerViewToday())return;
   const el=document.getElementById('session-log-list');
   // 진행 중인 타이머 포함한 전체 태스크 기준으로 합산
   const colors={};subjects.forEach(s=>colors[s.name]=s.color);
@@ -4601,12 +4622,46 @@ function renderSessionLog(){
   `).join('');
 }
 
+// 오늘이 아닌 다른 날짜의 기록은 (그날의 subjects/tasks 구조가 지금과 다를 수 있어) 과제별
+// 누적 합산이 아니라, 그날 실제로 기록된 세션을 시간순으로 하나씩 그대로 보여준다.
+function renderSessionLogForDate(sessions){
+  const el=document.getElementById('session-log-list');
+  const done=sessions.filter(s=>s.started_at&&s.ended_at&&s.duration_seconds);
+  if(!done.length){
+    el.innerHTML='<div style="text-align:center;padding:32px;color:var(--ink-48);font-size:13px">이 날짜엔 기록된 공부가 없어요</div>';
+    return;
+  }
+  el.innerHTML=done.map(s=>{
+    const time=new Date(s.started_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+    return`
+    <div class="list-session-row">
+      <div class="list-session-dot" style="background:${colorForSubject(s.subject)}"></div>
+      <div class="list-session-info">
+        <div class="list-session-subject">${escHtml(s.subject)}</div>
+        <div class="list-session-task">${escHtml(s.task_name)} · ${time}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="list-session-dur" style="font-size:16px">${fmtSec(s.duration_seconds)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 // TIME TABLE — 시간당 행을 나눠서 그리던 예전 "타임블록" 방식은 1시간 넘는 세션이 행 경계마다
 // 끊겨 보이거나 다음 행의 다른 세션에 가려질 수 있었음. 6시~23시 전체를 하나의 캔버스로 두고
 // 세션을 절대좌표(top/height, px-per-hour 기준)로 배치해서 여러 시간에 걸친 공부도 하나의
 // 이어진 색 블록으로 자연스럽게 표시한다(사진처럼 텍스트 없이 색상 블록만).
 const TB_HOUR_START=6, TB_HOUR_END=23, TB_ROW_H=48;
-function renderTimeblock(){
+// sessions를 안 주면 "오늘"의 실시간 todaySessions를 그린다 — 이 경우 사용자가 일지 뷰에서
+// 다른 날짜를 보고 있으면(isPlannerViewToday()===false) 그 화면을 오늘 데이터로 덮어쓰지
+// 않도록 건너뛴다. 과거 날짜는 loadPlannerViewDateData()가 해당 날짜의 세션을 직접 조회해서
+// sessions 인자로 넘겨 호출하므로 이 가드와 무관하게 항상 그려진다.
+function renderTimeblock(sessions){
+  const usingLive=sessions===undefined;
+  if(usingLive){
+    if(!isPlannerViewToday())return;
+    sessions=todaySessions;
+  }
   const labelsEl=document.getElementById('timeblock-labels');
   const canvasEl=document.getElementById('timeblock-canvas');
   const hourCount=TB_HOUR_END-TB_HOUR_START+1;
@@ -4620,7 +4675,7 @@ function renderTimeblock(){
   canvasEl.innerHTML='';
   const colors={};subjects.forEach(s=>colors[s.name]=s.color);
   const fmt=d=>d.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
-  todaySessions.forEach(s=>{
+  sessions.forEach(s=>{
     if(!s.started_at||!s.duration_seconds)return;
     const start=new Date(s.started_at);
     const end=new Date(start.getTime()+s.duration_seconds*1000);
@@ -4643,7 +4698,10 @@ function renderTimeblock(){
         block.style.height=`${TB_ROW_H}px`;
         block.style.left=`${leftPct}%`;
         block.style.width=`${widthPct}%`;
-        block.style.background=colors[s.subject]||'#7a7a7a';
+        // 지금 subjects 목록에 없는 과목(과거 날짜라 그 사이 이름이 바뀌었거나 지워진 과목)도
+        // colorForSubject()의 이름 기반 해시 색으로 항상 일관되게 표시되게 한다.
+        const blockColor=colors[s.subject]||colorForSubject(s.subject);
+        block.style.background=blockColor;
         block.title=title;
         block.onclick=()=>toast(title);
         // 같은 과목(같은 색)이라도 어떤 과제였는지 칸 안에서 바로 구분되도록 과제 이름을 적는다.
@@ -4651,7 +4709,7 @@ function renderTimeblock(){
         if(widthPct>=6){
           const label=document.createElement('span');
           label.className='timeblock-block-label';
-          label.style.color=readableTextColor(colors[s.subject]);
+          label.style.color=readableTextColor(blockColor);
           label.textContent=s.task_name;
           block.appendChild(label);
         }
@@ -4660,6 +4718,57 @@ function renderTimeblock(){
       segStart=segEnd;
     }
   });
+}
+
+// 일지 뷰(리스트/타임테이블)에서 오늘이 아닌 다른 날짜의 공부 기록도 넘겨보게 하는 상태.
+// 왼쪽 "과목별 태스크" 패널(할 일 추가/체크/타이머)은 항상 오늘 것만 다루므로 이 날짜와 무관함
+// — 브라우징 대상은 오른쪽 일지 뷰(리스트/타임테이블)뿐이다.
+let plannerViewDate=new Date();
+function isPlannerViewToday(){return localDateStr(plannerViewDate)===localDateStr(new Date())}
+function updatePlannerLogDateLabel(){
+  const el=document.getElementById('planner-log-date');
+  if(!el)return;
+  if(isPlannerViewToday()){el.textContent='오늘';return}
+  const days=['일','월','화','수','목','금','토'];
+  el.textContent=`${plannerViewDate.getMonth()+1}/${plannerViewDate.getDate()} (${days[plannerViewDate.getDay()]})`;
+}
+async function loadPlannerViewDateData(){
+  updatePlannerLogDateLabel();
+  if(isPlannerViewToday()){
+    renderSessionLog();
+    renderTimeblock();
+    return;
+  }
+  if(!currentUser)return;
+  const ds=localDateStr(plannerViewDate);
+  const {data}=await sb.from('study_sessions').select('*').eq('user_id',currentUser.id).eq('date',ds).order('started_at');
+  const sessions=data||[];
+  renderSessionLogForDate(sessions);
+  renderTimeblock(sessions);
+}
+function shiftPlannerViewDate(dir){
+  const next=new Date(plannerViewDate);
+  next.setDate(next.getDate()+dir);
+  next.setHours(0,0,0,0);
+  const today=new Date();today.setHours(0,0,0,0);
+  if(next>today)return; // 미래로는 넘어가지 않음(기록이 있을 수 없으므로)
+  plannerViewDate=next;
+  loadPlannerViewDateData();
+}
+function pickPlannerViewDate(dateStr){
+  if(!dateStr)return;
+  const picked=new Date(dateStr+'T00:00:00');
+  const today=new Date();today.setHours(0,0,0,0);
+  if(picked>today)picked.setTime(today.getTime());
+  plannerViewDate=picked;
+  loadPlannerViewDateData();
+}
+function openPlannerDatePicker(){
+  const inp=document.getElementById('planner-log-date-input');
+  if(!inp)return;
+  inp.max=localDateStr(new Date());
+  inp.value=localDateStr(plannerViewDate);
+  if(inp.showPicker)inp.showPicker();else inp.click();
 }
 
 function switchView(v){

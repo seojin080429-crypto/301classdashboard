@@ -283,13 +283,13 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 #toast.show{transform:translateX(-50%) translateY(0);opacity:1}
 
 /* 새 버전 배포 알림 배너 */
-.update-banner{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(140%);display:flex;align-items:center;gap:10px;background:#1d1d1f;color:#fff;padding:10px 10px 10px 16px;border-radius:var(--radius-pill);box-shadow:0 8px 30px rgba(0,0,0,.35);z-index:998;transition:transform .3s ease;max-width:calc(100vw - 32px)}
+.update-banner{position:fixed;left:50%;top:24px;transform:translateX(-50%) translateY(-140%);display:flex;align-items:center;gap:10px;background:#1d1d1f;color:#fff;padding:10px 10px 10px 16px;border-radius:var(--radius-pill);box-shadow:0 8px 30px rgba(0,0,0,.35);z-index:998;transition:transform .3s ease;max-width:calc(100vw - 32px)}
 .update-banner.show{transform:translateX(-50%) translateY(0)}
 .update-banner-text{font-size:13px;white-space:nowrap}
 .update-banner-btn{background:var(--blue);color:#fff;font-size:13px;font-weight:600;padding:7px 14px;border-radius:var(--radius-pill);white-space:nowrap;flex-shrink:0}
 .update-banner-close{color:rgba(255,255,255,.5);font-size:16px;padding:0 4px;flex-shrink:0}
 @media(max-width:834px){
-  .update-banner{bottom:calc(20px + env(safe-area-inset-bottom))}
+  .update-banner{top:calc(var(--nav-h) + env(safe-area-inset-top) + 12px)}
 }
 
 /* 기능 둘러보기 튜토리얼 */

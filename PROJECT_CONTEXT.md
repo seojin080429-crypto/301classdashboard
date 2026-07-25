@@ -218,6 +218,14 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-07-25 (7차): "새로고침하기" 업데이트 배너(`#update-banner`)가 07-25(5차)로 다른 하단
+  잘림은 다 고쳐진 뒤에도 유독 계속 잘려 보인다는 제보 — 원인 조사 대신 사용자 요청대로 아예
+  화면 하단이 아니라 **상단으로 위치를 옮김**. `sw.js`의 `SW_BUILD`도 `2026-07-25-7`로 올림.
+  - 데스크톱: `bottom:24px` → `top:24px`. 모바일(`@media(max-width:834px)`)은 상단에 이미
+    모바일 탑바(`.topbar`, 높이 `var(--nav-h)+safe-area-inset-top`)가 있어서 그 위로 겹치지
+    않도록 `top:calc(var(--nav-h) + env(safe-area-inset-top) + 12px)`로 그 아래 여백에 배치.
+    슬라이드 애니메이션 방향도 아래에서 올라오던 것(`translateY(140%)→0`)을 위에서
+    내려오는 것(`translateY(-140%)→0`)으로 맞춰 뒤집음.
 - 2026-07-25 (6차): 우하단 학습 타이머 배지(`#timer-badge`)가 다른 UI를 가린다는 제보로
   자유롭게 드래그해서 옮길 수 있게 함(`initTimerBadgeDrag()`). `sw.js`의 `SW_BUILD`도
   `2026-07-25-6`으로 올림.

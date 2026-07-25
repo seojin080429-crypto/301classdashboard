@@ -483,6 +483,11 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .view-btn{padding:6px 14px;font-size:12px;border-radius:var(--radius-pill);border:1px solid var(--hairline);color:var(--ink-48);background:var(--canvas);transition:all var(--t)}
 .view-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
 
+/* 과목별 비율 도넛의 일/주/월 범위 토글 */
+.pie-range-toggle{display:flex;gap:4px}
+.pie-range-btn{padding:4px 10px;font-size:11px;border-radius:var(--radius-pill);border:1px solid var(--hairline);color:var(--ink-48);background:var(--canvas);transition:all var(--t)}
+.pie-range-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+
 /* 일지 뷰(리스트/타임테이블)에서 오늘이 아닌 다른 날짜의 기록도 훑어볼 수 있는 날짜 네비게이션 */
 .planner-log-datenav{display:flex;align-items:center;gap:4px;position:relative;margin-left:auto}
 .planner-log-datenav button{width:26px;height:26px;border-radius:50%;border:1px solid var(--hairline);background:var(--canvas);color:var(--ink-80);font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:border-color var(--t),color var(--t),transform .12s ease}
@@ -1403,7 +1408,14 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         </div>
 
         <div>
-            <div class="section-hd"><div class="section-hd-title" style="font-size: 16px;">과목별 비율</div></div>
+            <div class="section-hd">
+              <div class="section-hd-title" style="font-size: 16px;">과목별 비율</div>
+              <div class="pie-range-toggle" id="report-pie-range">
+                <button class="pie-range-btn active" data-range="day" onclick="setReportPieRange('day')">일</button>
+                <button class="pie-range-btn" data-range="week" onclick="setReportPieRange('week')">주</button>
+                <button class="pie-range-btn" data-range="month" onclick="setReportPieRange('month')">월</button>
+              </div>
+            </div>
             <div class="subject-pie-row">
               <div class="pie-chart-wrap">
                 <div class="pie-chart" id="subject-pie"></div>
@@ -2231,6 +2243,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
   <div class="sd-fs-body">
     <div class="view-toggle" style="margin-bottom:16px">
       <button class="view-btn active" id="sd-tab-report" onclick="switchStudentDetailView('report')">리포트</button>
+      <button class="view-btn" id="sd-tab-timetable" onclick="switchStudentDetailView('timetable')">타임테이블</button>
       <button class="view-btn" id="sd-tab-calendar" onclick="switchStudentDetailView('calendar')">캘린더</button>
     </div>
 
@@ -2254,7 +2267,14 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
             </div>
         </div>
         <div>
-            <div class="section-hd"><div class="section-hd-title" style="font-size: 16px;">과목별 비율 (오늘)</div></div>
+            <div class="section-hd">
+              <div class="section-hd-title" style="font-size: 16px;">과목별 비율</div>
+              <div class="pie-range-toggle" id="sd-pie-range">
+                <button class="pie-range-btn active" data-range="day" onclick="setSdPieRange('day')">일</button>
+                <button class="pie-range-btn" data-range="week" onclick="setSdPieRange('week')">주</button>
+                <button class="pie-range-btn" data-range="month" onclick="setSdPieRange('month')">월</button>
+              </div>
+            </div>
             <div class="subject-pie-row">
               <div class="pie-chart-wrap">
                 <div class="pie-chart" id="sd-subject-pie"></div>
@@ -2270,6 +2290,38 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
       <div class="spacer">
         <div class="section-hd"><div class="section-hd-title">반 랭킹</div></div>
         <div class="card" style="padding:14px 20px"><div class="rank-list" id="sd-rank-list"></div></div>
+      </div>
+    </div>
+
+    <!-- 학생 본인의 학습 플래너 일지 뷰(리스트/타임테이블)와 동일한 구성 — 날짜를 넘겨가며
+         그날 그 학생이 실제로 기록한 공부를 그대로 볼 수 있다 -->
+    <div id="sd-timetable-view" style="display:none">
+      <div class="view-toggle">
+        <button class="view-btn active" id="sd-btn-list-view" onclick="switchSdView('list')">≡ 리스트</button>
+        <button class="view-btn" id="sd-btn-block-view" onclick="switchSdView('block')">⊞ 타임테이블</button>
+        <div class="planner-log-datenav">
+          <button onclick="shiftSdLogDate(-1)" title="이전 날">‹</button>
+          <span class="planner-log-date-label" id="sd-log-date" onclick="openSdDatePicker()">오늘</span>
+          <button onclick="shiftSdLogDate(1)" title="다음 날">›</button>
+          <button onclick="openSdDatePicker()" title="날짜 선택">🗓</button>
+          <input type="date" id="sd-log-date-input" onchange="pickSdLogDate(this.value)">
+        </div>
+      </div>
+      <div id="sd-list-view">
+        <div class="list-view-rows" id="sd-session-log-list">
+          <div style="text-align:center;padding:32px;color:var(--ink-48);font-size:13px">아직 기록된 공부가 없어요</div>
+        </div>
+      </div>
+      <div id="sd-block-view" style="display:none">
+        <div class="timeblock-wrap">
+          <div class="timeblock-labels" id="sd-timeblock-labels">
+            <div class="timeblock-corner"></div>
+          </div>
+          <div class="timeblock-body">
+            <div class="timeblock-minute-header"><span>10</span><span>20</span><span>30</span><span>40</span><span>50</span><span>60</span></div>
+            <div class="timeblock-canvas" id="sd-timeblock-canvas"></div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -4624,8 +4676,8 @@ function renderSessionLog(){
 
 // 오늘이 아닌 다른 날짜의 기록은 (그날의 subjects/tasks 구조가 지금과 다를 수 있어) 과제별
 // 누적 합산이 아니라, 그날 실제로 기록된 세션을 시간순으로 하나씩 그대로 보여준다.
-function renderSessionLogForDate(sessions){
-  const el=document.getElementById('session-log-list');
+function renderSessionLogForDate(sessions,idPrefix){
+  const el=document.getElementById((idPrefix||'')+'session-log-list');
   const done=sessions.filter(s=>s.started_at&&s.ended_at&&s.duration_seconds);
   if(!done.length){
     el.innerHTML='<div style="text-align:center;padding:32px;color:var(--ink-48);font-size:13px">이 날짜엔 기록된 공부가 없어요</div>';
@@ -4656,14 +4708,17 @@ const TB_HOUR_START=6, TB_HOUR_END=23, TB_ROW_H=48;
 // 다른 날짜를 보고 있으면(isPlannerViewToday()===false) 그 화면을 오늘 데이터로 덮어쓰지
 // 않도록 건너뛴다. 과거 날짜는 loadPlannerViewDateData()가 해당 날짜의 세션을 직접 조회해서
 // sessions 인자로 넘겨 호출하므로 이 가드와 무관하게 항상 그려진다.
-function renderTimeblock(sessions){
+// idPrefix: 선생님용 "학생현황" 화면도 같은 로직을 재사용할 수 있도록, DOM id 접두사를
+// 다르게 줄 수 있게 함(기본 ''=내 학습 플래너, 'sd-'=학생현황 타임테이블 탭).
+function renderTimeblock(sessions,idPrefix){
+  idPrefix=idPrefix||'';
   const usingLive=sessions===undefined;
   if(usingLive){
     if(!isPlannerViewToday())return;
     sessions=todaySessions;
   }
-  const labelsEl=document.getElementById('timeblock-labels');
-  const canvasEl=document.getElementById('timeblock-canvas');
+  const labelsEl=document.getElementById(idPrefix+'timeblock-labels');
+  const canvasEl=document.getElementById(idPrefix+'timeblock-canvas');
   const hourCount=TB_HOUR_END-TB_HOUR_START+1;
   labelsEl.innerHTML='<div class="timeblock-corner"></div>';
   for(let h=TB_HOUR_START;h<=TB_HOUR_END;h++){
@@ -4843,6 +4898,74 @@ async function loadReportData(){
   renderReport(weekMins, rankByStudent);
 }
 
+// 과목별 비율 도넛/범례를 그리는 공용 함수 — 학생 본인 리포트('')와 선생님용 학생현황
+// 리포트('sd-') 양쪽에서 그대로 재사용한다. subjWithTime은 이미 {name,sec,color}로 정리된
+// 배열(0초 항목은 미리 걸러진 상태)이어야 한다.
+function renderSubjectPie(subjWithTime,totalSecRaw,idPrefix){
+  idPrefix=idPrefix||'';
+  const total=totalSecRaw||1;
+  const pieEl=document.getElementById(idPrefix+'subject-pie');
+  const legendEl=document.getElementById(idPrefix+'subject-band-legend');
+  const totalEl=document.getElementById(idPrefix+'subject-pie-total');
+  if(totalEl)totalEl.textContent=fmtHM(totalSecRaw);
+  if(!subjWithTime.length){
+    pieEl.style.background='var(--hairline)';
+    legendEl.innerHTML='<div style="text-align:center;padding:16px;color:var(--ink-48);font-size:13px">기록 없음</div>';
+    return;
+  }
+  let acc=0;
+  const stops=subjWithTime.map(s=>{
+    const start=acc;acc+=(s.sec/total)*100;
+    return `${s.color} ${start}% ${acc}%`;
+  }).join(', ');
+  pieEl.style.background=`conic-gradient(${stops})`;
+  // 도넛이 한 바퀴 쭉 채워지며 등장하도록 애니메이션 재생(다시 그릴 때마다 처음부터 재생되도록
+  // 클래스를 떼었다 강제 리플로우 후 다시 붙임)
+  pieEl.classList.remove('pie-animate');
+  void pieEl.offsetWidth;
+  pieEl.classList.add('pie-animate');
+  legendEl.innerHTML=subjWithTime.map(s=>{
+    const pct=Math.round((s.sec/total)*100);
+    return`<div class="band-legend-item"><span class="band-legend-dot" style="background:${s.color}"></span><span class="band-legend-name">${s.name}</span><span class="band-legend-val">${fmtHM(s.sec)} · ${pct}%</span></div>`;
+  }).join('');
+}
+// 일/주/월 범위의 시작 날짜 문자열(월/일 범위는 오늘까지 포함) — 과목별 비율을 이 범위로 집계할 때 공용으로 쓴다.
+function getPieRangeStart(range){
+  const d=new Date();d.setHours(0,0,0,0);
+  if(range==='week'){
+    const dow=d.getDay();
+    d.setDate(d.getDate()-(dow===0?6:dow-1)); // 이번 주 월요일
+  }else if(range==='month'){
+    d.setDate(1); // 이번 달 1일
+  }
+  return localDateStr(d);
+}
+
+// 학생 본인 리포트의 "과목별 비율" 일/주/월 토글 상태
+let reportPieRange='day';
+function setReportPieRange(range){
+  reportPieRange=range;
+  document.querySelectorAll('#report-pie-range .pie-range-btn').forEach(b=>b.classList.toggle('active',b.dataset.range===range));
+  loadReportSubjectPie();
+}
+async function loadReportSubjectPie(){
+  const colors={};subjects.forEach(s=>colors[s.name]=s.color);
+  let totals={};
+  if(reportPieRange==='day'){
+    // 오늘은 실행 중인 타이머까지 실시간 반영되는 로컬 subjects를 그대로 쓴다(추가 조회 없음)
+    subjects.forEach(sub=>{
+      const sec=sub.tasks.reduce((s,t)=>s+t.seconds,0);
+      if(sec>0)totals[sub.name]=sec;
+    });
+  }else if(currentUser){
+    const {data}=await sb.from('study_sessions').select('subject,duration_seconds').eq('user_id',currentUser.id).gte('date',getPieRangeStart(reportPieRange));
+    (data||[]).forEach(r=>{totals[r.subject]=(totals[r.subject]||0)+r.duration_seconds});
+  }
+  const totalSecRaw=Object.values(totals).reduce((a,b)=>a+b,0);
+  const subjWithTime=Object.entries(totals).map(([name,sec])=>({name,sec,color:colors[name]||colorForSubject(name)})).filter(s=>s.sec>0).sort((a,b)=>b.sec-a.sec);
+  renderSubjectPie(subjWithTime,totalSecRaw,'');
+}
+
 function renderReport(weekMins = [], rankByStudent = {}){
   const weekTotalSeconds = weekMins.reduce((a, b) => a + b, 0) * 60;
   const weekAvgSeconds = weekTotalSeconds > 0 ? weekTotalSeconds / (new Date().getDay() || 7) : 0;
@@ -4853,33 +4976,8 @@ function renderReport(weekMins = [], rankByStudent = {}){
     const h=Math.round((m/max)*56);const isToday=(i+1)%7===today||(today===0&&i===6);
     return`<div class="week-bar-wrap"><div class="week-bar${m>0?' has-data':''}${isToday?' today':''}" style="height:${h}px"></div></div>`;
   }).join('') || '<div style="text-align:center;padding:16px;color:var(--ink-48);font-size:13px">이번 주 기록 없음</div>';
-  const totalSecRaw=subjects.reduce((s,sub)=>s+sub.tasks.reduce((a,t)=>a+t.seconds,0),0);
-  const total=totalSecRaw||1;
-  const pieEl=document.getElementById('subject-pie');
-  const legendEl=document.getElementById('subject-band-legend');
-  document.getElementById('subject-pie-total').textContent=fmtHM(totalSecRaw);
-  const subjWithTime=subjects.map(sub=>({name:sub.name,color:sub.color,sec:sub.tasks.reduce((s,t)=>s+t.seconds,0)})).filter(s=>s.sec>0);
-  if(!subjWithTime.length){
-    pieEl.style.background='var(--hairline)';
-    legendEl.innerHTML='<div style="text-align:center;padding:16px;color:var(--ink-48);font-size:13px">기록 없음</div>';
-  }else{
-    let acc=0;
-    const stops=subjWithTime.map(s=>{
-      const start=acc;acc+=(s.sec/total)*100;
-      return `${s.color} ${start}% ${acc}%`;
-    }).join(', ');
-    pieEl.style.background=`conic-gradient(${stops})`;
-    // 도넛이 한 바퀴 쭉 채워지며 등장하도록 애니메이션 재생(리포트를 다시 열 때마다 처음부터 재생되도록
-    // 클래스를 떼었다 강제 리플로우 후 다시 붙임)
-    pieEl.classList.remove('pie-animate');
-    void pieEl.offsetWidth;
-    pieEl.classList.add('pie-animate');
-    legendEl.innerHTML=subjWithTime.map(s=>{
-      const pct=Math.round((s.sec/total)*100);
-      return`<div class="band-legend-item"><span class="band-legend-dot" style="background:${s.color}"></span><span class="band-legend-name">${s.name}</span><span class="band-legend-val">${fmtHM(s.sec)} · ${pct}%</span></div>`;
-    }).join('');
-  }
-  
+  loadReportSubjectPie();
+
   const sortedRank = Object.entries(rankByStudent).sort((a, b) => b[1] - a[1]);
   const maxR = sortedRank[0]?.[1] || 1;
   const medals=['🥇','🥈','🥉'];
@@ -6920,11 +7018,11 @@ function shiftMyPlannerMonth(dir){
 
 // 선생님: 학생 상세 학습현황 전체화면
 // 리포트 탭(학생 본인의 학습 리포트와 동일한 구성) + 캘린더 탭(날짜별 계획/완료 목록) 두 가지로 볼 수 있다.
-let sdState={userId:null,studentId:null,year:null,month:null,calLoaded:false};
+let sdState={userId:null,studentId:null,year:null,month:null,calLoaded:false,logDate:new Date()};
 function openStudentDetail(sid,name,userId){
   if(!userId){toast('학생 정보를 찾을 수 없어요 (계정 미가입 상태일 수 있어요)');return}
   const n=new Date();
-  sdState={userId,studentId:sid,year:n.getFullYear(),month:n.getMonth(),calLoaded:false};
+  sdState={userId,studentId:sid,year:n.getFullYear(),month:n.getMonth(),calLoaded:false,logDate:new Date()};
   document.getElementById('sd-title').textContent=`${name} (${sid}번) 학습현황`;
   document.getElementById('student-detail-fullscreen').classList.add('open');
   document.body.style.overflow='hidden';
@@ -6936,11 +7034,91 @@ function closeStudentDetail(){
 }
 function switchStudentDetailView(view){
   document.getElementById('sd-report-view').style.display=view==='report'?'block':'none';
+  document.getElementById('sd-timetable-view').style.display=view==='timetable'?'block':'none';
   document.getElementById('sd-calendar-view').style.display=view==='calendar'?'block':'none';
   document.getElementById('sd-tab-report').classList.toggle('active',view==='report');
+  document.getElementById('sd-tab-timetable').classList.toggle('active',view==='timetable');
   document.getElementById('sd-tab-calendar').classList.toggle('active',view==='calendar');
   if(view==='report')loadStudentReportData(sdState.userId,sdState.studentId);
+  else if(view==='timetable')loadSdLogDate();
   else if(view==='calendar'&&!sdState.calLoaded){sdState.calLoaded=true;renderMonthCalendar('sd',sdState.userId,sdState.year,sdState.month)}
+}
+
+// ── 학생현황의 "타임테이블" 탭 — 학생 본인 플래너의 일지 뷰 날짜 내비게이션과 동일한 로직을
+// renderTimeblock()/renderSessionLogForDate()에 idPrefix='sd-'만 넘겨서 그대로 재사용한다.
+function switchSdView(v){
+  document.getElementById('sd-list-view').style.display=v==='list'?'block':'none';
+  document.getElementById('sd-block-view').style.display=v==='block'?'block':'none';
+  document.getElementById('sd-btn-list-view').classList.toggle('active',v==='list');
+  document.getElementById('sd-btn-block-view').classList.toggle('active',v==='block');
+}
+function updateSdLogDateLabel(){
+  const el=document.getElementById('sd-log-date');
+  if(!el)return;
+  const today=localDateStr()===localDateStr(sdState.logDate);
+  if(today){el.textContent='오늘';return}
+  const days=['일','월','화','수','목','금','토'];
+  el.textContent=`${sdState.logDate.getMonth()+1}/${sdState.logDate.getDate()} (${days[sdState.logDate.getDay()]})`;
+}
+async function loadSdLogDate(){
+  updateSdLogDateLabel();
+  if(!sdState.userId)return;
+  const ds=localDateStr(sdState.logDate);
+  const {data}=await sb.from('study_sessions').select('*').eq('user_id',sdState.userId).eq('date',ds).order('started_at');
+  const sessions=data||[];
+  renderSessionLogForDate(sessions,'sd-');
+  renderTimeblock(sessions,'sd-');
+}
+function shiftSdLogDate(dir){
+  const next=new Date(sdState.logDate);
+  next.setDate(next.getDate()+dir);
+  next.setHours(0,0,0,0);
+  const today=new Date();today.setHours(0,0,0,0);
+  if(next>today)return;
+  sdState.logDate=next;
+  loadSdLogDate();
+}
+function pickSdLogDate(dateStr){
+  if(!dateStr)return;
+  const picked=new Date(dateStr+'T00:00:00');
+  const today=new Date();today.setHours(0,0,0,0);
+  if(picked>today)picked.setTime(today.getTime());
+  sdState.logDate=picked;
+  loadSdLogDate();
+}
+function openSdDatePicker(){
+  const inp=document.getElementById('sd-log-date-input');
+  if(!inp)return;
+  inp.max=localDateStr(new Date());
+  inp.value=localDateStr(sdState.logDate);
+  if(inp.showPicker)inp.showPicker();else inp.click();
+}
+
+// 학생현황 리포트 탭의 "과목별 비율" 일/주/월 토글 상태
+let sdPieRange='day';
+function setSdPieRange(range){
+  sdPieRange=range;
+  document.querySelectorAll('#sd-pie-range .pie-range-btn').forEach(b=>b.classList.toggle('active',b.dataset.range===range));
+  loadSdSubjectPie();
+}
+async function loadSdSubjectPie(){
+  if(!sdState.userId)return;
+  let totals={};
+  if(sdPieRange==='day'){
+    const todayStr=localDateStr();
+    const {data}=await sb.from('study_sessions').select('subject,duration_seconds,started_at,ended_at').eq('user_id',sdState.userId).eq('date',todayStr);
+    (data||[]).forEach(r=>{
+      // 실행 중인 세션(ended_at 없음)은 duration_seconds가 아직 0이므로 경과 시간을 더해준다
+      const sec=r.ended_at?r.duration_seconds:Math.floor((Date.now()-new Date(r.started_at).getTime())/1000);
+      totals[r.subject]=(totals[r.subject]||0)+sec;
+    });
+  }else{
+    const {data}=await sb.from('study_sessions').select('subject,duration_seconds').eq('user_id',sdState.userId).gte('date',getPieRangeStart(sdPieRange));
+    (data||[]).forEach(r=>{totals[r.subject]=(totals[r.subject]||0)+r.duration_seconds});
+  }
+  const totalSecRaw=Object.values(totals).reduce((a,b)=>a+b,0);
+  const subjWithTime=Object.entries(totals).map(([name,sec])=>({name,sec,color:colorForSubject(name)})).filter(s=>s.sec>0).sort((a,b)=>b.sec-a.sec);
+  renderSubjectPie(subjWithTime,totalSecRaw,'sd-');
 }
 
 // 학생 본인의 renderReport()와 동일한 구성이지만, 대상 학생의 subjects(과목별 오늘 시간)를
@@ -6989,29 +7167,12 @@ function renderStudentReport(weekMins,subjTotals,rankByStudent,studentId){
 
   const todayTotalSec=Object.values(subjTotals).reduce((a,b)=>a+b,0);
   document.getElementById('sd-rep-today').textContent=fmtHM(todayTotalSec);
-  const total=todayTotalSec||1;
-  const pieEl=document.getElementById('sd-subject-pie');
-  const legendEl=document.getElementById('sd-subject-band-legend');
-  document.getElementById('sd-subject-pie-total').textContent=fmtHM(todayTotalSec);
+  // 이 리포트를 처음 열 때는 "일" 범위 기본값이므로 방금 받아온 오늘 데이터로 바로 그린다
+  // (setSdPieRange가 다른 범위로 바꾸면 그때 별도로 다시 조회해서 이 파이만 갱신함).
+  sdPieRange='day';
+  document.querySelectorAll('#sd-pie-range .pie-range-btn').forEach(b=>b.classList.toggle('active',b.dataset.range==='day'));
   const subjWithTime=Object.entries(subjTotals).map(([name,sec])=>({name,sec,color:colorForSubject(name)})).filter(s=>s.sec>0).sort((a,b)=>b.sec-a.sec);
-  if(!subjWithTime.length){
-    pieEl.style.background='var(--hairline)';
-    legendEl.innerHTML='<div style="text-align:center;padding:16px;color:var(--ink-48);font-size:13px">기록 없음</div>';
-  }else{
-    let acc=0;
-    const stops=subjWithTime.map(s=>{
-      const start=acc;acc+=(s.sec/total)*100;
-      return`${s.color} ${start}% ${acc}%`;
-    }).join(', ');
-    pieEl.style.background=`conic-gradient(${stops})`;
-    pieEl.classList.remove('pie-animate');
-    void pieEl.offsetWidth;
-    pieEl.classList.add('pie-animate');
-    legendEl.innerHTML=subjWithTime.map(s=>{
-      const pct=Math.round((s.sec/total)*100);
-      return`<div class="band-legend-item"><span class="band-legend-dot" style="background:${s.color}"></span><span class="band-legend-name">${s.name}</span><span class="band-legend-val">${fmtHM(s.sec)} · ${pct}%</span></div>`;
-    }).join('');
-  }
+  renderSubjectPie(subjWithTime,todayTotalSec,'sd-');
 
   const sortedRank=Object.entries(rankByStudent).sort((a,b)=>b[1]-a[1]);
   const maxR=sortedRank[0]?.[1]||1;

@@ -218,6 +218,21 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-07-25 (10차): "학생현황"(선생님용) 화면을 학생 본인 학습 플래너와 같은 경험으로 확장 +
+  과목별 비율 파이를 일/주/월 단위로 볼 수 있게 함(학생현황·학습리포트 양쪽 모두).
+  `sw.js`의 `SW_BUILD`도 `2026-07-25-10`으로 올림.
+  - **`renderTimeblock()`/`renderSessionLogForDate()`에 `idPrefix` 파라미터 추가** — DOM id
+    접두사만 다르게 줘서 학생 본인 플래너('')와 학생현황('sd-') 양쪽에서 같은 렌더 로직을
+    그대로 재사용. 학생현황엔 이 두 함수를 쓰는 새 "타임테이블" 탭을 추가(`sd-tab-timetable`)
+    — 학생 본인 플래너와 동일한 리스트/타임테이블 전환 + ‹ 날짜 › 🗓 내비게이션을 그대로 갖춤
+    (`sdState.logDate`로 상태 관리, `loadSdLogDate`/`shiftSdLogDate`/`pickSdLogDate`).
+  - **과목별 비율 도넛 렌더를 `renderSubjectPie(subjWithTime,totalSec,idPrefix)` 공용 함수로
+    추출**하고, 학생 본인 리포트(`page-report`)와 학생현황 리포트 탭 양쪽에 일/주/월 토글
+    (`.pie-range-toggle`)을 추가함. "일"은 기존처럼 실시간(오늘 실행 중인 타이머 경과분 포함)
+    으로 계산하고, "주"/"월"은 `study_sessions`을 해당 기간(이번 주 월요일부터/이번 달 1일부터)
+    으로 새로 집계(`getPieRangeStart()`). 과목 색상은 현재 `subjects` 목록에 있으면 그 색을,
+    없으면(과거에 이름이 바뀌었거나 지워진 과목) `colorForSubject()` 해시색으로 폴백해서
+    항상 일관되게 표시.
 - 2026-07-25 (9차): 학습 플래너 일지 뷰(리스트/타임테이블)에서 오늘이 아닌 다른 날짜의 공부
   기록도 넘겨볼 수 있는 날짜 내비게이션 추가. `sw.js`의 `SW_BUILD`도 `2026-07-25-9`로 올림.
   - `.view-toggle`(리스트/타임테이블 버튼) 옆에 ‹ 날짜 › 🗓 내비게이션 추가(`planner-log-datenav`).

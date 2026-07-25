@@ -218,6 +218,22 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-07-25 (5차): DM 하단 잘림의 **진짜** 근본 원인을 사용자가 정확히 특정해줌 — `.page.active`에
+  걸린 `page-in` 애니메이션이 `animation-fill-mode:both`라서 애니메이션이 끝난 뒤에도
+  `transform:translateY(0)`이 계속 남아있었고, 이 `transform`이 자손 `position:fixed` 요소의
+  containing block을 뷰포트가 아니라 `.page`(`#page-dm`) 자신으로 바꿔버려서, `.dm-thread-panel`의
+  `position:fixed`가 진짜 뷰포트 기준이 아니라 `#page-dm` 기준으로 잡히며 그만큼 아래로 밀려
+  하단이 잘렸던 것(CSS 스펙: `transform`이 `none`이 아닌 조상은 그 자손 `fixed`/`absolute`
+  요소의 containing block이 된다). `sw.js`의 `SW_BUILD`도 `2026-07-25-5`로 올림.
+  - **수정은 `page-in` 키프레임에서 `transform` 자체를 빼고 `opacity`만 남기는 것 하나**
+    (`@keyframes page-in{from{opacity:0}to{opacity:1}}`). **07-25(2차~4차)에 시도했던
+    `--vvh`(visualViewport 실측)/`height:100%` 제거 등은 전부 이 진짜 원인이 아니었음** —
+    당시엔 증상이 간헐적/기기별로 달라 보여서 다른 방향으로 파고들었는데, 실은 처음부터
+    `.page`에 걸린 애니메이션의 `fill-mode:both` 잔여 transform이 원인이었음. **교훈: 어떤
+    페이지 안에서 `position:fixed` 자식 요소가 뷰포트가 아니라 그 부모 컨테이너 기준으로
+    잘못 위치하는 것처럼 보이면, 그 부모(또는 조상)에 `transform`(애니메이션으로 남은 잔여
+    값 포함)이 걸려있는지부터 확인할 것 — `filter`/`perspective`/`will-change:transform`도
+    동일하게 containing block을 바꾸므로 같이 의심.**
 - 2026-07-25 (4차): 사용자가 DM 하단 잘림의 진짜 원인을 직접 특정해줌 + 과목 색상 팔레트를
   "스테들러 클래식 파스텔"로 재교체. `sw.js`의 `SW_BUILD`도 `2026-07-25-4`로 올림.
   - **DM 하단 잘림의 실제 원인은 `.dm-thread-active{height:100%}`였음**(사용자 진단, 코드로

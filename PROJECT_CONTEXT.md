@@ -218,6 +218,20 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-07-25 (6차): 우하단 학습 타이머 배지(`#timer-badge`)가 다른 UI를 가린다는 제보로
+  자유롭게 드래그해서 옮길 수 있게 함(`initTimerBadgeDrag()`). `sw.js`의 `SW_BUILD`도
+  `2026-07-25-6`으로 올림.
+  - Pointer Events(`pointerdown`/`move`/`up`/`cancel`)로 마우스/터치를 한 코드로 처리.
+    4px 이상 움직였을 때만 "드래그"로 인정하고, 움직임이 없었으면(=그냥 탭/클릭) 기존처럼
+    `reopenTimerView()`로 전체화면 타이머를 열도록 유지 — 이 판단 때문에 배지의
+    `onclick="reopenTimerView()"` 인라인 속성은 제거하고 `pointerup` 핸들러 안에서 조건부로
+    호출하도록 옮김. 정지 버튼(`.timer-badge-stop`)은 `pointerdown` 시점에 타깃이 그
+    버튼이면 드래그 시작 자체를 건너뛰어서 기존 정지 동작을 그대로 보존.
+  - 옮긴 위치는 `localStorage`(`timerBadgePos`)에 저장해 다음에 열어도 유지, 화면 크기가
+    바뀌면(회전 등) 저장된 좌표를 뷰포트 안으로 재보정. 드래그 전(기본 상태)에는 기존 CSS의
+    우하단 고정 위치(모바일 safe-area 대응 포함)를 그대로 쓰고, 한 번이라도 드래그하면 그때부터
+    인라인 `left`/`top`이 그 CSS를 덮어써서 자유 위치로 전환됨. `touch-action:none`을 추가해
+    모바일에서 드래그 중 배경 스크롤과 충돌하지 않게 함.
 - 2026-07-25 (5차): DM 하단 잘림의 **진짜** 근본 원인을 사용자가 정확히 특정해줌 — `.page.active`에
   걸린 `page-in` 애니메이션이 `animation-fill-mode:both`라서 애니메이션이 끝난 뒤에도
   `transform:translateY(0)`이 계속 남아있었고, 이 `transform`이 자손 `position:fixed` 요소의

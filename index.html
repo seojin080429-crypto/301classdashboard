@@ -683,7 +683,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .uni-diff{font-size:11px;color:var(--ink-48)}
 
 /* TIMER RUNNING BADGE */
-.timer-badge{position:fixed;bottom:24px;right:24px;background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--radius-lg);padding:12px 16px;box-shadow:0 4px 24px rgba(0,0,0,.12);display:none;align-items:center;gap:12px;z-index:150;min-width:220px}
+.timer-badge{position:fixed;bottom:24px;right:24px;background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--radius-lg);padding:12px 16px;box-shadow:0 4px 24px rgba(0,0,0,.12);display:none;align-items:center;gap:12px;z-index:150;min-width:220px;touch-action:none;user-select:none}
 .timer-badge.visible{display:flex}
 .timer-badge-dot{width:8px;height:8px;border-radius:50%;background:var(--blue);animation:pulse 1.2s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.85)}}
@@ -2000,7 +2000,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 </div>
 
 <!-- 타이머 실행 중 배지 -->
-<div class="timer-badge" id="timer-badge" onclick="reopenTimerView()" style="cursor:pointer">
+<div class="timer-badge" id="timer-badge" style="cursor:pointer">
   <div class="timer-badge-dot"></div>
   <div class="timer-badge-info">
     <div class="timer-badge-subject" id="badge-subject">—</div>
@@ -4462,6 +4462,66 @@ async function loadTodaySessionsOnly(){
 function showTimerBadge(sub,task){const b=document.getElementById('timer-badge');b.classList.add('visible');document.getElementById('badge-subject').textContent=sub;document.getElementById('badge-task').textContent=task}
 function hideTimerBadge(){document.getElementById('timer-badge').classList.remove('visible')}
 function updateTimerBadge(sub,task,time){document.getElementById('badge-subject').textContent=sub;document.getElementById('badge-task').textContent=task;document.getElementById('badge-time').textContent=time}
+
+// 우하단 타이머 배지가 다른 UI를 가린다는 제보로, 자유롭게 드래그해서 옮길 수 있게 함.
+// 옮긴 위치는 localStorage에 기억해뒀다가 다음에 열 때도 그대로 유지한다.
+(function initTimerBadgeDrag(){
+  const badge=document.getElementById('timer-badge');
+  const POS_KEY='timerBadgePos';
+  let dragging=false,moved=false,pointerId=null;
+  let startX=0,startY=0,startLeft=0,startTop=0;
+  function clampPos(x,y){
+    const w=badge.offsetWidth||220,h=badge.offsetHeight||50;
+    const maxX=Math.max(4,window.innerWidth-w-4),maxY=Math.max(4,window.innerHeight-h-4);
+    return {x:Math.min(Math.max(x,4),maxX),y:Math.min(Math.max(y,4),maxY)};
+  }
+  function applyPos(x,y){
+    badge.style.left=x+'px';badge.style.top=y+'px';
+    badge.style.right='auto';badge.style.bottom='auto';
+  }
+  function savePos(x,y){try{localStorage.setItem(POS_KEY,JSON.stringify({x,y}))}catch(e){}}
+  function restorePos(){
+    let saved=null;
+    try{saved=JSON.parse(localStorage.getItem(POS_KEY))}catch(e){}
+    if(!saved||typeof saved.x!=='number'||typeof saved.y!=='number')return;
+    const c=clampPos(saved.x,saved.y);
+    applyPos(c.x,c.y);
+  }
+  badge.addEventListener('pointerdown',(e)=>{
+    if(e.target.closest('.timer-badge-stop'))return; // 정지 버튼은 드래그 대상이 아니라 원래 클릭 동작 유지
+    dragging=true;moved=false;pointerId=e.pointerId;
+    const rect=badge.getBoundingClientRect();
+    startX=e.clientX;startY=e.clientY;startLeft=rect.left;startTop=rect.top;
+    badge.setPointerCapture(pointerId);
+  });
+  badge.addEventListener('pointermove',(e)=>{
+    if(!dragging||e.pointerId!==pointerId)return;
+    const dx=e.clientX-startX,dy=e.clientY-startY;
+    if(!moved&&(Math.abs(dx)>4||Math.abs(dy)>4))moved=true;
+    if(!moved)return;
+    const c=clampPos(startLeft+dx,startTop+dy);
+    applyPos(c.x,c.y);
+  });
+  function endDrag(e){
+    if(!dragging||(pointerId!==null&&e.pointerId!==pointerId))return;
+    dragging=false;
+    if(moved){
+      const rect=badge.getBoundingClientRect();
+      savePos(rect.left,rect.top);
+    }else if(!e.target.closest('.timer-badge-stop')){
+      reopenTimerView(); // 드래그가 아니라 그냥 탭/클릭이었으면 원래대로 전체화면 타이머를 연다
+    }
+    pointerId=null;
+  }
+  badge.addEventListener('pointerup',endDrag);
+  badge.addEventListener('pointercancel',endDrag);
+  window.addEventListener('resize',()=>{
+    if(!badge.style.left)return; // 아직 한 번도 안 옮겼으면(기본 우하단 위치) 그대로 둠
+    const c=clampPos(parseFloat(badge.style.left),parseFloat(badge.style.top));
+    applyPos(c.x,c.y);
+  });
+  restorePos();
+})();
 
 // ADD SUBJECT
 function openAddSubjectModal(){document.getElementById('add-subject-modal').classList.add('open');document.getElementById('new-subject-input').focus()}

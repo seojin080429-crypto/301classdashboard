@@ -218,6 +218,19 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-07-25 (3차): 07-25(2차)에서 `top+bottom`만으로 채우게 고쳤는데도 같은 안드로이드
+  태블릿에서 DM 입력창 하단 잘림이 재현됨(사용자가 재차 스크린샷 제보) — `top/bottom:0`
+  방식 자체도 이 기기/브라우저에서는 실제 보이는 영역과 안 맞았다는 뜻이라, 더 확실한 방법으로
+  교체. `sw.js`의 `SW_BUILD`도 `2026-07-25-3`으로 올림.
+  - **`window.visualViewport`로 실측한 높이를 CSS 변수(`--vvh`)로 내려주는 방식 도입**
+    (`updateRealViewportHeight()`, 메인 스크립트 최상단). `resize`/`orientationchange`/
+    `visualViewport.resize` 이벤트마다 갱신. `#timer-fullscreen`/`.dm-thread-panel`은 이제
+    `bottom`을 아예 안 쓰고 `height:100dvh;height:var(--vvh,100dvh)`로 교체 — `--vvh`가
+    아직 없으면(JS 실행 전 첫 페인트 순간) `100dvh`로 폴백하고, JS가 돌면 즉시 진짜 측정값으로
+    스냅됨. **07-25(2차)에 "top+height+bottom 동시 지정 금지"라고 적었던 건 여전히 유효한
+    스펙 지식이지만, 그 자체가 이 기기의 하단 잘림을 완전히 못 고쳤다는 게 이번에 확인됨 —
+    top/bottom(inset) 방식보다 JS 실측 `--vvh`가 더 신뢰도가 높다는 게 이번 조사의 결론.**
+    앞으로 새 전체화면 오버레이를 만들 때도 `--vvh`를 우선 사용할 것.
 - 2026-07-25 (2차): 안드로이드 태블릿 스크린샷 제보로 DM 스레드 입력창(전송 버튼 포함)이
   하단에서 잘려 보이는 실제 원인을 특정해서 수정. `sw.js`의 `SW_BUILD`도 `2026-07-25-2`로 올림.
   - **원인은 CSS `top`+`height`+`bottom` 동시 지정으로 인한 과잉조건(over-constrained)**.

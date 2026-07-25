@@ -403,12 +403,11 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 }
 
 /* FULLSCREEN TIMER */
-/* top/right/bottom/left을 모두 0으로 주는 것만으로 뷰포트에 꽉 채운다. 여기에 height까지
-   같이 명시하면(예: height:100dvh) top+height+bottom이 동시에 지정된 과잉조건이 되어 스펙상
-   bottom이 무시되고 height 쪽 계산값이 이기게 되는데, 이 값이 실기기(특히 안드로이드 브라우저)
-   에서 실제 보이는 영역보다 크게 계산되면 하단이 화면 밖으로 밀려 잘려 보인다 — 절대 height를
-   같이 주지 말 것(DM 스레드 패널에서도 동일한 문제로 겪음, 아래 .dm-thread-panel 참고). */
-#timer-fullscreen{position:fixed;inset:0;background:#0d0f1a;z-index:300;display:none;flex-direction:column;}
+/* top+bottom(또는 inset:0)만으로 채우는 방식은 안드로이드 일부 브라우저에서 실제 보이는
+   영역과 어긋나 하단이 잘리는 사례가 있었다(DM 스레드 패널에서 실제 겪음). bottom은 아예
+   빼고, JS가 visualViewport로 실측해 내려주는 --vvh 변수를 height로 직접 써서 항상 진짜
+   보이는 높이에 맞춘다(100dvh는 --vvh가 아직 없을 때의 폴백). */
+#timer-fullscreen{position:fixed;top:0;left:0;right:0;height:100dvh;height:var(--vvh,100dvh);background:#0d0f1a;z-index:300;display:none;flex-direction:column;}
 #timer-fullscreen.open{display:flex;}
 .tf-topbar{display:flex;align-items:center;justify-content:space-between;padding:calc(16px + env(safe-area-inset-top)) 28px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
 .tf-top-left{font-size:17px;font-weight:600;color:#fff;letter-spacing:-.022em}
@@ -724,12 +723,12 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
   .dm-thread-panel {
     display: none;
     position: fixed;
-    /* top/left/right/bottom 네 값만으로 뷰포트에 꽉 채운다 — width:100vw/height:100dvh를
-       같이 주면 top+height+bottom이 동시에 지정되는 과잉조건이 되어 스펙상 bottom이 무시되고
-       height 계산값이 이기는데, 안드로이드 기기에서 이 값이 실제 보이는 영역보다 크게 잡혀
-       하단 입력창이 화면 밖으로 밀려 잘려 보이는 문제가 있었음(2026-07-25 제보) — 반드시
-       네 offset만으로 크기를 결정하게 두고 width/height를 별도로 지정하지 말 것. */
-    top: 0; left: 0; right: 0; bottom: 0;
+    /* top+bottom만으로 채우면 안드로이드 일부 브라우저에서 실제 보이는 영역과 어긋나 하단
+       입력창이 화면 밖으로 밀려 잘려 보이는 문제가 있었음(2026-07-25 제보). bottom은 빼고
+       JS가 visualViewport로 실측해 내려주는 --vvh를 height로 직접 써서 진짜 보이는 높이에
+       맞춘다(100dvh는 --vvh가 아직 없을 때의 폴백, updateRealViewportHeight() 참고). */
+    top: 0; left: 0; right: 0;
+    height: 100dvh; height: var(--vvh, 100dvh);
     z-index: 500; /* 상단 탑바를 완전히 덮도록 레이어 순위 상향 */
     background: var(--canvas);
     border-radius: 0;
@@ -2391,6 +2390,22 @@ const MAX_DEVICES = 2;
 // 백엔드에서 생성한 VAPID 키 쌍 중 공개키 — 공개키는 그대로 노출돼도 안전하다(개인키만
 // bugwang-server 쪽 환경변수로 비공개 보관). 서버와 반드시 같은 쌍이어야 구독이 유효함.
 const VAPID_PUBLIC_KEY = 'BKlgOPpkMz2NkgZjOqCiIjZAy3psUp1YneP6avxWh3gOKb9ZLV1atk6ZxmfSONocDq98FEltO0UrRxS1uZ3BHqY';
+
+// 일부 안드로이드 브라우저는 100dvh가 실제로 보이는 화면 높이와 어긋나는 경우가 있어서
+// (DM 스레드 패널 하단 입력창이 화면 밖으로 밀려 잘려 보인다는 제보로 발견), JS로 실측한
+// 값을 CSS 변수(--vvh)로 내려준다. visualViewport가 있으면 그 값(주소창/키보드 상태가 반영된
+// 진짜 보이는 높이)을 쓰고, 없으면 innerHeight로 대체. 전체화면 오버레이류는 이 변수를
+// 100dvh보다 우선해서 쓴다(CSS의 `height:100dvh;height:var(--vvh,100dvh)` 순서 참고).
+function updateRealViewportHeight(){
+  const h=(window.visualViewport?window.visualViewport.height:window.innerHeight);
+  document.documentElement.style.setProperty('--vvh',h+'px');
+}
+updateRealViewportHeight();
+window.addEventListener('resize',updateRealViewportHeight);
+window.addEventListener('orientationchange',updateRealViewportHeight);
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize',updateRealViewportHeight);
+}
 
 // ── 기기제한 (계정당 캠스터디 입장 가능 기기 수 제한 — 로그인 자체는 무제한) ──
 function getDeviceId(){

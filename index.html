@@ -41,14 +41,14 @@ html{background:var(--parchment)}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:17px;-webkit-font-smoothing:antialiased}
 html,body{overflow-x:hidden;max-width:100vw}
-body{font-family:'Inter','Noto Sans KR',system-ui,sans-serif;font-weight:400;line-height:1.47;letter-spacing:-.022em;color:var(--ink);background:var(--parchment);min-height:100vh}
+body{font-family:'Inter','Noto Sans KR',system-ui,sans-serif;font-weight:400;line-height:1.47;letter-spacing:-.022em;color:var(--ink);background:var(--parchment);min-height:100vh;min-height:100dvh}
 a{color:var(--blue);text-decoration:none}
 button{cursor:pointer;border:none;background:none;font-family:inherit;color:inherit;transition:transform .12s ease}
 button:active{transform:scale(.94)}
 input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 
 /* AUTH */
-#auth-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--parchment);padding:24px}
+#auth-screen{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--parchment);padding:24px}
 .auth-card{background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--radius-lg);padding:48px 40px;width:100%;max-width:420px;box-shadow:0 4px 40px rgba(0,0,0,.08)}
 .auth-logo{text-align:center;margin-bottom:28px}
 .auth-logo-mark{display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:14px;margin-bottom:12px;overflow:hidden}
@@ -74,12 +74,12 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .auth-optional{font-size:11px;color:var(--ink-48);margin-left:4px;font-weight:400}
   
 /* NAME SETUP */
-#name-setup-screen{min-height:100vh;display:none;flex-direction:column;align-items:center;justify-content:center;background:var(--parchment);padding:24px}
+#name-setup-screen{min-height:100vh;min-height:100dvh;display:none;flex-direction:column;align-items:center;justify-content:center;background:var(--parchment);padding:24px}
 #name-setup-screen.visible{display:flex}
 .name-setup-emoji{font-size:40px;margin-bottom:12px;text-align:center}
 
 /* APP SHELL */
-#app-shell{display:none;min-height:100vh}
+#app-shell{display:none;min-height:100vh;min-height:100dvh}
 #app-shell.visible{display:flex}
 
 /* SIDEBAR */
@@ -124,7 +124,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .sidebar-overlay.visible{display:block}
 
 /* MAIN */
-.main-content{margin-left:var(--sidebar-w);flex:1;min-width:0;min-height:100vh;background:var(--parchment)}
+.main-content{margin-left:var(--sidebar-w);flex:1;min-width:0;min-height:100vh;min-height:100dvh;background:var(--parchment)}
 .page{display:none;padding:32px 40px;max-width:1100px}
 .page.active{display:block;animation:page-in .32s ease both}
 @keyframes page-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
@@ -378,15 +378,32 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .task-done-check.checked{background:var(--blue);border-color:var(--blue);animation:task-check-pop .28s ease}
 .task-done-check.checked::after{content:'';display:block;width:4px;height:7px;border:1.5px solid #fff;border-top:none;border-left:none;transform:rotate(42deg) translate(0,-1px)}
 @keyframes task-check-pop{0%{transform:scale(.7)}55%{transform:scale(1.18)}100%{transform:scale(1)}}
-.task-del-btn{color:var(--ink-48);font-size:14px;padding:0 2px;background:none;border:none;cursor:pointer;opacity:0;transition:opacity var(--t),color var(--t),transform .12s ease}
+.task-del-btn{color:var(--ink-48);font-size:14px;padding:0 2px;background:none;border:none;cursor:pointer;opacity:0;transition:opacity var(--t),color var(--t),transform .12s ease;flex-shrink:0}
 .task-row:hover .task-del-btn{opacity:1}
 .task-del-btn:hover{color:#c00}
-.task-edit-btn{color:var(--ink-48);padding:0 2px;background:none;border:none;cursor:pointer;opacity:0;transition:opacity var(--t),color var(--t),transform .12s ease;display:flex;align-items:center}
+.task-edit-btn{color:var(--ink-48);padding:0 2px;background:none;border:none;cursor:pointer;opacity:0;transition:opacity var(--t),color var(--t),transform .12s ease;display:flex;align-items:center;flex-shrink:0}
 .task-row:hover .task-edit-btn{opacity:1}
 .task-edit-btn:hover{color:var(--blue)}
+.task-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* 터치 기기(hover 자체가 없는) 대응 — hover로만 나타나던 작은 아이콘 버튼들을 항상 보이게
+   하고, Apple HIG(44pt)/Material(48dp) 권장에 맞춰 탭 영역을 넉넉히 키운다. max-width가
+   아니라 pointer:coarse를 기준으로 삼는 이유: 아이패드는 가로모드/큰 화면에서도 터치
+   입력이라 폭 기준 미디어쿼리만으로는 못 잡기 때문. */
+@media(pointer:coarse){
+  .task-edit-btn,.task-del-btn{opacity:1;padding:9px}
+  .erm-row .task-edit-btn,.erm-row .task-del-btn{padding:8px}
+  .task-done-check{width:22px;height:22px}
+  .subject-add-btn{width:30px;height:30px}
+  .task-play-btn{width:34px;height:34px}
+  .task-row{gap:8px}
+  .modal-close{padding:8px;margin:-8px -8px 0 0}
+  .tf-close{padding:9px 16px}
+  .dm-msg-del,.qna-reply-btn,.calc-row-del{padding:6px}
+}
 
 /* FULLSCREEN TIMER */
-#timer-fullscreen{position:fixed;inset:0;background:#0d0f1a;z-index:300;display:none;flex-direction:column;}
+#timer-fullscreen{position:fixed;inset:0;height:100vh;height:100dvh;background:#0d0f1a;z-index:300;display:none;flex-direction:column;}
 #timer-fullscreen.open{display:flex;}
 .tf-topbar{display:flex;align-items:center;justify-content:space-between;padding:calc(16px + env(safe-area-inset-top)) 28px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
 .tf-top-left{font-size:17px;font-weight:600;color:#fff;letter-spacing:-.022em}
@@ -395,8 +412,8 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .tf-date{font-size:13px;color:rgba(255,255,255,.5)}
 .tf-close{display:flex;align-items:center;gap:6px;padding:7px 14px;background:rgba(255,255,255,.08);border:none;border-radius:var(--radius-pill);color:#fff;font-size:13px;cursor:pointer;transition:background var(--t),transform .12s ease}
 .tf-close:hover{background:rgba(255,255,255,.15)}
-.tf-body{display:grid;grid-template-columns:420px 1fr;flex:1;overflow:hidden}
-.tf-left{padding:28px;border-right:1px solid rgba(255,255,255,.08);overflow-y:auto;display:flex;flex-direction:column;gap:16px}
+.tf-body{display:grid;grid-template-columns:420px 1fr;flex:1;min-height:0;overflow:hidden}
+.tf-left{padding:28px;padding-bottom:calc(28px + env(safe-area-inset-bottom));border-right:1px solid rgba(255,255,255,.08);overflow-y:auto;min-height:0;display:flex;flex-direction:column;gap:16px}
 .tf-focus-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:var(--radius-lg);padding:20px}
 .tf-focus-label{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:10px}
 .tf-focus-time{font-size:56px;font-weight:600;letter-spacing:-.04em;color:#fff;line-height:1;margin-bottom:16px;font-variant-numeric:tabular-nums}
@@ -424,7 +441,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .tf-task-name{flex:1;font-size:13px;color:rgba(255,255,255,.8)}
 .tf-task-time{font-size:12px;font-weight:600;color:rgba(255,255,255,.5);font-variant-numeric:tabular-nums}
 .tf-task-time.running{color:#5b8df6}
-.tf-right{padding:24px;overflow-y:auto}
+.tf-right{padding:24px;padding-bottom:calc(24px + env(safe-area-inset-bottom));overflow-y:auto;min-height:0}
 .tf-rank-title{font-size:15px;font-weight:600;color:#fff;margin-bottom:6px}
 .tf-rank-sub{font-size:12px;color:rgba(255,255,255,.4);margin-bottom:16px}
 .tf-rank-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
@@ -483,7 +500,8 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .timeblock-minute-header{display:flex;height:20px;border-bottom:1px solid var(--hairline)}
 .timeblock-minute-header span{flex:1;text-align:right;padding-right:2px;font-size:10px;color:var(--ink-48);font-variant-numeric:tabular-nums}
 .timeblock-canvas{position:relative;border-left:1px solid var(--hairline);background-image:repeating-linear-gradient(to bottom,var(--hairline) 0,var(--hairline) 1px,transparent 1px,transparent 48px),repeating-linear-gradient(to right,var(--hairline) 0,var(--hairline) 1px,transparent 1px,transparent 16.6667%)}
-.timeblock-block{position:absolute;box-sizing:border-box;border:2px solid var(--canvas);border-radius:3px;min-width:4px;cursor:pointer}
+.timeblock-block{position:absolute;box-sizing:border-box;border:2px solid var(--canvas);border-radius:3px;min-width:4px;cursor:pointer;overflow:hidden;display:flex;align-items:center}
+.timeblock-block-label{padding:0 4px;font-size:10px;font-weight:600;color:rgba(0,0,0,.72);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
 
 /* REPORT */
 .week-chart{display:flex;align-items:flex-end;gap:6px;height:64px;margin:12px 0 6px}
@@ -679,7 +697,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
   .topbar{display:flex}
   .sidebar.open ~ .topbar{display:none}
   .main-content{margin-left:0;padding-top:calc(var(--nav-h) + env(safe-area-inset-top))}
-  .page{padding:20px 16px}
+  .page{padding:20px 16px calc(20px + env(safe-area-inset-bottom))}
   .grid-2,.grid-3,.grid-4{grid-template-columns:1fr}
   .meal-cols{grid-template-columns:1fr}
   .calc-grid{grid-template-columns:1fr}
@@ -2405,9 +2423,17 @@ function isStaffRole(){return ['admin','owner'].includes(currentRole)||currentIs
 function isOwnerTier(){return currentRole==='owner'||currentIsTeacher}
 let subjects = []; // [{name, color, tasks:[{id,name,done,seconds,taskId}]}]
 let activeTimer = null; // {subjectIdx, taskIdx, interval, startedAt, sessionId}
+// attachTimerInterval()이 여러 경로(시작/재개/원격동기화/서버재조회)에서 호출될 수 있는데,
+// 그중 한 곳이라도 이전 interval을 못 지우고 새로 만들면 두 interval이 동시에 살아남아 서로
+// 다른 과목의 seconds를 동시에 올리는(사용자가 "두 과목이 동시에 초가 오른다"고 제보한) 버그가
+// 생긴다. activeTimer 객체별 핸들이 아니라 이 모듈 전역 변수 하나로 "현재 살아있는 timer
+// interval"을 추적해서, attachTimerInterval()이 항상 이 값부터 지우고 시작하게 한다(방어 1).
+let timerIntervalId=null;
 let todaySessions = []; // [{subject,task,seconds,startedAt,endedAt}]
 let totalTodaySec = 0;
-const SUBJECT_COLORS = ['#0066cc','#e040fb','#00c853','#ff8f00','#00acc1','#6d4c41','#78909c','#e53935','#43a047','#fb8c00'];
+// 사용자가 준 "마일드 라이너" 형광펜 팔레트로 교체(2026-07-25) — 파스텔톤이라 타임테이블
+// 블록 위에 검정 글씨(과제 이름) 라벨을 얹어도 대비가 잘 나옴.
+const SUBJECT_COLORS = ['#cee4f5','#dfc5dd','#f8d5dc','#fddfac','#f7f5aa','#d4dbe0','#c8c48d','#e3c199','#f9ebd5','#f3c4c7'];
 
 // ── HELPERS ──
 function toast(msg,dur=2500){const e=document.getElementById('toast');e.textContent=msg;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),dur)}
@@ -3980,7 +4006,7 @@ function tfTogglePause(){
 // start_timestamp는 비운다. 다른 기기가 이 상태를 즉시 반영하도록 timer-sync도 emit한다.
 async function pauseCurrentTimer(){
   if(!activeTimer||activeTimer.startTimestamp==null)return;
-  clearInterval(activeTimer.interval);
+  clearInterval(activeTimer.interval);timerIntervalId=null;
   const rowElapsed=computeElapsedSeconds(activeTimer.startTimestamp,activeTimer.accumulatedSeconds);
   if(activeTimer.sessionId){
     // 다른 기기가 이미 이 세션을 끝내놨다면(ended_at 있음) 0행 반영 — stale 값으로 덮어쓰지 않음
@@ -4171,6 +4197,7 @@ async function handleRemoteTimerSync(state){
   if(!state||typeof state!=='object')return;
   if(state.status==='stopped'){
     if(activeTimer)clearInterval(activeTimer.interval);
+    timerIntervalId=null;
     activeTimer=null;hideTimerBadge();
     await loadTodaySessionsOnly();
     renderSubjects();await refreshStats();
@@ -4180,6 +4207,7 @@ async function handleRemoteTimerSync(state){
   const ti=si>=0?subjects[si].tasks.findIndex(t=>t.name===state.taskName):-1;
   if(si<0||ti<0)return;
   if(activeTimer)clearInterval(activeTimer.interval);
+  timerIntervalId=null;
   await loadTodaySessionsOnly();
   const prevSeconds=todaySessions.filter(r=>r.subject===state.subject&&r.task_name===state.taskName&&r.id!==state.sessionId).reduce((s,r)=>s+(r.duration_seconds||0),0);
   activeTimer={
@@ -4203,9 +4231,19 @@ async function handleRemoteTimerSync(state){
 // elapsed는 항상 computeElapsedSeconds(start_timestamp, accumulated_seconds)로 다시 계산한다
 // (누적 카운트를 그대로 더하지 않음).
 function attachTimerInterval(){
+  // 방어 1: 호출한 쪽이 이전 interval을 못 지웠더라도(경합 등으로) 여기서 한 번 더 확실히 지운다.
+  if(timerIntervalId){clearInterval(timerIntervalId);timerIntervalId=null}
   const {subjectIdx:si,taskIdx:ti,prevSeconds}=activeTimer;
   const sub=subjects[si];const task=sub.tasks[ti];
-  activeTimer.interval=setInterval(()=>{
+  const myIntervalId=setInterval(()=>{
+    // 방어 2: 이 interval이 만들어진 이후 activeTimer가 다른 태스크로 바뀌었는데도(=이 interval이
+    // 지워지지 않고 살아남았는데도) 계속 돌고 있다면, 더 이상 subjects[si].tasks[ti].seconds를
+    // 건드리지 말고 스스로 멈춘다 — 이게 바로 "두 과목이 동시에 카운트되는" 증상의 근본 원인이었음.
+    if(!activeTimer||activeTimer.subjectIdx!==si||activeTimer.taskIdx!==ti||activeTimer.startTimestamp==null){
+      clearInterval(myIntervalId);
+      if(timerIntervalId===myIntervalId)timerIntervalId=null;
+      return;
+    }
     const rowElapsed=computeElapsedSeconds(activeTimer.startTimestamp,activeTimer.accumulatedSeconds);
     subjects[si].tasks[ti].seconds=prevSeconds+rowElapsed;
     // 오늘 총 시간 = DB에 저장된 완료 세션들 + 현재 진행 중 rowElapsed
@@ -4222,6 +4260,8 @@ function attachTimerInterval(){
     if(subEl){const subTime=subEl.querySelector('.subject-total-time');if(subTime)subTime.textContent=fmtSec(subjects[si].tasks.reduce((s,t)=>s+t.seconds,0))}
     renderSessionLog();
   },1000);
+  timerIntervalId=myIntervalId;
+  activeTimer.interval=myIntervalId;
   showTimerBadge(sub.name,task.name);
   renderSubjects();
 }
@@ -4296,22 +4336,30 @@ async function resumeActiveTimerIfAny(){
 // 끝냄) 이 함수가 감지해서 로컬 값을 버리고 서버 진실로 다시 맞춘다.
 async function applyServerTimerTruth(){
   if(!currentUser)return;
+  // 이 함수는 네트워크 왕복이 있는 동안(await 도중) 사용자가 직접 다른 태스크로 전환/정지를
+  // 할 수 있다. 그 경우 여기서 들고 있는 조회 결과는 이미 낡은 스냅샷이므로, timerGen이 그
+  // 사이 바뀌었으면(startTaskTimer/stopCurrentTimer가 각자 증가시킴) 절대 덮어쓰지 않고
+  // 조용히 물러난다 — 그렇지 않으면 방금 사용자가 시작한 진짜 타이머를 낡은 응답으로 지워버릴
+  // 수 있다("두 과목이 동시에 카운트된다"는 제보의 또 다른 경로였음).
+  const genBefore=timerGen;
   const today=localDateStr();
   const {data:openRows}=await sb.from('study_sessions')
     .select('id,subject,task_name,start_timestamp,accumulated_seconds')
     .eq('user_id',currentUser.id).eq('date',today).is('ended_at',null)
     .order('started_at',{ascending:false}).limit(1);
+  if(timerGen!==genBefore)return;
   const row=openRows&&openRows[0];
   // 로컬이 이미 같은 세션을 정확히 따라가고 있으면 손대지 않음 — 매번 새 interval을 만들면
   // 기존 걸 못 지운 채 겹쳐 실행되는 문제가 생기므로, 정말 다를 때만 재구성한다.
   if(row&&activeTimer&&activeTimer.sessionId===row.id)return;
   if(!row&&!activeTimer)return;
-  if(activeTimer){clearInterval(activeTimer.interval);activeTimer=null;hideTimerBadge();}
+  if(activeTimer){clearInterval(activeTimer.interval);timerIntervalId=null;activeTimer=null;hideTimerBadge();}
   if(row){
     const si=subjects.findIndex(s=>s.name===row.subject);
     const ti=si>=0?subjects[si].tasks.findIndex(t=>t.name===row.task_name):-1;
     if(si>=0&&ti>=0){
       const {data:pastRows}=await sb.from('study_sessions').select('duration_seconds').eq('user_id',currentUser.id).eq('date',today).eq('subject',row.subject).eq('task_name',row.task_name).neq('id',row.id);
+      if(timerGen!==genBefore)return;
       const prevSeconds=(pastRows||[]).reduce((s,r)=>s+(r.duration_seconds||0),0);
       const startTimestamp=Number(row.start_timestamp);
       activeTimer={
@@ -4338,7 +4386,7 @@ async function stopCurrentTimer(){
   if(!activeTimer)return;
   const myGen=++timerGen;
   const stopped=activeTimer; // 정지 대상 스냅샷 — await 도중 activeTimer가 다른 타이머로 바뀌어도 안전하게
-  clearInterval(stopped.interval);
+  clearInterval(stopped.interval);timerIntervalId=null;
   const rowElapsed=computeElapsedSeconds(stopped.startTimestamp,stopped.accumulatedSeconds);
   const endedAt=new Date().toISOString();
   // 이번 구간만 DB에 저장 — 다른 기기가 이미 이 세션을 끝내놨다면(ended_at이 이미 채워짐)
@@ -4475,6 +4523,14 @@ function renderTimeblock(){
         block.style.background=colors[s.subject]||'#7a7a7a';
         block.title=title;
         block.onclick=()=>toast(title);
+        // 같은 과목(같은 색)이라도 어떤 과제였는지 칸 안에서 바로 구분되도록 과제 이름을 적는다.
+        // 너무 좁은 조각(짧은 구간)엔 라벨이 안 들어가므로 그런 경우엔 생략(테두리로만 구분됨).
+        if(widthPct>=6){
+          const label=document.createElement('span');
+          label.className='timeblock-block-label';
+          label.textContent=s.task_name;
+          block.appendChild(label);
+        }
         canvasEl.appendChild(block);
       }
       segStart=segEnd;

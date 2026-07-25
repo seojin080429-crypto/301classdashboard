@@ -283,13 +283,13 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 #toast.show{transform:translateX(-50%) translateY(0);opacity:1}
 
 /* 새 버전 배포 알림 배너 */
-.update-banner{position:fixed;left:50%;top:24px;transform:translateX(-50%) translateY(-140%);display:flex;align-items:center;gap:10px;background:#1d1d1f;color:#fff;padding:10px 10px 10px 16px;border-radius:var(--radius-pill);box-shadow:0 8px 30px rgba(0,0,0,.35);z-index:998;transition:transform .3s ease;max-width:calc(100vw - 32px)}
-.update-banner.show{transform:translateX(-50%) translateY(0)}
+.update-banner{position:fixed;left:50%;top:calc(12px + env(safe-area-inset-top));transform:translateX(-50%) translateY(-8px);opacity:0;pointer-events:none;display:flex;align-items:center;gap:10px;background:#1d1d1f;color:#fff;padding:10px 10px 10px 16px;border-radius:var(--radius-pill);box-shadow:0 8px 30px rgba(0,0,0,.35);z-index:998;transition:opacity .25s ease,transform .25s ease;max-width:calc(100vw - 32px)}
+.update-banner.show{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0)}
 .update-banner-text{font-size:13px;white-space:nowrap}
 .update-banner-btn{background:var(--blue);color:#fff;font-size:13px;font-weight:600;padding:7px 14px;border-radius:var(--radius-pill);white-space:nowrap;flex-shrink:0}
 .update-banner-close{color:rgba(255,255,255,.5);font-size:16px;padding:0 4px;flex-shrink:0}
 @media(max-width:834px){
-  .update-banner{top:calc(var(--nav-h) + env(safe-area-inset-top) + 12px)}
+  .update-banner{top:calc(var(--nav-h) + env(safe-area-inset-top) + 10px)}
 }
 
 /* 기능 둘러보기 튜토리얼 */
@@ -790,6 +790,8 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 
 /* TEACHER VIEW */
 .teacher-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+/* 교사 뷰는 15초마다 다시 그려지는데, 그때마다 카드 등장 애니메이션이 재생되며 깜빡이지 않도록 최초 1회만 재생 */
+.teacher-grid.loaded .student-card{animation:none}
 .student-card{background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--radius-lg);padding:16px;cursor:pointer;transition:border-color var(--t),transform var(--t),box-shadow var(--t);animation:item-in .3s ease both}
 .student-card.studying{border-color:var(--green)}
 .student-card:hover{border-color:var(--blue);transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.08)}
@@ -2633,9 +2635,11 @@ async function initApp(user,sid,name){
   document.getElementById('dash-greeting').textContent=`${g}, ${name||sid+'번'}!`;
   await syncMyProfile();
   populateMypage(meta,name,sid);
-  updateDday();renderTimetable();loadMeal();loadNotices();renderNews();initCalc();renderFavorites();
+  updateDday();renderTimetable();loadMeal();renderNews();initCalc();renderFavorites();
   showFirstLaunchGuide();
-  loadFreeBoard();loadQnaBoard();loadBugBoard();
+  // 게시판 3종은 부팅 때 무조건 미리 받지 않고, 그 페이지를 실제로 열 때(navigate() 참고)
+  // 그때 불러온다 — 대부분의 로그인 세션에서 안 열어보는 페이지까지 매번 로그인마다
+  // 통째로 미리 받을 이유가 없어서 초기 로딩 속도만 늦추고 있었음.
   subjects=buildSubjectsFromMeta(meta);
   await loadTodaySessions();
   await loadSubjectsFromDB();
@@ -2652,7 +2656,11 @@ async function initApp(user,sid,name){
   updateSimoNavVisibility();
   checkUnreadTeacherMessages();
   loadDmRooms();
-  loadMeal();loadNotices();
+  // 공지는 실모반 전용 노출 여부가 loadMyRole()/loadSimoStatus() 결과에 좌우되므로, 역할이
+  // 확정된 지금 시점에 딱 한 번만 불러온다(예전엔 역할 로드 전에도 한 번 더 불러서 실모반
+  // 공지가 잠깐 안 보였다 다시 나타나는 이중 호출이었음 — loadMeal()도 역할과 무관한데
+  // 똑같이 중복 호출되고 있어서 같이 정리).
+  loadNotices();
   // renderNews()가 loadMyRole()보다 먼저 끝나면 권한 확인(isStaffRole())이 아직 반영 전이라
   // 삭제 버튼이 안 뜰 수 있음 — 역할 로드가 끝난 시점에 이미 받아온 뉴스로 한 번 더 그려줌
   // (아직 뉴스 자체가 안 왔으면 renderNews()가 나중에 이미 반영된 권한으로 그리므로 건너뜀)
@@ -2881,6 +2889,10 @@ function navigate(page){
   if(page==='simo')loadMyRole().then(renderSimoPage);
   if(page==='mypage'){updatePushToggleUI();loadMyMessageThread()}
   if(page==='dm')loadDmRooms();
+  // 게시판은 부팅 때 미리 받지 않으므로 들어갈 때마다 최신으로 불러온다
+  if(page==='free-board')loadFreeBoard();
+  if(page==='qna-board')loadQnaBoard();
+  if(page==='bug-report')loadBugBoard();
 }
 // 로그인 직후엔 항상 대시보드가 기본으로 떠 있는 상태이므로, 마지막으로 본 페이지가 그와
 // 다르고(대시보드는 굳이 다시 안 눌러도 됨) 지금 권한으로도 여전히 사이드바에 보이는
@@ -3948,9 +3960,11 @@ async function openTimerView(si,ti){
   tfInterval=setInterval(()=>{
     updateTfDisplay();
     renderTfSubjectList();
-    // 랭킹: 5초마다 DB 재조회, 그 사이엔 진행 중인 세션만 로컬에서 초 단위로 갱신
+    // 랭킹: DB 재조회는 30초마다 한 번이면 충분 — 그 사이엔 진행 중인 세션의 경과 초를
+    // 로컬에서 재계산만 해도 화면상 차이가 없다(기존엔 5초마다 반 전체를 다시 조회해
+    // 시간당 720번씩 호출되고 있었음). 화면이 안 보일 때(탭 전환 등)는 재조회 자체를 건너뜀.
     tfRankTick++;
-    if(tfRankTick%5===0)fetchTfRankData();
+    if(tfRankTick%30===0&&!document.hidden)fetchTfRankData();
     else renderTfRankGrid();
   },1000);
   await switchActiveTimer(si,ti);
@@ -4086,16 +4100,16 @@ async function tfStop(){
   renderSubjects();
 }
 
-let tfProfileMap={};
+let tfProfileMap={},tfRankOrderKey=null;
 async function fetchTfRankData(){
   const today=localDateStr();
-  const [{data:sessions},{data:profiles}]=await Promise.all([
+  const [{data:sessions},profileMap]=await Promise.all([
     sb.from('study_sessions').select('student_id,duration_seconds,started_at,ended_at').eq('date',today),
-    sb.from('user_profiles').select('student_id,display_name,avatar_url')
+    loadProfileMap() // 프로필은 5분 공용 캐시 — 매번 반 전체를 다시 받지 않는다
   ]);
   tfRankData=sessions||[];
   tfProfileMap={};
-  (profiles||[]).forEach(p=>{tfProfileMap[p.student_id]={name:p.display_name,avatar:p.avatar_url}});
+  Object.values(profileMap).forEach(p=>{tfProfileMap[p.student_id]={name:p.display_name,avatar:p.avatar_url}});
   renderTfRankGrid();
 }
 
@@ -4110,17 +4124,29 @@ function renderTfRankGrid(){
   const sorted=Object.entries(byStudent).sort((a,b)=>b[1]-a[1]);
   document.getElementById('tf-rank-sub').textContent=`${sorted.length}명 공부중`;
   const el=document.getElementById('tf-rank-grid');
+  const fmtT=sec=>String(Math.floor(sec/3600)).padStart(2,'0')+':'+String(Math.floor((sec%3600)/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0');
+  // 이 함수는 타이머 화면에서 1초마다 불리는데, 매번 innerHTML로 그리는 전체(아바타 <img>
+  // 포함)를 새로 만들면 이미지 디코드/페인트가 계속 반복돼 장시간 켜두는 화면에서 CPU와
+  // 배터리를 갉아먹는다. 학생 구성·순서가 그대로면 시간 텍스트만 바꿔치기한다.
+  const orderKey=sorted.map(([sid])=>sid).join(',');
+  if(orderKey===tfRankOrderKey){
+    sorted.forEach(([sid,sec])=>{
+      const t=el.querySelector(`.tf-rank-card[data-sid="${sid}"] .tf-rank-time`);
+      if(t)t.textContent=fmtT(sec);
+    });
+    return;
+  }
+  tfRankOrderKey=orderKey;
   el.innerHTML=sorted.map(([sid,sec],i)=>{
     const isMe=sid===currentStudentId;
-    const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;
     const profile=tfProfileMap[sid];
     const name=profile?.name||(isMe?currentName:null)||sid+'번';
     const avatarUrl=profile?.avatar||(isMe?currentAvatarUrl:null);
     const avatarInner=avatarUrl?`<img src="${avatarUrl}" alt="">`:(isMe?(currentName?currentName[0]:sid.slice(-2)):sid.slice(-2));
-    return`<div class="tf-rank-card${isMe?' me':''}">
+    return`<div class="tf-rank-card${isMe?' me':''}" data-sid="${sid}">
       <div class="tf-rank-avatar">${avatarInner}</div>
       <div class="tf-rank-name">${name}</div>
-      <div class="tf-rank-time">${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}</div>
+      <div class="tf-rank-time">${fmtT(sec)}</div>
     </div>`;
   }).join('')||'<div style="color:rgba(255,255,255,.3);font-size:13px;grid-column:1/-1;text-align:center;padding:20px">아직 공부 중인 친구가 없어요</div>';
 }
@@ -5228,7 +5254,7 @@ async function clearAllNotifs(){
   renderNotifList();
   updateNotifBadge(0);
 }
-setInterval(()=>{if(currentUser&&!notifDropdownOpen)loadNotifCount()},30000);
+setInterval(()=>{if(currentUser&&!notifDropdownOpen&&!document.hidden)loadNotifCount()},30000);
 
 // ── 알림 미설정자에게 강제로 켜기를 유도하는 팝업 ──
 // iOS를 홈 화면에 추가 안 한 경우(isIosNonStandalone)는 애초에 이 화면에서 켤 방법이 없어
@@ -5340,23 +5366,40 @@ let dmRooms=[], dmActiveRoomId=null, dmPhotoFile=null, dmRosterCache=null, dmSel
 // DM뿐 아니라 게시판(작성자/댓글/좋아요 표시 이름)에서도 공용으로 쓰는 학번→프로필 맵.
 // posts.author_name처럼 글쓰기 시점에 박아둔 텍스트 스냅샷 대신 이 맵으로 항상 최신
 // user_profiles.display_name을 보여줘야, 마이페이지에서 이름을 바꾸면 예전 글에도 즉시 반영된다.
+// 프로필(이름/아바타)은 자주 안 바뀌는데 DM 폴링(7초)·타이머 랭킹마다 반 전체를 다시
+// 받으면 낭비라 5분 캐시를 둔다 — 이름/아바타 변경은 최대 5분 늦게 반영될 수 있음.
+let profileMapCache=null,profileMapCacheAt=0;
 async function loadProfileMap(){
+  if(profileMapCache&&Date.now()-profileMapCacheAt<5*60*1000)return profileMapCache;
   const {data}=await sb.from('user_profiles').select('student_id,display_name,avatar_url');
   const map={};
   (data||[]).forEach(p=>map[p.student_id]=p);
+  profileMapCache=map;profileMapCacheAt=Date.now();
   return map;
 }
 
+// 마지막 확인과 비교할 지문(최신 메시지 1건 + 내 읽음 상태)을 만들어, 지난 폴링과
+// 같으면 무거운 조회(방/참가자/메시지/프로필 전체)를 통째로 건너뛴다 — 기존엔 7초마다
+// 아무 변화가 없어도 모든 방의 메시지 기록 전체를 limit 없이 다시 받아오고 있었음.
+let dmRoomsFingerprint=null;
 async function loadDmRooms(){
   const {data:myParticipant}=await sb.from('dm_participants').select('room_id,last_read_at').eq('user_id',currentUser.id);
   const roomIds=(myParticipant||[]).map(p=>p.room_id);
   if(!roomIds.length){dmRooms=[];renderDmRoomList();updateDmUnreadBadge();return}
   const myReadMap={};
   (myParticipant||[]).forEach(p=>myReadMap[p.room_id]=p.last_read_at);
+  // 변경 감지: 전체 방을 통틀어 가장 최신 메시지 1건 + 내 읽음 상태로 질문을 만들어,
+  // 지난 폴링과 같으면 아래의 무거운 조회(메시지/참가자/프로필 전체 목록 다시 그리기)를
+  // 통째로 건너뛴다.
+  const {data:newest}=await sb.from('dm_messages').select('id').in('room_id',roomIds).order('created_at',{ascending:false}).limit(1);
+  const fp=(newest?.[0]?.id||'none')+'|'+roomIds.slice().sort().map(id=>id+':'+(myReadMap[id]||'')).join(',');
+  if(fp===dmRoomsFingerprint)return;
   const [{data:rooms},{data:allParticipants},{data:messages},profileMap]=await Promise.all([
     sb.from('dm_rooms').select('*').in('id',roomIds),
     sb.from('dm_participants').select('room_id,student_id,user_id').in('room_id',roomIds),
-    sb.from('dm_messages').select('id,room_id,content,image_url,sender_student_id,sender_name,created_at').in('room_id',roomIds).order('created_at',{ascending:false}),
+    // 목록 미리보기/안읽음 계산에는 방마다 최신 1건만 있으면 되므로, 전체 기록이 아니라
+    // 최신 300건 안에서만 훑는다(그 밖의 방은 아래에서 개별로 보충).
+    sb.from('dm_messages').select('id,room_id,content,image_url,sender_student_id,sender_name,created_at').in('room_id',roomIds).order('created_at',{ascending:false}).limit(300),
     loadProfileMap()
   ]);
   const participantsByRoom={};
@@ -5369,6 +5412,20 @@ async function loadDmRooms(){
       if(new Date(m.created_at)>readAt)unreadByRoom[m.room_id]=true;
     }
   });
+  // 300건 창 밖에 마지막 메시지가 있는(=오래 조용한) 방은 이전 목록에 캐시된 미리보기를
+  // 재사용하고, 그것도 없으면(첫 로드) 그 방만 따로 1건씩 조회해 채운다.
+  const missing=[];
+  roomIds.forEach(id=>{
+    if(lastMsgByRoom[id])return;
+    const prev=dmRooms.find(r=>r.id===id);
+    if(prev&&prev.lastMsg)lastMsgByRoom[id]=prev.lastMsg;
+    else missing.push(id);
+  });
+  if(missing.length){
+    const fills=await Promise.all(missing.map(id=>sb.from('dm_messages').select('id,room_id,content,image_url,sender_student_id,sender_name,created_at').eq('room_id',id).order('created_at',{ascending:false}).limit(1)));
+    fills.forEach(({data:d})=>{if(d&&d[0])lastMsgByRoom[d[0].room_id]=d[0]});
+  }
+  dmRoomsFingerprint=fp;
   dmRooms=(rooms||[]).map(r=>{
     const participants=participantsByRoom[r.id]||[];
     const others=participants.filter(p=>p.student_id!==currentStudentId);
@@ -5433,7 +5490,11 @@ function closeDmThreadMobile(){
 }
 
 async function loadDmMessages(roomId){
-  const {data,error}=await sb.from('dm_messages').select('*').eq('room_id',roomId).order('created_at');
+  // 방의 전체 기록을 통째로 받지 않고 최신 200개만 — 대화가 길어질수록 이 화면을 열
+  // 때마다(그리고 7초 폴링마다) 받는 양이 무한히 커지는 걸 막는다. (필요해지면 위로
+  // 스크롤 시 과거분을 추가로 불러오는 무한스크롤로 확장 가능)
+  const {data,error}=await sb.from('dm_messages').select('*').eq('room_id',roomId).order('created_at',{ascending:false}).limit(200);
+  if(data)data.reverse();
   if(error){toast('메시지를 불러오지 못했어요');return}
   dmLastRenderedMsgId=(data&&data.length)?data[data.length-1].id:null;
   renderDmThreadMessages(data||[]);
@@ -5667,7 +5728,8 @@ async function pollDmActiveThread(){
   }
 }
 setInterval(()=>{
-  if(!currentUser)return;
+  // 화면이 꺼져 있거나 앱이 배경으로 밀려있으면(탭 전환 등) 폴링을 쉬어서 배터리/데이터를 아낀다.
+  if(!currentUser||document.hidden)return;
   const dmPage=document.getElementById('page-dm');
   if(!dmPage||!dmPage.classList.contains('active'))return;
   loadDmRooms();
@@ -6862,18 +6924,19 @@ function shiftStudentDetailMonth(dir){
 }
 
 // ── TEACHER VIEW ──
-let teacherViewInterval = null;
+let teacherViewInterval = null, teacherUsersCache = null;
 
 async function loadTeacherView(){
   if(!currentIsTeacher){
     document.getElementById('teacher-grid').innerHTML = '<div style="text-align:center;padding:32px;color:var(--ink-48);font-size:13px;grid-column:1/-1">접근 권한이 없습니다.</div>';
     return;
   }
-  
+
+  teacherUsersCache=null; // 페이지에 새로 들어올 때만 학생 명단을 다시 받는다
   await updateTeacherViewData();
 
   clearInterval(teacherViewInterval);
-  teacherViewInterval = setInterval(updateTeacherViewData, 5000); // 5초마다 업데이트
+  teacherViewInterval = setInterval(updateTeacherViewData, 15000); // 15초마다 업데이트(라이브 집계용으로 충분)
 }
 
 async function updateTeacherViewData(){
@@ -6882,14 +6945,21 @@ async function updateTeacherViewData(){
     return;
   }
 
-  // 1. 모든 학생 정보 가져오기 (서버 API 사용)
-  const usersRes = await fetch(`${SERVER_URL}/api/users`, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({student_id:currentStudentId})
-  });
-  const usersData = await usersRes.json();
-  const students = (usersData.users || []).filter(u => u.student_id.startsWith('301')); // 301로 시작하는 학생만
+  // 교사 페이지를 벗어나거나 화면이 배경이면 폴링을 쉰다 — 기존엔 한 번 방문하면 앱을
+  // 끌 때까지 다른 페이지에 있어도 5초마다 계속 서버 조회가 돌고 있었음.
+  if(document.hidden||!document.getElementById('page-teacher')?.classList.contains('active'))return;
+
+  // 1. 모든 학생 정보 가져오기 (서버 API) — 수업 중에 안 바뀌므로 페이지 진입 시 1회만 받고 재사용
+  if(!teacherUsersCache){
+    const usersRes = await fetch(`${SERVER_URL}/api/users`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({student_id:currentStudentId})
+    });
+    const usersData = await usersRes.json();
+    teacherUsersCache = usersData.users || [];
+  }
+  const students = teacherUsersCache.filter(u => u.student_id.startsWith('301')); // 301로 시작하는 학생만
 
   // 2. 오늘 모든 학생의 공부 기록 가져오기
   const today = localDateStr();
@@ -7195,6 +7265,7 @@ function renderTeacherGrid(studentMap){
       </div>
     `;
   }).join('');
+  grid.classList.add('loaded');
 }
 
 // NEWS

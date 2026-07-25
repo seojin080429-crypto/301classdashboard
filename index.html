@@ -1516,8 +1516,12 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
     <div class="page" id="page-free-board">
       <div class="page-title">자유게시판</div>
       <div class="page-sub">반 친구들과 자유롭게 이야기하세요</div>
+      <div class="view-toggle" id="free-category-tabs" style="flex-wrap:wrap"></div>
       <div class="write-form">
         <div class="write-form-title">글 작성</div>
+        <div class="form-row">
+          <select class="form-select" id="free-post-category"></select>
+        </div>
         <textarea class="form-textarea" id="free-content" placeholder="내용을 입력하세요..."></textarea>
         <!-- 사진/동영상 업로드 -->
         <div class="photo-upload-row">
@@ -3058,8 +3062,9 @@ function buildTourSteps(){
     {sel:'[data-page="camstudy"]',title:'캠스터디',desc:'화상으로 친구들과 함께 공부하는 실시간 스터디룸이에요.'},
     {sel:'#study-btn-join',page:'camstudy',title:'참여하기',desc:'마이크는 꺼진 채로 시작하고, 카메라는 선택이에요. 오른쪽 채팅창으로 대화도 할 수 있어요.'},
 
-    {sel:'[data-page="free-board"]',title:'자유게시판',desc:'자유롭게 글을 쓰고 친구들과 소통해요.'},
-    {sel:'#free-content',page:'free-board',title:'글 작성',desc:'사진도 첨부해서 자유롭게 글을 올릴 수 있어요.'},
+    {sel:'[data-page="free-board"]',title:'자유게시판',desc:'자랑·공부인증·잡동사니·정보팁 탭으로 나눠서 글을 쓰고 친구들과 소통해요.'},
+    {sel:'#free-category-tabs',page:'free-board',title:'게시판 종류',desc:'탭을 눌러 원하는 종류의 글만 모아 볼 수 있어요.'},
+    {sel:'#free-content',page:'free-board',title:'글 작성',desc:'카테고리를 고르고, 사진도 첨부해서 자유롭게 글을 올릴 수 있어요.'},
 
     {sel:'[data-page="qna-board"]',title:'질문게시판',desc:'모르는 문제를 질문하고 답변을 받아요.'},
     {sel:'#qna-content',page:'qna-board',title:'질문 올리기',desc:'과목을 선택하고 사진과 함께 질문을 올리면 친구들이 답변해줘요.'},
@@ -6216,8 +6221,38 @@ function clearPhoto(type){
 
 // 게시판 종류(자유/질문/버그제보)가 늘어날 때마다 곳곳의 type==='free'?A:B 삼항연산이
 // 계속 늘어나는 걸 막기 위한 조회 테이블 — 새 게시판을 추가할 땐 여기 한 줄만 더하면 됨.
+// 자유게시판은 하나의 category='free'로 뭉뚱그리지 않고, 성격이 다른 글이 섞여서 원하는 걸
+// 찾기 어렵다는 요청으로 4개 하위 카테고리로 나눈다. posts.category 값 자체를 이 4개 키로
+// 쓰고(스키마 변경 없음 — category는 CHECK 제약 없는 text 컬럼), 탭으로 걸러서 보여준다.
+const FREE_BOARD_CATEGORIES=[
+  {key:'brag',label:'자랑',empty:'아직 자랑거리가 없어요. 첫 글을 남겨보세요!'},
+  {key:'studycert',label:'공부인증',empty:'아직 공부 인증이 없어요!'},
+  {key:'misc',label:'잡동사니',empty:'아직 글이 없어요.'},
+  {key:'tips',label:'정보·팁',empty:'아직 등록된 정보/팁이 없어요.'}
+];
+const FREE_CATEGORY_KEYS=FREE_BOARD_CATEGORIES.map(c=>c.key);
+let currentFreeCategory=FREE_BOARD_CATEGORIES[0].key;
+function renderFreeCategoryTabs(){
+  const tabsEl=document.getElementById('free-category-tabs');
+  const selectEl=document.getElementById('free-post-category');
+  if(tabsEl)tabsEl.innerHTML=FREE_BOARD_CATEGORIES.map(c=>
+    `<button class="view-btn${c.key===currentFreeCategory?' active':''}" data-cat="${c.key}" onclick="switchFreeCategory('${c.key}')">${c.label}</button>`
+  ).join('');
+  if(selectEl)selectEl.innerHTML=FREE_BOARD_CATEGORIES.map(c=>`<option value="${c.key}">${c.label}</option>`).join('');
+}
+function switchFreeCategory(cat){
+  currentFreeCategory=cat;
+  document.querySelectorAll('#free-category-tabs .view-btn').forEach(b=>b.classList.toggle('active',b.dataset.cat===cat));
+  const selectEl=document.getElementById('free-post-category');
+  if(selectEl)selectEl.value=cat; // 글쓰기 폼 기본 선택도 지금 보는 탭에 맞춰준다
+  loadFreeBoard();
+}
+
 const BOARD_SUBMIT_LABEL={free:'게시하기',qna:'질문 올리기',bug:'제보하기'};
-function boardLoader(type){return type==='free'?loadFreeBoard:type==='qna'?loadQnaBoard:loadBugBoard}
+function boardLoader(type){
+  if(FREE_CATEGORY_KEYS.includes(type))return loadFreeBoard;
+  return type==='qna'?loadQnaBoard:loadBugBoard;
+}
 
 async function submitPost(type){
   const contentEl=document.getElementById(`${type}-content`);
@@ -6227,6 +6262,8 @@ async function submitPost(type){
   const label=BOARD_SUBMIT_LABEL[type];
   submitBtn.textContent='올리는 중...';submitBtn.disabled=true;
   const subject=type==='qna'?document.getElementById('qna-subject').value:null;
+  // 자유게시판은 'free'라는 고정 카테고리 대신, 글쓰기 폼에서 고른 하위 카테고리를 그대로 저장한다.
+  const category=type==='free'?document.getElementById('free-post-category').value:type;
   let imageUrl=null;
   const photoInput=document.getElementById(`${type}-photo`);
   const file=photoInput.files[0];
@@ -6245,13 +6282,14 @@ async function submitPost(type){
   const {error}=await sb.from('posts').insert({
     user_id:currentUser.id,student_id:currentStudentId,
     author_name:currentName||currentStudentId+'번',
-    category:type,subject,content,image_url:imageUrl
+    category,subject,content,image_url:imageUrl
   });
   if(error){toast('게시 실패: '+error.message);submitBtn.textContent=label;submitBtn.disabled=false;return}
   contentEl.value='';clearPhoto(type);
   submitBtn.textContent=label;submitBtn.disabled=false;
   toast(type==='bug'?'제보됐어요, 확인할게요 ✓':'게시되었습니다 ✓');
-  await boardLoader(type)();
+  if(type==='free'&&category!==currentFreeCategory)switchFreeCategory(category); // 방금 글쓴 탭으로 바로 이동해서 보여줌
+  else await boardLoader(type)();
 }
 
 async function deletePost(id,imageUrl,type){
@@ -6322,7 +6360,7 @@ function renderPost(p,type,comments=[]){
   const subjectPill=p.subject?`<span class="qna-subject-pill">${p.subject}</span>`:'';
   const editBtn=canManagePost?`<button class="post-edit-btn" onclick="startEditPost('${p.id}','${type}')">수정</button>`:'';
   const deleteBtn=canManagePost?`<button class="post-delete-btn" onclick="deletePost('${p.id}','${p.image_url||''}','${type}')">삭제</button>`:'';
-  const likeHtml=type==='free'?`<div class="board-like-row">
+  const likeHtml=FREE_CATEGORY_KEYS.includes(type)?`<div class="board-like-row">
     <button class="board-like-btn ${isLiked?'liked':''}" id="board-like-btn-${p.id}" onclick="toggleLike('${p.id}')">
       <svg viewBox="0 0 24 24"><path d="M12 21s-6.716-4.443-9.192-8.143C.115 9.521 2.044 4 6.731 4c2.126 0 3.215 1.095 4.03 2.258C11.576 5.095 12.664 4 14.79 4 19.476 4 21.405 9.521 21.192 12.857 18.716 16.557 12 21 12 21z"></path></svg>
       <span class="board-like-heart">${isLiked?'♥':'♡'}</span>
@@ -6461,7 +6499,7 @@ async function loadBoardPosts(category,listElId,emptyMsg,type){
   const ids=posts.map(p=>p.id);
   const [{data:comments},{data:likes},profileMap]=await Promise.all([
     sb.from('comments').select('*').in('post_id',ids).order('created_at'),
-    type==='free'?sb.from('post_likes').select('post_id,student_id').in('post_id',ids):Promise.resolve({data:[]}),
+    FREE_CATEGORY_KEYS.includes(type)?sb.from('post_likes').select('post_id,student_id').in('post_id',ids):Promise.resolve({data:[]}),
     loadProfileMap()
   ]);
   boardProfileMap=profileMap;
@@ -6469,7 +6507,11 @@ async function loadBoardPosts(category,listElId,emptyMsg,type){
   const commentMap={};(comments||[]).forEach(c=>{if(!commentMap[c.post_id])commentMap[c.post_id]=[];commentMap[c.post_id].push(c)});
   el.innerHTML=posts.map(p=>renderPost(p,type,commentMap[p.id]||[])).join('');
 }
-async function loadFreeBoard(){await loadBoardPosts('free','free-list','아직 글이 없어요. 첫 글을 남겨보세요!','free')}
+async function loadFreeBoard(){
+  renderFreeCategoryTabs();
+  const meta=FREE_BOARD_CATEGORIES.find(c=>c.key===currentFreeCategory)||FREE_BOARD_CATEGORIES[0];
+  await loadBoardPosts(currentFreeCategory,'free-list',meta.empty,currentFreeCategory);
+}
 async function loadQnaBoard(){await loadBoardPosts('qna','qna-list','아직 질문이 없어요!','qna')}
 async function loadBugBoard(){await loadBoardPosts('bug','bug-list','아직 제보된 버그가 없어요.','bug')}
 

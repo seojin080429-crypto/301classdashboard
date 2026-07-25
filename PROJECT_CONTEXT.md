@@ -218,6 +218,21 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-07-25 (11차): 자유게시판을 하위 카테고리 4개(자랑/공부인증/잡동사니/정보·팁)로 분리.
+  `sw.js`의 `SW_BUILD`도 `2026-07-25-11`로 올림.
+  - **스키마 변경 없이 `posts.category` 값 자체를 4개 새 키('brag'/'studycert'/'misc'/'tips')로
+    씀**(원래 `category`가 CHECK 제약 없는 text 컬럼이라 가능). `FREE_BOARD_CATEGORIES` 배열이
+    단일 소스 — 탭 버튼(`#free-category-tabs`)과 글쓰기 폼의 카테고리 select
+    (`#free-post-category`) 둘 다 이 배열로 렌더링(`renderFreeCategoryTabs()`).
+  - `boardLoader(type)`/`renderPost()`의 좋아요 표시 조건이 예전엔 `type==='free'`로 리터럴
+    비교했는데, 이제 4개 값 중 하나가 다 들어올 수 있어서 `FREE_CATEGORY_KEYS.includes(type)`
+    체크로 일반화. `submitPost('free')`는 여전히 글쓰기 폼 DOM id(`free-content` 등)는
+    그대로 쓰되, 실제 저장되는 `category` 값은 폼의 select에서 고른 하위 카테고리를 사용하도록
+    분리(폼 id 프리픽스와 DB 카테고리 값을 디커플링). 글을 올리면 그 카테고리 탭으로 자동
+    전환해서 바로 보여줌.
+  - **기존 `category='free'` 게시글 20건은 DB에서 `misc`(잡동사니)로 일괄 마이그레이션** —
+    안 옮기면 어느 탭에서도 안 보이는 상태로 남기 때문. 코드 변경이 아니라 운영 데이터
+    정리라 마이그레이션 자체는 이 저장소 커밋에 안 남고 Supabase에 직접 적용함.
 - 2026-07-25 (10차): "학생현황"(선생님용) 화면을 학생 본인 학습 플래너와 같은 경험으로 확장 +
   과목별 비율 파이를 일/주/월 단위로 볼 수 있게 함(학생현황·학습리포트 양쪽 모두).
   `sw.js`의 `SW_BUILD`도 `2026-07-25-10`으로 올림.

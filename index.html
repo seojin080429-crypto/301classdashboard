@@ -758,7 +758,11 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
     display: flex;
     flex-direction: column;
     flex: 1;
-    height: 100%;
+    /* height:100% 삭제 — flex:1이 이미 부모(.dm-thread-panel)의 남는 세로 공간을 채워주는데
+       height:100%를 같이 주면 형제 요소(.dm-thread-head)가 차지한 만큼을 빼지 않은 부모
+       전체 높이 기준으로 다시 늘어나려 해서, 안드로이드 일부 브라우저에서 실제 필요한
+       높이보다 커지고 그만큼 맨 아래 입력창이 화면 밖으로 밀려 잘리는 원인이 됐다(2026-07-25
+       사용자 진단). flex:1만으로 충분하므로 height는 지정하지 않는다. */
     min-height: 0; /* 스레드 로그 영역의 무한 늘어남 방지 (스크롤 유도) */
   }
   .dm-thread-log {
@@ -2454,9 +2458,19 @@ let activeTimer = null; // {subjectIdx, taskIdx, interval, startedAt, sessionId}
 let timerIntervalId=null;
 let todaySessions = []; // [{subject,task,seconds,startedAt,endedAt}]
 let totalTodaySec = 0;
-// 사용자가 준 "마일드 라이너" 형광펜 팔레트로 교체(2026-07-25) — 파스텔톤이라 타임테이블
-// 블록 위에 검정 글씨(과제 이름) 라벨을 얹어도 대비가 잘 나옴.
-const SUBJECT_COLORS = ['#cee4f5','#dfc5dd','#f8d5dc','#fddfac','#f7f5aa','#d4dbe0','#c8c48d','#e3c199','#f9ebd5','#f3c4c7'];
+// 사용자가 준 "스테들러 클래식 파스텔" 형광펜 팔레트로 재교체(2026-07-25).
+// 마지막 값(#4a4a4a)은 원본 이미지에서 스와치는 진회색인데 hex 라벨이 바로 위 항목과 동일하게
+// 잘못 찍혀있어서(원본 이미지 자체의 오타로 보임) 실제 색상에 맞춰 임의로 추정한 값 — 정확한
+// hex를 알려주면 바로 교체 가능.
+const SUBJECT_COLORS = ['#fbe96c','#ffc194','#f1b2c7','#d7a3d3','#a7e1df','#d7eda1','#95d5ec','#ddaf8e','#afacad','#4a4a4a'];
+// 대부분 밝은 파스텔이지만 위 팔레트에 진회색(#4a4a4a)도 섞여 있어서, 타임테이블 블록 라벨
+// 글자색을 배경 밝기에 따라 검정/흰색으로 자동 선택한다(YIQ 공식 — 가벼운 근사치면 충분).
+function readableTextColor(hex){
+  if(!hex||hex[0]!=='#')return 'rgba(0,0,0,.72)';
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  const yiq=(r*299+g*587+b*114)/1000;
+  return yiq>=140?'rgba(0,0,0,.72)':'rgba(255,255,255,.92)';
+}
 
 // ── HELPERS ──
 function toast(msg,dur=2500){const e=document.getElementById('toast');e.textContent=msg;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),dur)}
@@ -4551,6 +4565,7 @@ function renderTimeblock(){
         if(widthPct>=6){
           const label=document.createElement('span');
           label.className='timeblock-block-label';
+          label.style.color=readableTextColor(colors[s.subject]);
           label.textContent=s.task_name;
           block.appendChild(label);
         }

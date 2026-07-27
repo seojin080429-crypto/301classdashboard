@@ -218,6 +218,24 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-07-27 (2차): "베이지" 테마 위에 얹는 "리락쿠마 켜기" 장식 토글 신설 —
+  `currentStudentId==='rrkm'` 계정 한 명에게만 마이페이지에 추가 체크박스가 노출됨(요청:
+  "나머지 학생들한테는 베이지 테마까지만 열어주고 rrkm학생한테는 리락쿠마 on off버튼을
+  활성화"). `sw.js`의 `SW_BUILD`도 `2026-07-27-2`로 올림.
+  - **사용자가 보낸 사진 속 실제 리락쿠마 캐릭터 일러스트는 저작권이 있어 그대로 재현하지
+    않고, 곰 이모지(🐻)/발바닥 이모지(🐾)로 대체** — 베이지 테마 신설 때와 동일한 이유·
+    동일한 판단(위 항목 참고). `:root[data-theme="bear"][data-bear-decor="on"]`
+    CSS 블록에서 `.page-title::after`(🐻), `.view-btn.active::after`(🐾),
+    `.dday-tile::before`(🐻) 세 곳에 장식 추가.
+  - `data-bear-decor="on"` 속성은 `bearDecor` localStorage 키로 관리, anti-flash
+    인라인 스크립트(`<head>`)에서 `theme==='bear'`이고 `bearDecor==='on'`일 때만 첫
+    페인트 전에 적용.
+  - 마이페이지 "테마" 카드에 `mp-bear-theme`(베이지 테마) 아래 숨겨진
+    `mp-bear-decor-row`/`mp-bear-decor` 체크박스 추가 — `populateMypage()`가
+    `currentStudentId==='rrkm'`일 때만 보이게 함.
+  - `toggleBearDecor(on)` 신설: 켤 때 베이지 테마가 꺼져 있으면 같이 켬(장식은 테마 위에서만
+    의미가 있어서). `toggleBearTheme(on)`의 off 분기도 수정 — 베이지 테마를 끄면 얹혀 있던
+    장식도 같이 꺼지도록(`bearDecor` 리셋 + 체크박스 동기화).
 - 2026-07-27: 라이트/다크와 별개로 켜고 끄는 선택형 "베이지" 테마 신설(마이페이지에서 누구나
   켤 수 있음 — 사용자가 친구 한 명에게 주고 싶어했던 커스텀 배경 요청). `sw.js`의
   `SW_BUILD`도 `2026-07-27-1`로 올림.

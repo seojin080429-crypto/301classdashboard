@@ -218,6 +218,19 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-07-27 (4차): "리락쿠마 켜기" 장식 위치를 5곳으로 확장(제미나이가 제안한 CSS 구조를
+  참고 — 사용자가 다른 AI 모델에서 받은 코드를 붙여넣어서 요청함). `sw.js`의 `SW_BUILD`도
+  `2026-07-27-4`로 올림.
+  - 제미나이 제안은 `rilakkuma_top.png`/`rilakkuma_face.png`/`rilakkuma_cheer.png`/
+    `rilakkuma_study.png`처럼 위치마다 다른 실제 캐릭터 이미지 파일명을 참조하는
+    구조였는데, 실제 이미지 자체는 여전히 커밋하지 않는 원칙(3차 항목 참고)을 유지하면서
+    구조만 그대로 살림 — 5곳 전부 지금은 동일한 `bear-placeholder.svg`를 재사용하도록
+    구현. 자리마다 다른 이미지를 쓰고 싶어지면 파일명만 알려주면 각 `url()`을 그 파일명으로
+    바꿔주는 방식(코드는 이미 준비돼 있어서 경로 문자열만 교체하면 됨).
+  - 5곳: 페이지 타이틀 옆(`.page-title::after`, 40×40), 활성 뷰 버튼 옆(`.view-btn.active::after`,
+    14×14), D-Day 타일 위(`.dday-tile::before`, 36×36), 플래너 리스트의 "기록 중" 배지 앞
+    (`.list-session-subject span::before`, 12×12), 우하단 타이머 배지 안(`.timer-badge::after`,
+    36×36).
 - 2026-07-27 (3차): "리락쿠마 켜기" 장식의 곰 이미지 두 곳(`.page-title::after`,
   `.dday-tile::before`)을 이모지 텍스트 대신 `bear-placeholder.svg`를 참조하는
   `background-image`로 교체 — 사용자가 실제 리락쿠마 이미지 자산을 이 저장소에

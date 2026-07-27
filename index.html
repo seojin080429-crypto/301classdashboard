@@ -61,14 +61,19 @@
 /* "리락쿠마 켜기" 추가 장식(특정 계정 한 명 전용, 마이페이지에서만 노출됨) — 실제 캐릭터
    원화를 쓰지 않고(저작권 있는 캐릭터라 복제 안 함) 일반적인 곰 이모지로 분위기만 재현.
    베이지 테마가 켜져 있을 때만 의미가 있어서 항상 [data-theme="bear"]와 함께 건다. */
-:root[data-theme="bear"][data-bear-decor="on"] .page-title{position:relative;padding-right:38px}
-/* bear-placeholder.svg: 임시 실루엣 자산 — 자산 파일만 같은 이름/같은 정사각형 규격으로
-   교체하면 코드 수정 없이 바로 바뀌도록 background-image로 참조함(내용은 URL을 통해서만
-   불러오고 이 저장소에 실제 캐릭터 원화 자체를 커밋하지는 않음) */
-:root[data-theme="bear"][data-bear-decor="on"] .page-title::after{content:'';position:absolute;right:0;top:50%;width:28px;height:28px;transform:translateY(-50%) rotate(-8deg);background:url('bear-placeholder.svg') center/contain no-repeat}
-:root[data-theme="bear"][data-bear-decor="on"] .view-btn.active::after{content:' 🐾';font-size:11px}
-:root[data-theme="bear"][data-bear-decor="on"] .dday-tile::before{content:'';position:absolute;width:24px;height:24px;top:10px;right:14px;background:url('bear-placeholder.svg') center/contain no-repeat}
+/* bear-placeholder.svg: 임시 실루엣 자산 — 자산 파일만 같은 이름/규격으로 교체하면 코드
+   수정 없이 바로 바뀌도록 전부 background-image로 참조함(내용은 URL을 통해서만 불러오고
+   이 저장소에는 범용 placeholder만 커밋함, 실제 캐릭터 원화는 커밋하지 않음). 자리마다
+   다른 이미지를 쓰고 싶으면 파일명만 알려주면 각 url()을 그 파일명으로 바꿔줄 수 있음 —
+   지금은 전부 같은 placeholder를 재사용 중. */
+:root[data-theme="bear"][data-bear-decor="on"] .page-title{position:relative;padding-right:50px}
+:root[data-theme="bear"][data-bear-decor="on"] .page-title::after{content:'';position:absolute;right:0;top:50%;width:40px;height:40px;transform:translateY(-50%);background:url('bear-placeholder.svg') center/contain no-repeat;pointer-events:none}
+:root[data-theme="bear"][data-bear-decor="on"] .view-btn.active::after{content:'';display:inline-block;width:14px;height:14px;margin-left:6px;vertical-align:text-bottom;background:url('bear-placeholder.svg') center/contain no-repeat}
 :root[data-theme="bear"][data-bear-decor="on"] .dday-tile{position:relative}
+:root[data-theme="bear"][data-bear-decor="on"] .dday-tile::before{content:'';position:absolute;width:36px;height:36px;top:-14px;right:-6px;background:url('bear-placeholder.svg') center/contain no-repeat;pointer-events:none}
+:root[data-theme="bear"][data-bear-decor="on"] .list-session-subject span::before{content:'';display:inline-block;width:12px;height:12px;margin-right:4px;vertical-align:middle;background:url('bear-placeholder.svg') center/contain no-repeat}
+:root[data-theme="bear"][data-bear-decor="on"] .timer-badge{padding-right:56px}
+:root[data-theme="bear"][data-bear-decor="on"] .timer-badge::after{content:'';position:absolute;bottom:8px;right:12px;width:36px;height:36px;background:url('bear-placeholder.svg') center/contain no-repeat;pointer-events:none}
 html{background:var(--parchment)}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:17px;-webkit-font-smoothing:antialiased}
@@ -8079,4 +8084,3 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html>
-

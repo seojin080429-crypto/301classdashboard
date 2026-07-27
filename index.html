@@ -6724,10 +6724,11 @@ async function loadAdminList(){
   const usersData = await usersRes.json();
   if(!usersRes.ok){toast('계정 목록 로드 실패: '+(usersData.error||''));return}
 
-  const roleMap={}, camMap={}, teacherMap={}, appointMap={};
+  const roleMap={}, camMap={}, teacherMap={}, appointMap={}, externalMap={}, mentorMap={};
   (rolesRes.data||[]).forEach(r=>{
     roleMap[r.student_id]=r.role;camMap[r.student_id]=!!r.cam_allowed;
     teacherMap[r.student_id]=!!r.is_teacher;appointMap[r.student_id]=!!r.can_appoint_teacher;
+    externalMap[r.student_id]=!!r.is_external;mentorMap[r.student_id]=r.mentor_student_id||null;
   });
   const deviceCountMap={};
   (devicesRes.data||[]).forEach(d=>{deviceCountMap[d.student_id]=(deviceCountMap[d.student_id]||0)+1});
@@ -6752,7 +6753,9 @@ async function loadAdminList(){
       cam_allowed:camMap[sid]||false,
       device_count:deviceCountMap[sid]||0,
       is_teacher:teacherMap[sid]||false,
-      can_appoint_teacher:appointMap[sid]||false
+      can_appoint_teacher:appointMap[sid]||false,
+      is_external:externalMap[sid]||false,
+      mentor_student_id:mentorMap[sid]||null
     };
   }).sort((a,b)=>a.student_id.localeCompare(b.student_id));
   renderAdminTable(allAccounts);
@@ -6775,7 +6778,8 @@ function renderAdminTable(list){
   tbody.innerHTML=list.map(a=>{
     const isMe=a.student_id===currentStudentId;
     const rolePill=`<span class="role-pill ${a.role}">${a.role==='owner'?'운영자':a.role==='admin'?'관리자':'학생'}</span>`
-      +(a.is_teacher?` <span class="role-pill teacher">선생님</span>`:'');
+      +(a.is_teacher?` <span class="role-pill teacher">선생님</span>`:'')
+      +(a.is_external?` <span class="role-pill student" style="background:rgba(8,145,178,.12);color:#0891b2">타반${a.mentor_student_id?` · ${a.mentor_student_id}`:''}</span>`:'');
     const subjectInfo=a.is_teacher?'—':(a.suneung_kor!=='—'?`${a.suneung_kor} / ${a.suneung_math} / ${a.suneung_exp1} · ${a.suneung_exp2}`:'—');
     const isStaff=['admin','owner'].includes(a.role)||a.is_teacher;
     let camCell;
@@ -6808,6 +6812,11 @@ function renderAdminTable(list){
             ? `<button class="admin-btn demote" onclick="setCanAppointTeacher('${a.student_id}',false)">교사임명권한 회수</button>`
             : `<button class="admin-btn promote" onclick="setCanAppointTeacher('${a.student_id}',true)">교사임명권한 부여</button>`;
         }
+      }
+      if(isOwner){
+        actions+=a.is_external
+          ? `<button class="admin-btn demote" onclick="setExternalFlag('${a.student_id}',false)">타반 해제</button>`
+          : `<button class="admin-btn promote" style="background-color:rgba(8,145,178,.08);color:#0891b2;border-color:rgba(8,145,178,.25)" onclick="setExternalFlag('${a.student_id}',true)">타반으로 전환</button>`;
       }
     }else{
       actions=`<span style="font-size:11px;color:var(--ink-48)">본인</span>`;
@@ -6850,6 +6859,23 @@ async function setTeacherFlag(sid,flag){
   });
   if(error){toast('변경 실패: '+error.message);return}
   toast(`${sid}번 ${flag?'선생님 지정':'선생님 해제'} 완료 ✓`);
+  loadAdminList();
+}
+
+// 이미 있는(예: 3-1) 계정도 나중에 타반으로 옮기거나 되돌릴 수 있게 함 — 계정 생성 시
+// 체크박스로 처음부터 타반으로 만드는 것과 별개로, 기존 계정 전환용.
+async function setExternalFlag(sid,flag){
+  if(!isOwnerTier()){toast('권한이 없습니다');return}
+  const msg=flag
+    ?`${sid}번을 타반 계정으로 전환할까요? 3-1 반 전용 기능(게시판·공지·캠스터디·시간표·급식·반 랭킹)이 안 보이게 되고, 내(${currentStudentId}) "내 학생"에 등록됩니다.`
+    :`${sid}번을 타반에서 해제하고 일반 계정으로 되돌릴까요?`;
+  if(!confirm(msg))return;
+  const patch=flag
+    ?{student_id:sid,is_external:true,mentor_student_id:currentStudentId}
+    :{student_id:sid,is_external:false,mentor_student_id:null};
+  const {error}=await sb.from('user_roles').upsert(patch);
+  if(error){toast('변경 실패: '+error.message);return}
+  toast(`${sid}번 ${flag?'타반으로 전환':'타반 해제'} 완료 ✓`);
   loadAdminList();
 }
 

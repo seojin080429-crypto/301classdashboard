@@ -14,7 +14,7 @@
 <title>부광고 3-1 대시보드</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<script>(function(){try{var t=localStorage.getItem('theme');if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme:dark)').matches))document.documentElement.dataset.theme='dark';}catch(e){}})();</script>
+<script>(function(){try{var t=localStorage.getItem('theme');if(t==='bear')document.documentElement.dataset.theme='bear';else if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme:dark)').matches))document.documentElement.dataset.theme='dark';}catch(e){}})();</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <style>
@@ -37,6 +37,27 @@
   --tile-1:#2c2c2e; --hairline:#38383a; --divider:rgba(255,255,255,.08);
   --on-dark:#fff; --muted-dark:#ccc;
 }
+/* "베이지 곰돌이" 커스텀 테마(2026-07-27) — 마이페이지에서 원하는 사람만 켜는 선택형
+   테마(라이트/다크와 별개). 사용자가 참고 사진으로 준 따뜻한 크림/베이지 배경 + 주황빛
+   포인트 컬러 톤을 재현하되, 배경의 캐릭터 일러스트(리락쿠마)는 저작권이 있는 캐릭터라
+   그대로 쓰지 않고 일반적인 발바닥 모양 패턴으로 분위기만 대신함. 이 프로젝트는 색상을
+   전부 CSS 변수로 관리하고 있어서(버튼/포인트색 = --blue 하나) 변수만 바꾸면 앱 전체에
+   자연스럽게 퍼짐 — 다크모드 블록과 동일한 구조.*/
+:root[data-theme="bear"] {
+  --blue:#d9822e; --blue-focus:#c76f1f; --blue-dark:#e0954a;
+  --ink:#3b2b1a; --ink-80:#5a4530; --ink-48:#9c8563;
+  --green:#7bab6e; --green-light:rgba(123,171,110,.15); --green-dark:#4f7a45;
+  --canvas:#fdf6e8; --parchment:#f6ead0; --pearl:#faf2df;
+  --tile-1:#5a4024; --hairline:#e8d7ac; --divider:rgba(59,43,26,.08);
+  --on-dark:#fff; --muted-dark:#f0e2c0;
+}
+:root[data-theme="bear"] body{
+  background-color:var(--parchment);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cg fill='%233b2b1a' fill-opacity='0.05'%3E%3Ccircle cx='45' cy='55' r='8'/%3E%3Ccircle cx='30' cy='35' r='5'/%3E%3Ccircle cx='45' cy='28' r='5'/%3E%3Ccircle cx='60' cy='35' r='5'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat:repeat;
+}
+:root[data-theme="bear"] .topbar{background:rgba(246,234,208,.88)}
+:root[data-theme="bear"] .sidebar{background:var(--canvas)}
 html{background:var(--parchment)}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:17px;-webkit-font-smoothing:antialiased}
@@ -1798,6 +1819,16 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
             </div>
           </div>
 
+          <!-- 테마 (라이트/다크 외 선택형 커스텀 테마) -->
+          <div class="card" style="margin-top:14px">
+            <div class="card-title" style="margin-bottom:4px">테마</div>
+            <div class="card-sub">라이트/다크 말고 다른 분위기도 써볼 수 있어요</div>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--ink-80)">
+              <input type="checkbox" id="mp-bear-theme" style="width:15px;height:15px;accent-color:var(--blue)" onchange="toggleBearTheme(this.checked)">
+              🐾 베이지 테마 사용
+            </label>
+          </div>
+
           <!-- 비밀번호 변경 -->
           <div class="card" style="margin-top:14px">
             <div class="card-title" style="margin-bottom:4px">비밀번호 변경</div>
@@ -2819,6 +2850,9 @@ function populateMypage(meta,name,sid){
   if(meta.resolution)document.getElementById('mp-resolution').value=meta.resolution;
   // 학교 설정(리로스쿨 링크) — 저장된 값이 있을 때만 채움, 없으면 3-1 기본값을 그대로 씀
   if(meta.riro_url)document.getElementById('mp-riro-url').value=meta.riro_url;
+  // 테마 체크박스는 실제 현재 적용된 테마(로그인 시 anti-flash 스크립트가 미리 세팅함) 기준으로 표시
+  const bearCheckbox=document.getElementById('mp-bear-theme');
+  if(bearCheckbox)bearCheckbox.checked=document.documentElement.dataset.theme==='bear';
   applyMypageRoleView();
 }
 
@@ -3029,6 +3063,13 @@ function toggleTheme(){
   const dark=document.documentElement.dataset.theme==='dark';
   if(dark){delete document.documentElement.dataset.theme;localStorage.setItem('theme','light')}
   else{document.documentElement.dataset.theme='dark';localStorage.setItem('theme','dark')}
+}
+
+// 마이페이지의 선택형 "베이지" 테마 — 라이트/다크와 별개로 켜고 끌 수 있음(기기별로
+// localStorage에만 저장, 다크모드 버튼과 동일한 저장 키를 공유하되 값만 'bear'로 확장).
+function toggleBearTheme(on){
+  if(on){document.documentElement.dataset.theme='bear';localStorage.setItem('theme','bear')}
+  else{delete document.documentElement.dataset.theme;localStorage.setItem('theme','light')}
 }
 
 // ── NAVIGATION ──

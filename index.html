@@ -62,9 +62,12 @@
    원화를 쓰지 않고(저작권 있는 캐릭터라 복제 안 함) 일반적인 곰 이모지로 분위기만 재현.
    베이지 테마가 켜져 있을 때만 의미가 있어서 항상 [data-theme="bear"]와 함께 건다. */
 :root[data-theme="bear"][data-bear-decor="on"] .page-title{position:relative;padding-right:38px}
-:root[data-theme="bear"][data-bear-decor="on"] .page-title::after{content:'🐻';position:absolute;right:0;top:50%;transform:translateY(-50%) rotate(-8deg);font-size:26px;line-height:1}
+/* bear-placeholder.svg: 임시 실루엣 자산 — 자산 파일만 같은 이름/같은 정사각형 규격으로
+   교체하면 코드 수정 없이 바로 바뀌도록 background-image로 참조함(내용은 URL을 통해서만
+   불러오고 이 저장소에 실제 캐릭터 원화 자체를 커밋하지는 않음) */
+:root[data-theme="bear"][data-bear-decor="on"] .page-title::after{content:'';position:absolute;right:0;top:50%;width:28px;height:28px;transform:translateY(-50%) rotate(-8deg);background:url('bear-placeholder.svg') center/contain no-repeat}
 :root[data-theme="bear"][data-bear-decor="on"] .view-btn.active::after{content:' 🐾';font-size:11px}
-:root[data-theme="bear"][data-bear-decor="on"] .dday-tile::before{content:'🐻';position:absolute;font-size:22px;top:10px;right:14px}
+:root[data-theme="bear"][data-bear-decor="on"] .dday-tile::before{content:'';position:absolute;width:24px;height:24px;top:10px;right:14px;background:url('bear-placeholder.svg') center/contain no-repeat}
 :root[data-theme="bear"][data-bear-decor="on"] .dday-tile{position:relative}
 html{background:var(--parchment)}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}

@@ -218,6 +218,27 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-07-27 (6차): 세 가지 별개 개선. `sw.js`의 `SW_BUILD`도 `2026-07-27-6`으로 올림.
+  - **"베이지" 테마를 rrkm 계정 전용으로 제한**(요청: "다른 사용자들한테는 아예 베이지테마도
+    안 보이게 해") — 기존엔 누구나 마이페이지에서 켤 수 있었는데(5차 이전 항목 참고),
+    이제 마이페이지 "테마" 카드 자체가 `currentStudentId==='rrkm'`일 때만 보임
+    (`populateMypage()`, `#mp-theme-card`). 공용 기기 등에서 이전에 켜져 있던 상태가
+    localStorage에 남아있는 경우까지 대비해 `initApp()`에서 rrkm이 아닌데
+    `data-theme==='bear'`면 강제로 되돌리는 가드도 추가.
+  - **학습 리포트(플래너 날짜 내비게이션)에서 다른 날짜 기록 볼 때 같은 과제를 합산 표시**
+    (요청: "a라는 과제를 30분+45분 나눠 했으면 따로 안 찍히고 합쳐서") —
+    `renderSessionLogForDate()`가 기존엔 그날의 세션을 시간순으로 하나씩 그대로 나열했는데,
+    이제 같은 과목+같은 과제끼리 `duration_seconds`를 합산하고, 2회 이상 합쳐진 항목은
+    시각 대신 "n회"로 표시(1회면 기존처럼 시작 시각 표시). 정렬은 그날 첫 시작 시각 기준
+    유지.
+  - **과목 색상을 팔레트 대신 원하는 색으로 직접 지정 가능** (요청: "형광펜 색깔 너무
+    좋은데, 과목에서 색깔 누르면 색변형도 원하는 대로 가능하게") — 과목 목록의 색 점
+    (`.subject-dot`)을 누르면 네이티브 컬러피커(`#subject-color-picker`, 숨겨진
+    `<input type="color">`)가 열리고, 고른 색이 `user_metadata.subject_colors`
+    (`{과목명: hex}`)에 저장돼 기기를 바꿔도 유지됨. 새 전역 `customSubjectColors`가
+    `SUBJECT_COLORS` 팔레트보다 항상 우선하도록 `buildSubjectsFromMeta()`/
+    `loadSubjectsFromDB()`/`addSubject()`/`colorForSubject()` 전부에 반영해서, 타임테이블·
+    월간 캘린더·리포트 차트 등 색을 쓰는 모든 화면에 일관되게 퍼짐.
 - 2026-07-27 (5차): "리락쿠마 켜기" CSS 정리 + 잠재적 배포 사고 수습.
   - 세션 시작 시점에 이미 `index.html`/`sw.js`에 커밋되지 않은 변경이 남아있었음(다른
     편집 경로로 직접 수정된 것으로 보임) — `.page-title`/`.dday-tile` 등 장식 규칙이

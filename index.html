@@ -72,6 +72,56 @@
 :root[data-theme="bear"][data-bear-decor="on"] .list-session-subject span::before{content:'';display:inline-block;width:12px;height:12px;margin-right:4px;vertical-align:middle;background:url('rilakkuma_study.png') center/contain no-repeat}
 :root[data-theme="bear"][data-bear-decor="on"] .timer-badge{padding-right:60px}
 :root[data-theme="bear"][data-bear-decor="on"] .timer-badge::after{content:'';position:absolute;bottom:8px;right:12px;width:45px;height:45px;background:url('rilakkuma_study.png') right bottom/contain no-repeat;pointer-events:none}
+/* 전체화면 타이머(재생 버튼 → openTimerView)는 항상 고정 다크 톤(#0d0f1a)이었는데, 베이지
+   테마를 켠 상태에서는 이 화면만 갑자기 어두워지는 게 어색하다는 요청으로 베이지 톤으로도
+   맞춤. 데코 토글과 무관하게 베이지 테마만 켜져 있으면 항상 적용(다른 곳의 베이지 배색과
+   동일한 조건 — topbar/sidebar 참고), 아래 잠자는 곰 이미지만 데코 토글 전용. */
+:root[data-theme="bear"] #timer-fullscreen{background:var(--parchment)}
+:root[data-theme="bear"] .tf-topbar{border-bottom-color:var(--divider)}
+:root[data-theme="bear"] .tf-top-left{color:var(--ink)}
+:root[data-theme="bear"] .tf-top-left span{color:var(--blue)}
+:root[data-theme="bear"] .tf-date{color:var(--ink-48)}
+:root[data-theme="bear"] .tf-close{background:rgba(59,43,26,.08);color:var(--ink)}
+:root[data-theme="bear"] .tf-close:hover{background:rgba(59,43,26,.15)}
+:root[data-theme="bear"] .tf-left{border-right-color:var(--divider)}
+:root[data-theme="bear"] .tf-focus-card{background:rgba(59,43,26,.04);border-color:var(--divider)}
+:root[data-theme="bear"] .tf-focus-label{color:var(--ink-48)}
+:root[data-theme="bear"] .tf-focus-time{color:var(--ink)}
+:root[data-theme="bear"] .tf-task-bar-label{color:var(--ink-80)}
+:root[data-theme="bear"] .tf-task-bar-time{color:var(--ink)}
+:root[data-theme="bear"] .tf-task-bar-track{background:rgba(59,43,26,.08)}
+:root[data-theme="bear"] .tf-subject-section{background:rgba(59,43,26,.03);border-color:var(--divider)}
+:root[data-theme="bear"] .tf-subject-name{color:var(--ink)}
+:root[data-theme="bear"] .tf-subject-time{color:var(--ink-48)}
+:root[data-theme="bear"] .tf-task-row:hover{background:rgba(59,43,26,.05)}
+:root[data-theme="bear"] .tf-task-row.active{background:rgba(217,130,46,.15);border-color:rgba(217,130,46,.3)}
+:root[data-theme="bear"] .tf-task-play{border-color:rgba(59,43,26,.2)}
+:root[data-theme="bear"] .tf-task-play svg{fill:var(--ink)}
+:root[data-theme="bear"] .tf-task-play.running{background:var(--blue);border-color:var(--blue)}
+:root[data-theme="bear"] .tf-task-play.running svg{fill:#fff}
+:root[data-theme="bear"] .tf-task-name{color:var(--ink-80)}
+:root[data-theme="bear"] .tf-task-time{color:var(--ink-48)}
+:root[data-theme="bear"] .tf-task-time.running{color:var(--blue)}
+:root[data-theme="bear"] .tf-rank-title{color:var(--ink)}
+:root[data-theme="bear"] .tf-rank-sub{color:var(--ink-48)}
+:root[data-theme="bear"] .tf-rank-card{background:rgba(59,43,26,.04);border-color:var(--divider)}
+:root[data-theme="bear"] .tf-rank-card:hover{background:rgba(59,43,26,.08)}
+:root[data-theme="bear"] .tf-rank-card.me{border-color:rgba(217,130,46,.5);background:rgba(217,130,46,.12)}
+:root[data-theme="bear"] .tf-rank-avatar{background:rgba(59,43,26,.12);color:var(--ink)}
+:root[data-theme="bear"] .tf-rank-name{color:var(--ink-80)}
+:root[data-theme="bear"] .tf-rank-time{color:var(--blue)}
+:root[data-theme="bear"] .tf-btn-pause{background:rgba(59,43,26,.08);border-color:rgba(59,43,26,.15);color:var(--ink)}
+:root[data-theme="bear"] .tf-btn-pause:hover{background:rgba(59,43,26,.15)}
+:root[data-theme="bear"] .tf-btn-stop{border-color:rgba(200,60,20,.4);background:rgba(200,60,20,.1)}
+:root[data-theme="bear"] .tf-btn-stop svg{fill:#c8471a}
+/* "과목별 학습" 섹션 라벨은 인라인 style로 흰색이 박혀있어(마크업 참고) 위 규칙만으로는 안
+   바뀌어서 별도로 덮어씀 */
+:root[data-theme="bear"] .tf-left div[style*="text-transform:uppercase"]{color:var(--ink-48)!important}
+:root[data-theme="bear"] .tf-rank-grid div[style*="rgba(255,255,255,.3)"]{color:var(--ink-48)!important}
+/* 오른쪽 "반 랭킹"(=공부중인 친구들) 패널 배경에 잠든 곰 이미지를 은은하게 깔아둠 — 아래
+   rilakkuma_sleeping.png도 위의 다른 rilakkuma_*.png와 동일하게 사용자 본인이 직접 넣고
+   커밋한 이미지라, 여기서는 파일명을 가리키는 CSS 경로만 작성함. */
+:root[data-theme="bear"][data-bear-decor="on"] .tf-right{background-image:url('rilakkuma_sleeping.png');background-repeat:no-repeat;background-position:bottom 12px right 12px;background-size:130px auto}
 
 html{background:var(--parchment)}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}

@@ -218,6 +218,29 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-07-28 (1차): 두 가지 별개 개선. `sw.js`의 `SW_BUILD`도 `2026-07-28-1`로 올림.
+  - **학습 플래너 과목 목록 위에 전용 "과목 색상 변경" 란 신설** (요청: "형광펜 색 변형이 잘
+    안되는거같아, 국어 위에 색 변경 란을 따로 만들어줘") — 기존엔 각 과목의 9px짜리
+    `.subject-dot`을 정확히 눌러야만 네이티브 컬러피커(`input[type=color]`)가 열렸는데, 이게
+    잘 안 눌린다는 제보. `subject-list` 바로 위에 `#subject-color-tools` 카드를 추가해서
+    드롭다운으로 과목을 고르고 `SUBJECT_COLORS` 팔레트를 28px 원형 스와치로 큼직하게 눌러
+    바로 바꿀 수 있게 함(`renderSubjectColorTools()`/`renderSubjectColorSwatches()`,
+    `renderSubjects()` 끝에서 매번 함께 갱신). 기존 dot 클릭 경로(자유색 네이티브 피커)는
+    그대로 유지하고 커스텀 스와치(🎨)로 남겨둠 — 실제 색 반영/저장 로직은
+    `setSubjectColor(si,hex)`로 통합해 두 경로가 공유.
+  - **학생이 직접 과목을 추가할 수 있게 함** (요청: "과목 추가도 본인이 할 수 있게해줘") —
+    `addSubject()`/`add-subject-modal`은 이미 있었지만 이걸 여는 버튼이 어디에도 없어서 실제로
+    쓸 방법이 없었음. 색상 변경 란 헤더에 "+ 과목 추가" 버튼을 추가해 `openAddSubjectModal()`을
+    연결. 또한 기존엔 새 과목을 추가해도 그날 할 일을 하나도 안 넣으면 `study_tasks`에 흔적이
+    없어 새로고침 시 사라졌는데, `user_metadata.custom_subjects`(이름 배열)에 저장하고
+    `buildSubjectsFromMeta()`의 extras에 포함시켜서 할 일 없이도 계속 남게 함.
+  - **공지 투표에 취소 기능 추가** (요청: "투표 취소 기능 만들어줘") — 투표 후엔
+    `renderPollBlock()`이 결과만 보여주고 되돌릴 방법이 없었음. 이미 투표한 경우
+    `poll-meta-row`에 "투표 취소" 링크를 추가(`cancelPollVote(pollId)`) — 확인(`confirm()`)
+    후 `notice_poll_votes`에서 본인 행(`poll_id`+`student_id`)을 delete하고 목록을 다시
+    불러오면 다시 투표 버튼이 보임. RLS는 이미 본인 행 DELETE를 허용하도록 돼 있어서(위
+    "Supabase 스키마" 섹션의 `notice_polls`/`notice_poll_votes` 항목 참고) 백엔드/스키마
+    변경은 필요 없었음.
 - 2026-07-27 (6차): 세 가지 별개 개선. `sw.js`의 `SW_BUILD`도 `2026-07-27-6`으로 올림.
   - **"베이지" 테마를 rrkm 계정 전용으로 제한**(요청: "다른 사용자들한테는 아예 베이지테마도
     안 보이게 해") — 기존엔 누구나 마이페이지에서 켤 수 있었는데(5차 이전 항목 참고),

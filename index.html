@@ -274,6 +274,8 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .poll-meta-row{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:11px;color:var(--ink-48)}
 .poll-nonvoters-toggle{color:var(--blue);cursor:pointer}
 .poll-nonvoters-toggle:hover{text-decoration:underline}
+.poll-cancel-vote{color:#c00;cursor:pointer}
+.poll-cancel-vote:hover{text-decoration:underline}
 .poll-nonvoters{display:none;font-size:11px;color:var(--ink-48);margin-top:6px;padding-top:6px;border-top:1px dashed var(--hairline);line-height:1.6}
 .poll-nonvoters.open{display:block}
 .poll-option-input-list{display:flex;flex-direction:column;gap:6px}
@@ -384,6 +386,19 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .study-stat-val{font-size:17px;font-weight:600;letter-spacing:-.022em;color:var(--ink)}
 .study-stat-val.blue{color:var(--blue)}
 .study-stat-val.orange{color:#e87820}
+
+/* subject color tools */
+.subject-color-tools{background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--radius-lg);padding:12px 14px;margin-bottom:10px}
+.subject-color-tools-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.subject-color-tools-title{font-size:13px;font-weight:600;color:var(--ink)}
+.subject-color-tools-add{font-size:12px;font-weight:600;color:var(--blue);cursor:pointer;background:none;border:none;padding:0}
+.subject-color-tools-add:hover{text-decoration:underline}
+.subject-color-select{width:100%;padding:8px 10px;border:1px solid var(--hairline);border-radius:8px;font-size:13px;background:var(--canvas);color:var(--ink);margin-bottom:10px}
+.subject-color-swatches{display:flex;flex-wrap:wrap;gap:9px;align-items:center}
+.subject-color-swatch{width:28px;height:28px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:transform .12s ease,border-color .12s ease;flex-shrink:0}
+.subject-color-swatch:hover{transform:scale(1.14)}
+.subject-color-swatch.active{border-color:var(--ink)}
+.subject-color-swatch.custom{background:var(--parchment);border:1.5px dashed var(--ink-48);display:flex;align-items:center;justify-content:center;font-size:13px}
 
 /* subject list */
 .subject-list{display:flex;flex-direction:column;gap:8px}
@@ -1365,6 +1380,17 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
       <div class="planner-layout">
         <!-- LEFT: 과목별 태스크 -->
         <div class="planner-left">
+          <!-- 과목 목록 위에 별도로 둔 색상 변경 란 — subject-dot을 직접 눌러 색을 바꾸는 방식이
+               잘 안 눌린다는 제보가 있어서, 과목을 드롭다운으로 고르고 큼직한 스와치를 눌러
+               바꾸는 더 확실한 경로를 추가함(2026-07-28). -->
+          <div class="subject-color-tools" id="subject-color-tools">
+            <div class="subject-color-tools-head">
+              <span class="subject-color-tools-title">과목 색상 변경</span>
+              <button class="subject-color-tools-add" onclick="openAddSubjectModal()">+ 과목 추가</button>
+            </div>
+            <select class="subject-color-select" id="subject-color-select" onchange="renderSubjectColorSwatches()"></select>
+            <div class="subject-color-swatches" id="subject-color-swatches"></div>
+          </div>
           <div class="subject-list" id="subject-list"></div>
           <!-- 과목 색상 직접 고르기용 숨은 네이티브 컬러피커 — subject-dot 클릭 시 openSubjectColorPicker()가 값 세팅 후 클릭을 위임함 -->
           <input type="color" id="subject-color-picker" style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0" onchange="applySubjectColor(this.value)">
@@ -2651,6 +2677,10 @@ const SUBJECT_COLORS = ['#fbe96c','#ffc194','#f1b2c7','#d7a3d3','#a7e1df','#d7ed
 // subject_colors에 저장/로드된다. colorForSubject()/buildSubjectsFromMeta() 둘 다 이 값을
 // 팔레트보다 우선해서 참조하므로, 과목 색을 바꾸면 타임테이블/캘린더/리포트 등 전부 일관되게 반영됨.
 let customSubjectColors = {};
+// 사용자가 직접 추가한 과목 이름 목록 — user_metadata의 custom_subjects에 저장/로드된다.
+// buildSubjectsFromMeta()가 기본 4과목+선택과목과 함께 이 목록도 항상 포함시켜서, 오늘 할 일을
+// 하나도 안 넣은 새 과목도 새로고침/재로그인 후에 사라지지 않게 한다.
+let customSubjects = [];
 // 대부분 밝은 파스텔이지만 위 팔레트에 진회색(#4a4a4a)도 섞여 있어서, 타임테이블 블록 라벨
 // 글자색을 배경 밝기에 따라 검정/흰색으로 자동 선택한다(YIQ 공식 — 가벼운 근사치면 충분).
 function readableTextColor(hex){
@@ -2836,6 +2866,7 @@ async function initApp(user,sid,name){
   // 그때 불러온다 — 대부분의 로그인 세션에서 안 열어보는 페이지까지 매번 로그인마다
   // 통째로 미리 받을 이유가 없어서 초기 로딩 속도만 늦추고 있었음.
   customSubjectColors={...(meta.subject_colors||{})};
+  customSubjects=[...(meta.custom_subjects||[])];
   subjects=buildSubjectsFromMeta(meta);
   await loadTodaySessions();
   await loadSubjectsFromDB();
@@ -3571,6 +3602,7 @@ function renderPollBlock(poll,votes,uid){
   }).join('');
 
   const nonVoterHtml=nonVoters.length?nonVoters.map(u=>escHtml(u.name||u.student_id)).join(', '):'전원 참여 완료 🎉';
+  const cancelHtml=hasVoted?`<span class="poll-cancel-vote" onclick="event.stopPropagation();cancelPollVote('${poll.id}')">투표 취소</span>`:'';
 
   return`<div class="poll-block" onclick="event.stopPropagation()">
     <div class="poll-question">🗳️ ${escHtml(poll.question)}</div>
@@ -3579,6 +3611,7 @@ function renderPollBlock(poll,votes,uid){
       <span>${poll.is_anonymous?'🙈 익명 투표':'😎 실명 투표'}</span>
       <span>참여 ${totalVotes}${roster.length?`/${roster.length}명`:'명'}</span>
       ${roster.length?`<span class="poll-nonvoters-toggle" onclick="toggleNonVoters('${uid}')">미참여자 보기</span>`:''}
+      ${cancelHtml}
     </div>
     ${roster.length?`<div class="poll-nonvoters" id="poll-nonvoters-${uid}">${nonVoterHtml}</div>`:''}
   </div>`;
@@ -3597,6 +3630,14 @@ async function voteOnPoll(pollId,optionIndex){
   toast('투표했습니다 ✓');
   await loadNotices();
   triggerNotify('poll-vote',{poll_id:pollId});
+}
+
+async function cancelPollVote(pollId){
+  if(!confirm('투표를 취소할까요?'))return;
+  const {error}=await sb.from('notice_poll_votes').delete().eq('poll_id',pollId).eq('student_id',currentStudentId);
+  if(error){toast('취소 실패: '+error.message);return}
+  toast('투표를 취소했습니다');
+  await loadNotices();
 }
 
 // ── 공지 작성 (네이버 카페식 전체 페이지 글쓰기) ──
@@ -3985,7 +4026,8 @@ function buildSubjectsFromMeta(meta) {
   // 별도 과목으로 만들지 않고 국어/수학 공부에 합산한다. 탐구1·탐구2는 서로 다른 과목이므로 그대로 유지.
   const extras = [
     meta?.suneung_exp1,
-    meta?.suneung_exp2
+    meta?.suneung_exp2,
+    ...(meta?.custom_subjects||[])
   ].filter(Boolean);
   // deduplicate
   const all = [...new Set([...base, ...extras])];
@@ -4044,6 +4086,7 @@ function renderSubjects(){
       </div>`;
     el.appendChild(block);
   });
+  renderSubjectColorTools();
 }
 
 // 과목 색상 직접 고르기 — subject-dot을 누르면 네이티브 컬러피커를 그 자리에서 열고,
@@ -4058,6 +4101,12 @@ function openSubjectColorPicker(si){
 async function applySubjectColor(hex){
   const si=colorPickTargetSi;
   if(si==null||!subjects[si])return;
+  await setSubjectColor(si,hex);
+}
+// 실제 색상 반영/저장 로직 — subject-dot 클릭(네이티브 피커)과 위쪽 "과목 색상 변경" 란의
+// 스와치 클릭 두 경로가 모두 이 함수 하나로 모인다.
+async function setSubjectColor(si,hex){
+  if(si==null||!subjects[si])return;
   const name=subjects[si].name;
   subjects[si].color=hex;
   customSubjectColors={...customSubjectColors,[name]:hex};
@@ -4066,6 +4115,28 @@ async function applySubjectColor(hex){
   if(error){toast('색상 저장 실패: '+error.message);return}
   currentUser.user_metadata.subject_colors=customSubjectColors;
   toast('과목 색상이 저장되었습니다 ✓');
+}
+
+// 과목 목록 위의 "과목 색상 변경" 란 — 드롭다운으로 과목을 고르고 큼직한 스와치를 눌러 바꾼다.
+// renderSubjects()가 호출될 때마다 함께 갱신해서 과목이 추가/변경돼도 항상 최신 목록을 보여준다.
+function renderSubjectColorTools(){
+  const sel=document.getElementById('subject-color-select');
+  if(!sel)return;
+  const prevSi=sel.value;
+  sel.innerHTML=subjects.map((s,i)=>`<option value="${i}">${escHtml(s.name)}</option>`).join('');
+  if(prevSi!==''&&subjects[prevSi])sel.value=prevSi;
+  renderSubjectColorSwatches();
+}
+function renderSubjectColorSwatches(){
+  const sel=document.getElementById('subject-color-select');
+  const wrap=document.getElementById('subject-color-swatches');
+  if(!sel||!wrap||!subjects.length)return;
+  const si=Number(sel.value)||0;
+  const current=subjects[si]?.color;
+  const swatchesHtml=SUBJECT_COLORS.map(hex=>
+    `<div class="subject-color-swatch${hex===current?' active':''}" style="background:${hex}" title="${hex}" onclick="setSubjectColor(${si},'${hex}')"></div>`
+  ).join('');
+  wrap.innerHTML=swatchesHtml+`<div class="subject-color-swatch custom" onclick="openSubjectColorPicker(${si})" title="직접 선택">🎨</div>`;
 }
 
 function renderTaskHTML(si,ti,t,color){
@@ -4866,13 +4937,19 @@ function updateTimerBadge(sub,task,time){document.getElementById('badge-subject'
 
 // ADD SUBJECT
 function openAddSubjectModal(){document.getElementById('add-subject-modal').classList.add('open');document.getElementById('new-subject-input').focus()}
-function addSubject(){
+async function addSubject(){
   const name=document.getElementById('new-subject-input').value.trim();if(!name){toast('과목 이름을 입력하세요');return}
   if(subjects.find(s=>s.name===name)){toast('이미 있는 과목입니다');return}
   subjects.push({name,color:customSubjectColors[name]||SUBJECT_COLORS[subjects.length%SUBJECT_COLORS.length],tasks:[]});
   document.getElementById('add-subject-modal').classList.remove('open');
   document.getElementById('new-subject-input').value='';
   renderSubjects();
+  // 오늘 할 일을 아직 안 넣은 새 과목은 study_tasks에 흔적이 없어 새로고침하면 사라지므로,
+  // custom_subjects에 이름을 저장해서 buildSubjectsFromMeta()가 항상 포함시키게 한다.
+  customSubjects=[...customSubjects,name];
+  const {error}=await sb.auth.updateUser({data:{...currentUser.user_metadata,custom_subjects:customSubjects}});
+  if(error){toast('과목 저장 실패: '+error.message);return}
+  currentUser.user_metadata.custom_subjects=customSubjects;
 }
 
 // SESSION LOG

@@ -1100,7 +1100,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
     </div>
     <button class="btn-primary full" id="login-btn" onclick="doLogin()">로그인</button>
     <div class="auth-error" id="auth-error"></div>
-    <div class="auth-hint">초기 비밀번호는 1234입니다</div>
+    <div class="auth-hint">초기 비밀번호는 123456입니다</div>
   </div>
 </div>
 
@@ -2102,7 +2102,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         <div class="card-title" style="margin-bottom:12px">계정 생성</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <input class="modal-input" id="create-student-id" placeholder="아이디 (타반은 예: ext01)" style="width:170px;font-size:13px;padding:8px 12px">
-          <input class="modal-input" id="create-password" placeholder="초기 비밀번호 (기본: 1234)" style="width:200px;font-size:13px;padding:8px 12px">
+          <input class="modal-input" id="create-password" placeholder="초기 비밀번호 (기본: 123456, 6자 이상)" style="width:200px;font-size:13px;padding:8px 12px">
           <button class="btn-primary" style="font-size:13px;padding:8px 18px" onclick="createAccount()">계정 생성</button>
         </div>
         <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:var(--ink-80);cursor:pointer">
@@ -7377,9 +7377,10 @@ function closeStudyPrivacy(){
 
 async function createAccount(){
   const sid=document.getElementById('create-student-id').value.trim();
-  const pw=document.getElementById('create-password').value.trim()||'1234';
+  const pw=document.getElementById('create-password').value.trim()||'123456';
   const isExternal=document.getElementById('create-is-external').checked;
   if(!sid){toast('아이디를 입력해주세요');return}
+  if(pw.length<6){toast('비밀번호는 6자 이상이어야 합니다');return}
   // if(!/^\d{5}$/.test(sid)){toast('학번은 5자리 숫자여야 합니다');return}
   if(!confirm(`${sid}번 계정을 생성할까요? (초기 비밀번호: ${pw})${isExternal?'\n타반 계정으로 생성되고 "내 학생"에 등록됩니다.':''}`))return;
   const res=await fetch(`${SERVER_URL}/api/create-user`,{
@@ -7431,7 +7432,7 @@ async function setRole(sid,newRole){
 
 async function resetPassword(sid){
   if(!isStaffRole()){toast('권한이 없습니다');return}
-  if(!confirm(`${sid}번의 비밀번호를 1234로 초기화할까요?`))return;
+  if(!confirm(`${sid}번의 비밀번호를 123456으로 초기화할까요?`))return;
   const res=await fetch(`${SERVER_URL}/api/reset-password`,{
     method:'POST',
     headers:{'Content-Type':'application/json'},
@@ -7439,7 +7440,7 @@ async function resetPassword(sid){
   });
   const data=await res.json();
   if(!res.ok){toast('초기화 실패: '+(data.error||''));return}
-  toast(`${sid}번 비밀번호가 1234로 초기화되었습니다 ✓`);
+  toast(`${sid}번 비밀번호가 123456으로 초기화되었습니다 ✓`);
 }
 
 // ── 월간 계획 이수 캘린더 (학생 본인 플래너 + 선생님 학생 상세 공용) ──

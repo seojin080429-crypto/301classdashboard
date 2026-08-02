@@ -34,8 +34,14 @@
      테마 변수를 그대로 써서 다크모드·베이지 테마에서도 자연스럽게 어울리게 함. */
   --ig-blue:#0095f6;
 }
+/* 다크모드는 원래 라이트모드와 같은 블루 포인트색을 쓰고 있었는데(화이트-블루/블랙-블루),
+   요청으로 다크모드만 블루 대신 그레이 톤 포인트색(블랙-그레이)으로 교체함(2026-08-03).
+   라이트모드는 그대로 화이트-블루 유지. 기존 블루(#0a84ff)와 대비(흰 글자/배경 대비)가
+   거의 같은 밝기의 회색을 골라서(대비 계산: 흰 글자 대비 ~3.6, 배경 대비 ~4.7~5.1로 기존과
+   동급) 버튼/링크 가독성이 떨어지지 않게 함. --blue-dark는 현재 코드에서 실제로 쓰이는 곳이
+   없지만(사용처 없음, grep 확인) 톤은 맞춰서 같이 바꿔둠. */
 :root[data-theme="dark"] {
-  --blue:#0a84ff; --blue-focus:#409cff; --blue-dark:#5ac8fa;
+  --blue:#86868b; --blue-focus:#a0a0a5; --blue-dark:#c4c4c9;
   --ink:#f5f5f7; --ink-80:#d1d1d6; --ink-48:#98989d;
   --green: #34d399; --green-light: rgba(52, 211, 153, .15); --green-dark: #a7f3d0;
   --canvas:#1c1c1e; --parchment:#131315; --pearl:#242426;
@@ -2374,6 +2380,19 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
     <div class="modal-actions">
       <button class="btn-ghost" onclick="closeInviteDmModal()">취소</button>
       <button class="btn-primary" onclick="inviteDmParticipants()">초대하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 게시글을 DM으로 공유하는 모달 — 이미 대화 중인 방 목록에서 골라 바로 전송 -->
+<div class="modal-overlay" id="share-dm-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeSharePostModal()">×</button>
+    <div class="modal-title">DM으로 공유</div>
+    <div class="dm-participant-list" id="share-dm-room-list"></div>
+    <div class="auth-error" id="share-dm-error"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeSharePostModal()">취소</button>
     </div>
   </div>
 </div>
@@ -6874,7 +6893,7 @@ function renderPost(p,type,comments=[]){
       <button class="post-action-btn" onclick="toggleComments('${p.id}')" title="댓글">
         <svg viewBox="0 0 24 24"><path d="M20.656 17.008a9.993 9.993 0 1 0-3.59 3.615L21 21l-1.192-3.415z"></path></svg>
       </button>
-      <button class="post-action-btn" onclick="sharePost('${p.id}')" title="공유">
+      <button class="post-action-btn" onclick="openSharePostModal('${p.id}')" title="DM으로 공유">
         <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
       </button>
     </div>
@@ -6908,21 +6927,73 @@ function closeAllPostMenus(){
 }
 document.addEventListener('click',closeAllPostMenus);
 
-// 공유(✈️) — 백엔드/스키마 변경 없이 브라우저 기본 공유 기능만 사용. 지원 안 되는
-// 브라우저(대부분의 데스크톱)에서는 본문을 클립보드에 복사하는 것으로 대신한다.
-async function sharePost(postId){
-  const contentEl=document.getElementById(`post-content-${postId}`);
-  const text=contentEl?contentEl.textContent:'';
-  if(navigator.share){
-    try{await navigator.share({title:'부광고 3-1 대시보드',text})}catch(e){/* 사용자 취소 등은 무시 */}
+// 공유(✈️) — 어플 내 DM으로 게시글을 바로 보낼 수 있게 함(2026-08-03, 요청: "게시물 공유를
+// 어플 내 dm에서 가능하게 해줘"). 이미 대화 중인 방 목록(dmRooms)에서 골라 전송하는 방식 —
+// "새 대화 시작"까지 이 모달에서 겸하지는 않음(이미 DM 페이지에 있는 기능이라 중복 UI를
+// 피함). 새 대화가 필요하면 DM 페이지에서 먼저 시작한 뒤 다시 공유하면 됨.
+let shareDmPostId=null;
+function openSharePostModal(postId){
+  closeAllPostMenus();
+  shareDmPostId=postId;
+  document.getElementById('share-dm-error').style.display='none';
+  renderShareDmRoomList();
+  document.getElementById('share-dm-modal').classList.add('open');
+  // DM 페이지를 아직 한 번도 안 열었으면 dmRooms가 비어있을 수 있어 최신으로 다시 불러온다.
+  loadDmRooms().then(renderShareDmRoomList);
+}
+function closeSharePostModal(){
+  document.getElementById('share-dm-modal').classList.remove('open');
+  shareDmPostId=null;
+}
+function renderShareDmRoomList(){
+  const wrap=document.getElementById('share-dm-room-list');
+  if(!wrap)return;
+  if(!dmRooms.length){
+    wrap.innerHTML='<div style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">아직 대화가 없어요<br>DM에서 먼저 대화를 시작해주세요</div>';
     return;
   }
-  try{
-    await navigator.clipboard.writeText(text);
-    toast('내용이 복사되었습니다 ✓');
-  }catch(e){
-    toast('이 브라우저는 공유하기를 지원하지 않아요');
+  wrap.innerHTML=dmRooms.map(r=>{
+    const avatarHtml=r.avatarUrl?`<img src="${r.avatarUrl}" alt="">`:(r.is_group?'👥':escHtml((r.displayName||'?')[0]));
+    return`<div class="dm-room-item" onclick="confirmSharePostToDm('${r.id}')">
+      <div class="dm-room-avatar">${avatarHtml}</div>
+      <div class="dm-room-info"><div class="dm-room-name">${escHtml(r.displayName)}</div></div>
+    </div>`;
+  }).join('');
+}
+let sharingToDm=false;
+async function confirmSharePostToDm(roomId){
+  const postId=shareDmPostId;
+  if(!postId||sharingToDm)return;
+  sharingToDm=true;
+  const {data:post,error}=await sb.from('posts').select('*').eq('id',postId).single();
+  if(error||!post){toast('게시글을 찾을 수 없어요');sharingToDm=false;return}
+  const authorName=boardProfileMap[post.student_id]?.display_name||post.author_name;
+  const isVideoAttachment=post.image_url&&(/\/vid_[^/]*$/.test(post.image_url)||(!/\/img_[^/]*$/.test(post.image_url)&&/\.(mp4|webm|mov|m4v|ogg|ogv|avi|wmv|mkv|3gp|flv|mpeg|mpg)(\?|$)/i.test(post.image_url)));
+  // DM 메시지 렌더링은 항상 <img>로만 보여주므로(동영상 재생 지원 없음), 동영상 첨부 글은
+  // 사진을 옮기지 않고 안내 문구만 붙인다 — 깨진 이미지로 보이는 것보다 낫다.
+  let imagePath=null;
+  if(post.image_url && !isVideoAttachment){
+    try{
+      const res=await fetch(post.image_url);
+      const blob=await res.blob();
+      const ext=(post.image_url.split('.').pop()||'jpg').split('?')[0];
+      const path=`${roomId}/shared_${currentStudentId}_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+      const {error:upErr}=await sb.storage.from('dm-photos').upload(path,blob);
+      if(!upErr)imagePath=path;
+    }catch(e){/* 사진 전달에 실패해도 텍스트 공유는 계속 진행 */}
   }
+  const videoNote=isVideoAttachment?'\n(동영상 첨부됨 — 게시판에서 확인해주세요)':'';
+  const content=`📌 게시글 공유\n${authorName}: ${post.content}${videoNote}`;
+  const {data:msg,error:sendErr}=await sb.from('dm_messages').insert({
+    room_id:roomId,sender_student_id:currentStudentId,sender_user_id:currentUser.id,
+    sender_name:currentName||currentStudentId+'번',content,image_url:imagePath
+  }).select().single();
+  sharingToDm=false;
+  if(sendErr){toast('공유 실패: '+sendErr.message);return}
+  closeSharePostModal();
+  toast('DM으로 공유했어요 ✓');
+  triggerNotify('dm-message',{message_id:msg.id});
+  await loadDmRooms();
 }
 
 function toggleComments(postId){

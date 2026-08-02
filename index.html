@@ -28,6 +28,11 @@
   --sidebar-w:240px; --nav-h:44px;
   --radius-sm:8px; --radius-md:11px; --radius-lg:18px; --radius-pill:9999px;
   --t:.18s ease;
+  /* 게시판(자유/질문/버그) 피드 카드 전용 브랜드 컬러 — 인스타그램 피드 UI를 참고해
+     디자인했고(2026-08-03), 이 블루만은 라이트/다크/베이지 테마가 바뀌어도 고정으로 둔다
+     (요청 스펙의 "Primary/Brand: #0095F6"). 배경/글자색 등 나머지는 전부 기존 --canvas/--ink류
+     테마 변수를 그대로 써서 다크모드·베이지 테마에서도 자연스럽게 어울리게 함. */
+  --ig-blue:#0095f6;
 }
 :root[data-theme="dark"] {
   --blue:#0a84ff; --blue-focus:#409cff; --blue-dark:#5ac8fa;
@@ -746,17 +751,29 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .rank-time{font-size:12px;font-weight:600;color:var(--ink-48);font-variant-numeric:tabular-nums;min-width:48px;text-align:right}
 .rank-row.me .rank-time{color:var(--blue)}
 
-/* QNA */
-.qna-list{display:flex;flex-direction:column;gap:10px}
-.qna-card{background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--radius-lg);padding:16px 18px}
-.qna-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-.qna-avatar{width:26px;height:26px;border-radius:50%;background:#1d1d1f;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#fff;flex-shrink:0}
-.qna-author{font-size:12px;font-weight:600;color:var(--ink)}
-.qna-time{font-size:11px;color:var(--ink-48)}
-.qna-subject-pill{font-size:10px;font-weight:600;padding:2px 7px;border-radius:var(--radius-pill);background:rgba(0,102,204,.1);color:var(--blue);margin-left:auto}
-.qna-content{font-size:13px;color:var(--ink);line-height:1.6;margin-bottom:8px;white-space:pre-wrap}
-.qna-reply-btn{font-size:12px;color:var(--blue);background:none;border:none;cursor:pointer;padding:0}
-.qna-reply-btn:hover{text-decoration:underline}
+/* QNA / 게시판 피드 카드 — 인스타그램 피드 UI 참고 디자인(2026-08-03).
+   헤더(아바타+아이디+더보기)/미디어/액션바(좋아요·댓글·공유)/본문(좋아요 수·캡션·댓글보기·
+   시간) 순서로 구성. 색상은 --ig-blue 하나만 고정이고 나머지는 --canvas/--ink 등 기존 테마
+   변수를 그대로 써서 다크모드/베이지 테마와 자연스럽게 어울린다. */
+.qna-list{display:flex;flex-direction:column;gap:16px}
+.qna-card{background:var(--canvas);border:1px solid var(--hairline);border-radius:8px;overflow:hidden}
+.qna-header{display:flex;align-items:center;gap:10px;padding:11px 14px}
+.qna-avatar{width:32px;height:32px;border-radius:50%;background:#1d1d1f;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;flex-shrink:0}
+.qna-author{font-size:14px;font-weight:600;color:var(--ink)}
+.qna-subject-pill{font-size:10px;font-weight:600;padding:2px 7px;border-radius:var(--radius-pill);background:rgba(0,149,246,.1);color:var(--ig-blue)}
+.qna-header-spacer{flex:1;min-width:0}
+.qna-content{font-size:14px;font-weight:400;color:var(--ink);line-height:1.5;white-space:pre-wrap;word-break:break-word}
+/* 게시글 캡션 — "아이디 + 본문"을 한 줄처럼 묶어 보여주는 인스타그램 캡션 방식 */
+.qna-content-line{margin-bottom:4px}
+.post-caption-name{font-weight:600;margin-right:5px;font-size:14px;color:var(--ink)}
+/* 더보기(⋯) 메뉴 — 기존엔 수정/삭제 버튼이 헤더에 항상 노출돼 있었는데, 인스타그램처럼
+   "..." 버튼 뒤로 숨긴다. 본인 글이 아니고 운영자/선생님도 아니라 수정/삭제 권한이 아예
+   없으면 이 버튼 자체를 렌더링하지 않는다(renderPost() 참고). */
+.post-more-wrap{position:relative;flex-shrink:0}
+.post-more-btn{font-size:20px;line-height:1;letter-spacing:1px;color:var(--ink-48);background:none;border:none;cursor:pointer;padding:4px 6px;border-radius:var(--radius-sm)}
+.post-more-btn:hover{color:var(--ink)}
+.post-more-menu{position:absolute;top:30px;right:0;min-width:130px;background:var(--canvas);border:1px solid var(--hairline);border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.14);overflow:hidden;z-index:20;display:none}
+.post-more-menu.open{display:block}
 .write-form{background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--radius-lg);padding:18px;margin-bottom:16px}
 .write-form-title{font-size:14px;font-weight:600;color:var(--ink);margin-bottom:10px}
 .form-row{display:flex;gap:8px;margin-bottom:8px}
@@ -988,33 +1005,44 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .cam-pill.blocked{background:var(--parchment);color:var(--ink-48)}
 .admin-actions{display:flex;gap:5px;flex-wrap:wrap}
 
+/* ACTION BAR (좋아요/댓글/공유 — 왼쪽, 인스타그램처럼 아이콘만) */
+.post-actions{display:flex;align-items:center;gap:2px;padding:6px 8px 2px}
+.post-action-btn{display:flex;align-items:center;justify-content:center;padding:6px;background:none;border:none;cursor:pointer;color:var(--ink);transition:transform .12s ease,opacity .15s ease}
+.post-action-btn:active{transform:scale(.86)}
+.post-action-btn svg{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+/* 좋아요 버튼은 board-like-btn 클래스도 함께 달고 있어서(JS의 renderLikeButton()이 그
+   클래스/liked 상태로 찾음) 여기서 채워진 하트 색만 별도로 지정 */
+.board-like-btn.liked svg{fill:#ed4956;stroke:#ed4956}
+.board-like-btn.liked{animation:like-pop .28s ease}
+@keyframes like-pop{0%{transform:scale(1)}35%{transform:scale(1.22)}100%{transform:scale(1)}}
+/* 본문(좋아요 수·캡션·댓글 보기·시간) */
+.post-body{padding:0 14px 12px}
+.board-like-count{display:block;font-size:14px;font-weight:600;color:var(--ink);cursor:pointer;margin-bottom:4px}
+.board-like-count:empty{display:none}
+.board-like-count:hover{text-decoration:underline}
+.post-timestamp{display:block;font-size:12px;color:var(--ink-48);margin-top:4px}
+
 /* COMMENTS */
-.comment-section{margin-top:10px;border-top:1px solid var(--hairline);padding-top:10px}
-.comment-toggle-btn{font-size:12px;color:var(--blue);background:none;border:none;cursor:pointer;padding:0;margin-bottom:8px}
-.comment-toggle-btn:hover{text-decoration:underline}
-.comment-list{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
-.comment-item{display:flex;gap:8px;align-items:flex-start;padding:8px 10px;background:var(--parchment);border-radius:var(--radius-sm);animation:item-in .22s ease both}
-.comment-avatar{width:22px;height:22px;border-radius:50%;background:#1d1d1f;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:#fff;flex-shrink:0;margin-top:1px}
+.comment-section{border-top:1px solid var(--hairline);padding:10px 14px 12px}
+.comment-toggle-btn{display:block;font-size:14px;color:var(--ink-48);background:none;border:none;cursor:pointer;padding:0;margin-bottom:6px}
+.comment-toggle-btn:empty{display:none;margin:0}
+.comment-toggle-btn:hover{color:var(--ink)}
+.comment-list{display:flex;flex-direction:column;gap:10px;margin-bottom:10px}
+.comment-item{display:flex;gap:8px;align-items:flex-start;animation:item-in .22s ease both}
+.comment-avatar{width:24px;height:24px;border-radius:50%;background:#1d1d1f;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#fff;flex-shrink:0;margin-top:1px}
 .comment-body{flex:1;min-width:0}
 .comment-meta{display:flex;align-items:center;gap:6px;margin-bottom:2px}
-.comment-author{font-size:12px;font-weight:600;color:var(--ink)}
+.comment-author{font-size:13px;font-weight:600;color:var(--ink)}
 .comment-time{font-size:11px;color:var(--ink-48)}
-.comment-text{font-size:13px;color:var(--ink);line-height:1.5;word-break:break-word;white-space:pre-wrap}
+.comment-text{font-size:14px;color:var(--ink);line-height:1.5;word-break:break-word;white-space:pre-wrap}
 .comment-del{font-size:11px;color:var(--ink-48);background:none;border:none;cursor:pointer;margin-left:auto;flex-shrink:0;transition:color var(--t),transform .12s ease}
 .comment-del:hover{color:#c00}
 .comment-input-row{display:flex;gap:6px}
 .comment-input{flex:1;padding:7px 12px;border:1px solid var(--hairline);border-radius:var(--radius-pill);font-size:13px;color:var(--ink);background:var(--canvas);transition:border-color var(--t)}
-.comment-input:focus{border-color:var(--blue-focus);box-shadow:0 0 0 2px rgba(0,102,204,.1)}
+.comment-input:focus{border-color:var(--ig-blue);box-shadow:0 0 0 2px rgba(0,149,246,.12)}
 .comment-input::placeholder{color:var(--ink-48)}
-.comment-submit{padding:7px 14px;background:var(--blue);color:#fff;font-size:12px;font-weight:600;border-radius:var(--radius-pill);border:none;cursor:pointer;transition:opacity var(--t)}
+.comment-submit{padding:7px 14px;background:var(--ig-blue);color:#fff;font-size:12px;font-weight:600;border-radius:var(--radius-pill);border:none;cursor:pointer;transition:opacity var(--t)}
 .comment-submit:hover{opacity:.85}
-.board-like-row{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
-.board-like-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 10px;border-radius:var(--radius-pill);border:1px solid var(--hairline);background:var(--parchment);color:var(--ink-80);font-size:12px;transition:all var(--t)}
-.board-like-btn:hover{border-color:var(--blue);color:var(--blue)}
-.board-like-btn.liked{background:rgba(226,32,91,.1);border-color:rgba(226,32,91,.3);color:#c81f56}
-.board-like-btn svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.board-like-count{font-size:12px;color:var(--ink-48);cursor:pointer}
-.board-like-count:not(:empty):hover{color:var(--blue);text-decoration:underline}
 .likers-modal-item{padding:8px 4px;font-size:14px;color:var(--ink);border-bottom:1px solid var(--hairline)}
 .likers-modal-item:last-child{border-bottom:none}
 
@@ -1034,16 +1062,23 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .photo-clear-btn:hover{border-color:#c00;color:#c00}
 .photo-preview-wrap{margin-bottom:10px;border-radius:var(--radius-md);overflow:hidden;border:1px solid var(--hairline)}
 .photo-preview-img{width:100%;max-height:240px;object-fit:contain;display:block;background:var(--parchment)}
-.post-img{width:100%;max-height:320px;object-fit:contain;border-radius:var(--radius-sm);margin-top:10px;cursor:pointer;display:block;transition:opacity var(--t),transform .15s ease}
-.post-img:hover{opacity:.9;transform:scale(1.01)}
+/* 미디어 영역 — 인스타그램처럼 카드 폭 전체를 채우는 사진/동영상. 게시글 중엔 버그 제보
+   스크린샷처럼 잘리면 안 되는 이미지가 섞여있어서, 정사각형으로 무조건 크롭(object-fit:cover)
+   하는 대신 검은 여백을 두고 전체 내용이 항상 보이게(object-fit:contain) 함 — 인스타그램
+   스펙과의 의도적인 차이. */
+.post-media{width:100%;max-height:460px;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.post-img{width:100%;max-height:460px;object-fit:contain;cursor:pointer;display:block;transition:opacity var(--t)}
+.post-img:hover{opacity:.92}
+.post-media video{width:100%;max-height:460px;object-fit:contain;display:block}
 /* 이미지 라이트박스 */
 #img-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:400;cursor:pointer}
 #img-lightbox.open{display:flex}
 #img-lightbox img{max-width:90vw;max-height:90vh;object-fit:contain;border-radius:var(--radius-md)}
-.post-delete-btn{font-size:12px;color:var(--ink-48);background:none;border:none;cursor:pointer;padding:0;margin-left:auto;transition:color var(--t),transform .12s ease}
-.post-delete-btn:hover{color:#c00}
-.post-edit-btn{font-size:12px;color:var(--ink-48);background:none;border:none;cursor:pointer;padding:0;margin-left:auto;transition:color var(--t)}
-.post-edit-btn:hover{color:var(--blue)}
+/* 더보기(⋯) 메뉴 안의 수정/삭제 버튼 — 각 줄을 꽉 채우는 메뉴 아이템 형태 */
+.post-delete-btn,.post-edit-btn{display:block;width:100%;text-align:center;padding:11px 14px;font-size:13px;color:var(--ink);background:none;border:none;border-bottom:1px solid var(--hairline);cursor:pointer;transition:background var(--t)}
+.post-delete-btn{color:#ed4956;border-bottom:none}
+.post-edit-btn:hover{background:var(--parchment)}
+.post-delete-btn:hover{background:rgba(237,73,86,.08)}
 .comment-edit{font-size:11px;color:var(--ink-48);background:none;border:none;cursor:pointer;margin-left:auto;flex-shrink:0;transition:color var(--t)}
 .comment-edit:hover{color:var(--blue)}
 .inline-edit-textarea{width:100%;min-height:70px;padding:8px 10px;border:1px solid var(--hairline);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;color:var(--ink);background:var(--canvas);resize:vertical}
@@ -6523,10 +6558,10 @@ function renderLikeButton(postId){
   if(!btn||!countEl)return;
   const likerIds=boardLikesMap[postId]||[];
   const isLiked=likerIds.includes(currentStudentId);
+  // 하트 채우기는 순전히 CSS(.board-like-btn.liked svg{fill:...})로 처리 — 예전엔 svg 옆에
+  // 텍스트 하트(♥/♡)를 따로 겹쳐 그렸는데 인스타그램 리디자인(2026-08-03)하면서 정리함.
   btn.classList.toggle('liked',isLiked);
-  const heartEl=btn.querySelector('.board-like-heart');
-  if(heartEl)heartEl.textContent=isLiked?'♥':'♡';
-  countEl.textContent=likerIds.length>0?`좋아요 ${likerIds.length}명`:'';
+  countEl.textContent=likerIds.length>0?`좋아요 ${likerIds.length}개`:'';
 }
 
 // 좋아요 카운트를 누르면 이미 불러와 둔 boardLikesMap/boardProfileMap만으로(추가 쿼리 없이)
@@ -6762,44 +6797,62 @@ async function saveEditPost(id,type){
   await boardLoader(type)();
 }
 
+// 인스타그램 피드처럼 "n분 전"/"n시간 전" 상대 시간으로 표시하고, 일주일이 지나면
+// 절대 날짜로 바꾼다(인스타그램 자체 동작과 동일).
+function formatRelativeTime(iso){
+  const diffSec=Math.floor((Date.now()-new Date(iso).getTime())/1000);
+  if(diffSec<60)return'방금 전';
+  if(diffSec<3600)return`${Math.floor(diffSec/60)}분 전`;
+  if(diffSec<86400)return`${Math.floor(diffSec/3600)}시간 전`;
+  if(diffSec<86400*7)return`${Math.floor(diffSec/86400)}일 전`;
+  return new Date(iso).toLocaleDateString('ko-KR',{month:'numeric',day:'numeric'});
+}
+function avatarHtmlFor(name,avatarUrl){
+  return avatarUrl?`<img src="${avatarUrl}" alt="">`:escHtml(name?name[0]:'?');
+}
 function renderPost(p,type,comments=[]){
   const isMe=p.student_id===currentStudentId;
   const canManagePost=isMe || isBoardModerator();
   // 글쓴이 이름은 글쓰기 시점 스냅샷(p.author_name)이 아니라 항상 최신 표시 이름으로
   // 보여준다 — 그래야 마이페이지에서 이름을 바꾸면 예전 글에도 바로 반영됨. 탈퇴 등으로
   // user_profiles에 없는 학번이면 스냅샷으로 폴백.
-  const authorName=boardProfileMap[p.student_id]?.display_name || p.author_name;
+  const authorProfile=boardProfileMap[p.student_id];
+  const authorName=authorProfile?.display_name || p.author_name;
   const likerIds=boardLikesMap[p.id]||[];
   const isLiked=likerIds.includes(currentStudentId);
   const likeCount=likerIds.length;
-  const date=new Date(p.created_at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
   // 업로드 시점에 파일명에 새겨둔 vid_/img_ 접두사로 우선 판단하고, 그 접두사가 없는(이
   // 방식 도입 전에 이미 올라간) 과거 첨부파일은 예전처럼 확장자로 대신 추측한다.
   const isVideoAttachment=p.image_url&&(/\/vid_[^/]*$/.test(p.image_url)||(!/\/img_[^/]*$/.test(p.image_url)&&/\.(mp4|webm|mov|m4v|ogg|ogv|avi|wmv|mkv|3gp|flv|mpeg|mpg)(\?|$)/i.test(p.image_url)));
   const imgHtml=p.image_url?(isVideoAttachment
     ?`<video class="post-img" src="${p.image_url}" controls playsinline></video>`
     :`<img class="post-img" src="${p.image_url}" alt="첨부사진" onclick="openLightbox('${p.image_url}')">`):'';
+  const mediaHtml=imgHtml?`<div class="post-media">${imgHtml}</div>`:'';
   const subjectPill=p.subject?`<span class="qna-subject-pill">${p.subject}</span>`:'';
-  const editBtn=canManagePost?`<button class="post-edit-btn" onclick="startEditPost('${p.id}','${type}')">수정</button>`:'';
-  const deleteBtn=canManagePost?`<button class="post-delete-btn" onclick="deletePost('${p.id}','${p.image_url||''}','${type}')">삭제</button>`:'';
-  const likeHtml=FREE_CATEGORY_KEYS.includes(type)?`<div class="board-like-row">
-    <button class="board-like-btn ${isLiked?'liked':''}" id="board-like-btn-${p.id}" onclick="toggleLike('${p.id}')">
-      <svg viewBox="0 0 24 24"><path d="M12 21s-6.716-4.443-9.192-8.143C.115 9.521 2.044 4 6.731 4c2.126 0 3.215 1.095 4.03 2.258C11.576 5.095 12.664 4 14.79 4 19.476 4 21.405 9.521 21.192 12.857 18.716 16.557 12 21 12 21z"></path></svg>
-      <span class="board-like-heart">${isLiked?'♥':'♡'}</span>
-    </button>
-    <span class="board-like-count" id="board-like-count-${p.id}" onclick="viewLikers('${p.id}')">${likeCount>0?`좋아요 ${likeCount}명`:''}</span>
+  // 수정/삭제 권한이 아예 없으면(남의 글, 운영자도 아님) "..." 버튼 자체를 안 보여준다.
+  const moreMenuHtml=canManagePost?`<div class="post-more-wrap">
+    <button class="post-more-btn" onclick="togglePostMenu(event,'${p.id}')">⋯</button>
+    <div class="post-more-menu" id="post-menu-${p.id}">
+      <button class="post-edit-btn" onclick="closeAllPostMenus();startEditPost('${p.id}','${type}')">수정</button>
+      <button class="post-delete-btn" onclick="closeAllPostMenus();deletePost('${p.id}','${p.image_url||''}','${type}')">삭제</button>
+    </div>
   </div>`:'';
+  const showLike=FREE_CATEGORY_KEYS.includes(type);
+  const likeBtnHtml=showLike?`<button class="post-action-btn board-like-btn${isLiked?' liked':''}" id="board-like-btn-${p.id}" onclick="toggleLike('${p.id}')" title="좋아요">
+      <svg viewBox="0 0 24 24"><path d="M12 21s-6.716-4.443-9.192-8.143C.115 9.521 2.044 4 6.731 4c2.126 0 3.215 1.095 4.03 2.258C11.576 5.095 12.664 4 14.79 4 19.476 4 21.405 9.521 21.192 12.857 18.716 16.557 12 21 12 21z"></path></svg>
+    </button>`:'';
+  const likeCountHtml=showLike?`<span class="board-like-count" id="board-like-count-${p.id}" onclick="viewLikers('${p.id}')">${likeCount>0?`좋아요 ${likeCount}개`:''}</span>`:'';
   const commentsHtml=comments.map(c=>{
     const isMyComment=c.student_id===currentStudentId;
     const canManageComment=isMyComment || isBoardModerator();
-    const commentAuthorName=boardProfileMap[c.student_id]?.display_name || c.author_name;
-    const cDate=new Date(c.created_at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    const commentProfile=boardProfileMap[c.student_id];
+    const commentAuthorName=commentProfile?.display_name || c.author_name;
     return`<div class="comment-item">
-      <div class="comment-avatar">${commentAuthorName?commentAuthorName[0]:'?'}</div>
+      <div class="comment-avatar">${avatarHtmlFor(commentAuthorName,commentProfile?.avatar_url)}</div>
       <div class="comment-body">
         <div class="comment-meta">
-          <span class="comment-author">${commentAuthorName}</span>
-          <span class="comment-time">${cDate}</span>
+          <span class="comment-author">${escHtml(commentAuthorName)}</span>
+          <span class="comment-time">${formatRelativeTime(c.created_at)}</span>
           ${canManageComment?`<button class="comment-edit" onclick="startEditComment('${c.id}','${p.id}','${type}')">수정</button><button class="comment-del" onclick="deleteComment('${c.id}','${p.id}','${type}')">삭제</button>`:''}
         </div>
         <div class="comment-text" id="comment-text-${c.id}">${escHtml(c.content)}</div>
@@ -6809,27 +6862,67 @@ function renderPost(p,type,comments=[]){
   const commentCount=comments.length;
   return`<div class="qna-card" id="post-${p.id}">
     <div class="qna-header">
-      <div class="qna-avatar">${authorName?authorName[0]:'?'}</div>
-      <span class="qna-author">${authorName}</span>
-      <span class="qna-time" style="margin-left:6px;font-size:11px;color:var(--ink-48)">${date}</span>
-      ${subjectPill}${editBtn}${deleteBtn}
+      <div class="qna-avatar">${avatarHtmlFor(authorName,authorProfile?.avatar_url)}</div>
+      <span class="qna-author">${escHtml(authorName)}</span>
+      ${subjectPill}
+      <div class="qna-header-spacer"></div>
+      ${moreMenuHtml}
     </div>
-    <div class="qna-content" id="post-content-${p.id}">${escHtml(p.content)}</div>
-    ${imgHtml}
-    ${likeHtml}
-    <div class="comment-section">
-      <button class="comment-toggle-btn" onclick="toggleComments('${p.id}')">
-        💬 댓글 ${commentCount}개${commentCount?` 보기`:''}
+    ${mediaHtml}
+    <div class="post-actions">
+      ${likeBtnHtml}
+      <button class="post-action-btn" onclick="toggleComments('${p.id}')" title="댓글">
+        <svg viewBox="0 0 24 24"><path d="M20.656 17.008a9.993 9.993 0 1 0-3.59 3.615L21 21l-1.192-3.415z"></path></svg>
       </button>
-      <div id="comments-${p.id}" style="display:none">
-        <div class="comment-list" id="comment-list-${p.id}">${commentsHtml}</div>
-        <div class="comment-input-row">
-          <input class="comment-input" id="comment-input-${p.id}" placeholder="댓글을 입력하세요..." onkeydown="if(event.key==='Enter'&&!event.isComposing)submitComment('${p.id}','${type}')">
-          <button class="comment-submit" onclick="submitComment('${p.id}','${type}')">등록</button>
-        </div>
+      <button class="post-action-btn" onclick="sharePost('${p.id}')" title="공유">
+        <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+      </button>
+    </div>
+    <div class="post-body">
+      ${likeCountHtml}
+      <div class="qna-content-line"><span class="post-caption-name">${escHtml(authorName)}</span><div class="qna-content" id="post-content-${p.id}" style="display:inline">${escHtml(p.content)}</div></div>
+      <button class="comment-toggle-btn" onclick="toggleComments('${p.id}')">${commentCount?`댓글 ${commentCount}개 모두 보기`:''}</button>
+      <span class="post-timestamp">${formatRelativeTime(p.created_at)}</span>
+    </div>
+    <div class="comment-section" id="comments-${p.id}" style="display:none">
+      <div class="comment-list" id="comment-list-${p.id}">${commentsHtml}</div>
+      <div class="comment-input-row">
+        <input class="comment-input" id="comment-input-${p.id}" placeholder="댓글을 입력하세요..." onkeydown="if(event.key==='Enter'&&!event.isComposing)submitComment('${p.id}','${type}')">
+        <button class="comment-submit" onclick="submitComment('${p.id}','${type}')">등록</button>
       </div>
     </div>
   </div>`;
+}
+
+// "..." 더보기 메뉴 — 한 번에 하나만 열려있게 하고, 메뉴 바깥을 클릭하면 닫힌다.
+function togglePostMenu(event,postId){
+  event.stopPropagation();
+  const menu=document.getElementById(`post-menu-${postId}`);
+  if(!menu)return;
+  const willOpen=!menu.classList.contains('open');
+  closeAllPostMenus();
+  if(willOpen)menu.classList.add('open');
+}
+function closeAllPostMenus(){
+  document.querySelectorAll('.post-more-menu.open').forEach(m=>m.classList.remove('open'));
+}
+document.addEventListener('click',closeAllPostMenus);
+
+// 공유(✈️) — 백엔드/스키마 변경 없이 브라우저 기본 공유 기능만 사용. 지원 안 되는
+// 브라우저(대부분의 데스크톱)에서는 본문을 클립보드에 복사하는 것으로 대신한다.
+async function sharePost(postId){
+  const contentEl=document.getElementById(`post-content-${postId}`);
+  const text=contentEl?contentEl.textContent:'';
+  if(navigator.share){
+    try{await navigator.share({title:'부광고 3-1 대시보드',text})}catch(e){/* 사용자 취소 등은 무시 */}
+    return;
+  }
+  try{
+    await navigator.clipboard.writeText(text);
+    toast('내용이 복사되었습니다 ✓');
+  }catch(e){
+    toast('이 브라우저는 공유하기를 지원하지 않아요');
+  }
 }
 
 function toggleComments(postId){
@@ -6853,14 +6946,13 @@ async function submitComment(postId,type){
   if(error){toast('댓글 등록 실패: '+error.message);inp.value=content;return}
   // 댓글 목록에 바로 추가
   const list=document.getElementById(`comment-list-${postId}`);
-  const cDate=new Date(data.created_at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
   const item=document.createElement('div');item.className='comment-item';
   item.innerHTML=`
-    <div class="comment-avatar">${escHtml(data.author_name[0])}</div>
+    <div class="comment-avatar">${avatarHtmlFor(data.author_name,currentAvatarUrl)}</div>
     <div class="comment-body">
       <div class="comment-meta">
         <span class="comment-author">${escHtml(data.author_name)}</span>
-        <span class="comment-time">${cDate}</span>
+        <span class="comment-time">${formatRelativeTime(data.created_at)}</span>
         <button class="comment-edit" onclick="startEditComment('${data.id}','${postId}','${type}')">수정</button>
         <button class="comment-del" onclick="deleteComment('${data.id}','${postId}','${type}')">삭제</button>
       </div>
@@ -6871,7 +6963,7 @@ async function submitComment(postId,type){
   const card=document.getElementById(`post-${postId}`);
   if(card){
     const btn=card.querySelector('.comment-toggle-btn');
-    if(btn){const cur=list.children.length;btn.textContent=`💬 댓글 ${cur}개 보기`;}
+    if(btn){const cur=list.children.length;btn.textContent=`댓글 ${cur}개 모두 보기`;}
   }
   triggerNotify('comment',{comment_id:data.id});
 }

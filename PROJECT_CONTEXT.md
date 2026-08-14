@@ -82,9 +82,17 @@
   다르게 "전체 공개" 정책이 없었음), 선생님 학생 상세 학습현황 기능 때문에 `study_sessions`와
   동일하게 "class can view all"(SELECT는 `true`) 정책을 추가함 — 쓰기는 여전히 본인만.
 - `user_roles` — `student_id`(PK) / `role`(student/admin/owner) / `is_teacher` /
-  `can_appoint_teacher` / `cam_allowed`. RLS는 SELECT/ALL 모두 `true`(사실상 프론트 role
-  체크로만 게이팅되는, 이 프로젝트의 기존 컨벤션 — `study_sessions`처럼 `auth.uid()` 기반으로
-  진짜 제한하는 테이블도 있으니 새 테이블 만들 때 어느 쪽이 맞는지 판단할 것).
+  `can_appoint_teacher` / `cam_allowed` / `is_external` / `mentor_student_id` /
+  (2026-08-14 추가) `class_id`(uuid, nullable, FK→classes on delete set null). RLS는
+  SELECT/ALL 모두 `true`(사실상 프론트 role 체크로만 게이팅되는, 이 프로젝트의 기존 컨벤션 —
+  `study_sessions`처럼 `auth.uid()` 기반으로 진짜 제한하는 테이블도 있으니 새 테이블 만들 때
+  어느 쪽이 맞는지 판단할 것).
+- `classes`(2026-08-14 신설) — 타반/타학교 학생을 묶는 "반". `id`(uuid PK) / `name`(unique) /
+  `created_at`. RLS는 `user_roles`와 동일한 permissive 컨벤션(SELECT/ALL `true`, 프론트에서
+  owner-tier만 관리 UI 노출 — 반 이름 자체는 민감정보가 아니라고 판단). 멤버십은 별도 테이블
+  없이 `user_roles.class_id`(FK→classes on delete set null)로 표현. 마이그레이션은 Supabase
+  MCP로 실제 프로젝트(`pvrgwvfjnebsxnlxaxhc`)에 적용 완료
+  (`add_classes_and_user_roles_class_id`, 2026-08-14 — 테이블/컬럼/정책 2개 생성 확인함).
 - `user_devices` — 계정당 등록 기기 수 제한(기본 2대) 기능용. `student_id`+`device_id`(브라우저
   localStorage에 저장된 UUID) unique. **로그인 자체는 무제한**이고, 캠스터디 입장(`joinStudy()`)
   시점에만 `checkDeviceLimit()`이 체크함(2026-07-14에 로그인 게이트에서 이쪽으로 옮김).
@@ -218,6 +226,43 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-08-14 (2차): 코드리뷰 후속 수정 + 날짜별 공부 시간을 캘린더로 이동 + 클래스(반)
+  시스템 신설. `sw.js`의 `SW_BUILD`도 `2026-08-14-2`로 올림.
+  - **1차 작업분 코드리뷰에서 나온 문제들 수정** (Claude Code 자체 리뷰):
+    ① `editTask()` — 공백만 입력하면 모든 날짜 세션 이름이 ''로 일괄 변경되던 것 차단
+    (`if(!trimmed)return`), 세션 이름 반영 실패 시 `study_tasks`를 옛 이름으로 롤백해서
+    "기록 사라짐" 버그가 부분 실패 경로로 재현되지 않게 함, 과거 날짜 일지를 보는 중 이름을
+    바꾸면 화면에 옛 이름이 남던 것 수정(`loadPlannerViewDateData()` 재호출), 죽은 `typeof
+    renderDailyTotals` 가드 제거. ② `handleRemoteTimerSync()` — 다른 기기에서 방금 이름을
+    바꾼 태스크의 sync가 이름 불일치로 조용히 무시되던 것을, 매칭 실패 시
+    `loadSubjectsFromDB()`로 최신 이름을 다시 불러와 한 번 더 매칭하도록 수정. ③
+    `beginCountdownUI()` — `clockStart` 없는 구버전 저장 카운트다운을 재개하면 숫자/시계가
+    모두 숨겨져 빈 화면이 되던 하위호환 깨짐 수정(숫자 표시는 시계가 있을 때만 숨김). ④
+    `stopCurrentTimer()`의 미사용 `si`/`savedSeconds` 죽은 코드 제거.
+  - **"날짜별 공부 시간"을 리스트 뷰 아래에서 "계획 이수 현황" 월간 캘린더로 이동** (요청:
+    "내가 원한 공부시간 표시는 여기 캘린더에 올리는거야") — 리스트 아래 `daily-totals` 블록
+    (HTML/CSS/`renderDailyTotals()`)은 통째로 삭제하고, `renderMonthCalendar()`가 각 날짜
+    칸 왼쪽 상단에 그날 총 공부 시간(`.mcal-day-time`)을 표시한다. 진행 중 세션의 실시간
+    보정은 **오늘 칸에만** 적용(1차 리뷰에서 지적된 고아 세션 무한 증가 버그를 원천 차단 —
+    과거 날짜의 `ended_at IS NULL` 행은 0으로 취급). 본인 플래너('pw') 캘린더의 오늘 이전
+    날짜 칸은 클릭하면 그날 일지로 이동(`pickPlannerViewDate(ds,true)` — 일지 카드로 스크롤
+    포함). 선생님 학생 상세('sd') 캘린더에도 날짜별 시간이 같이 표시되지만 클릭 이동은 없음.
+    갱신 시점(기존 `renderDailyTotals` 자리를 `renderMyMonthCalendar`가 대체): 타이머 정지,
+    구간 수동 추가·수정·삭제, 할 일 이름 변경.
+  - **클래스(반) 시스템 신설** (요청: "타반/타학교 학생들을 묶는 '반'을 만들게 해줘") —
+    `classes` 테이블 + `user_roles.class_id`(스키마 섹션 참고 — 처음엔 이 세션에 Supabase
+    접근이 없어 SQL만 준비했는데, 이후 사용자가 Supabase MCP 커넥터를 연결해줘서 실제
+    프로젝트에 마이그레이션 적용까지 완료함). 관리자 탭에
+    "클래스(반) 관리" 카드(owner-tier 전용): 클래스 만들기/삭제, 아이디로 멤버 추가/제거.
+    "계정 생성" 카드에 클래스 드롭다운 추가 — 클래스를 고르면 자동으로 타반 계정
+    (`is_external=true`+멘토 등록)으로 만들어지고 그 클래스 소속이 됨. 클래스에 소속된
+    계정은 사이드바 "실시간" 그룹에 **"내 반 보기"** 탭(`page-myclass`)이 생기고, 같은
+    클래스 멤버 전원 + **제작자(30122, `CREATOR_STUDENT_ID` 상수)의 공부 현황**을 "내 학생"
+    과 같은 카드 그리드로 볼 수 있다(요청: "타학교 학생들은 나(30122)의 기록은 볼 수 있게").
+    카드를 누르면 선생님 학생 상세와 동일한 전체화면(`openStudentDetail`)으로 리포트/
+    타임테이블/캘린더를 볼 수 있음(관련 테이블 SELECT가 전부 전체 공개 RLS라 백엔드 변경
+    불필요). 마이그레이션 전에는 클래스 관리 카드에 안내 문구가 뜨고 나머지는 기존대로 동작
+    (`loadMyRole()`이 `user_roles`를 `*`로 조회하도록 바꿔서 없는 컬럼 에러도 안 남).
 - 2026-08-14: 학습 플래너 이름 변경 버그 수정 + 모의고사 실전 시계 + 날짜별 공부 시간.
   `sw.js`의 `SW_BUILD`도 `2026-08-14-1`로 올림.
   - **할 일 이름을 바꾸면 기록이 사라지던 버그 수정** (제보: "이름을 변경하면 그 기록이

@@ -87,24 +87,12 @@
   SELECT/ALL 모두 `true`(사실상 프론트 role 체크로만 게이팅되는, 이 프로젝트의 기존 컨벤션 —
   `study_sessions`처럼 `auth.uid()` 기반으로 진짜 제한하는 테이블도 있으니 새 테이블 만들 때
   어느 쪽이 맞는지 판단할 것).
-- `classes`(2026-08-14 신설, ⚠️ **마이그레이션 SQL을 아직 Supabase에 실행 안 했으면 아래 SQL을
-  먼저 실행해야 클래스 기능이 동작함** — 실행 전에는 관리자 탭 클래스 카드에 안내 문구만 뜨고
-  나머지 앱은 정상 동작) — 타반/타학교 학생을 묶는 "반". `id`(uuid PK) / `name`(unique) /
+- `classes`(2026-08-14 신설) — 타반/타학교 학생을 묶는 "반". `id`(uuid PK) / `name`(unique) /
   `created_at`. RLS는 `user_roles`와 동일한 permissive 컨벤션(SELECT/ALL `true`, 프론트에서
   owner-tier만 관리 UI 노출 — 반 이름 자체는 민감정보가 아니라고 판단). 멤버십은 별도 테이블
-  없이 `user_roles.class_id`로 표현.
-  ```sql
-  create table if not exists public.classes (
-    id uuid primary key default gen_random_uuid(),
-    name text not null unique,
-    created_at timestamptz not null default now()
-  );
-  alter table public.classes enable row level security;
-  create policy "class can view all" on public.classes for select using (true);
-  create policy "class can write all" on public.classes for all using (true) with check (true);
-  alter table public.user_roles add column if not exists
-    class_id uuid references public.classes(id) on delete set null;
-  ```
+  없이 `user_roles.class_id`(FK→classes on delete set null)로 표현. 마이그레이션은 Supabase
+  MCP로 실제 프로젝트(`pvrgwvfjnebsxnlxaxhc`)에 적용 완료
+  (`add_classes_and_user_roles_class_id`, 2026-08-14 — 테이블/컬럼/정책 2개 생성 확인함).
 - `user_devices` — 계정당 등록 기기 수 제한(기본 2대) 기능용. `student_id`+`device_id`(브라우저
   localStorage에 저장된 UUID) unique. **로그인 자체는 무제한**이고, 캠스터디 입장(`joinStudy()`)
   시점에만 `checkDeviceLimit()`이 체크함(2026-07-14에 로그인 게이트에서 이쪽으로 옮김).
@@ -262,8 +250,9 @@
     갱신 시점(기존 `renderDailyTotals` 자리를 `renderMyMonthCalendar`가 대체): 타이머 정지,
     구간 수동 추가·수정·삭제, 할 일 이름 변경.
   - **클래스(반) 시스템 신설** (요청: "타반/타학교 학생들을 묶는 '반'을 만들게 해줘") —
-    `classes` 테이블 + `user_roles.class_id`(스키마 섹션 참고, ⚠️ **SQL을 Supabase에 직접
-    실행해야 함** — 이번 세션 환경에는 Supabase 접근 도구가 없었음). 관리자 탭에
+    `classes` 테이블 + `user_roles.class_id`(스키마 섹션 참고 — 처음엔 이 세션에 Supabase
+    접근이 없어 SQL만 준비했는데, 이후 사용자가 Supabase MCP 커넥터를 연결해줘서 실제
+    프로젝트에 마이그레이션 적용까지 완료함). 관리자 탭에
     "클래스(반) 관리" 카드(owner-tier 전용): 클래스 만들기/삭제, 아이디로 멤버 추가/제거.
     "계정 생성" 카드에 클래스 드롭다운 추가 — 클래스를 고르면 자동으로 타반 계정
     (`is_external=true`+멘토 등록)으로 만들어지고 그 클래스 소속이 됨. 클래스에 소속된

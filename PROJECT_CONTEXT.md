@@ -226,6 +226,32 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-08-14 (7차): **백엔드를 Railway → Supabase Edge Function으로 이전.** `sw.js`의
+  `SW_BUILD`도 `2026-08-14-7`로 올림. **Railway 무료 체험이 만료돼 `bugwang-server` 서비스가
+  통째로 offline**이 된 것이 오늘 겪은 증상들(관리자탭 느림 → 계정 목록 실패 → 이름 누락 →
+  계정 생성 멈춤)의 진짜 원인이었음.
+  - 백엔드 저장소(`seojin080429-crypto/bugwang-server`)에 `supabase/functions/api/index.ts`를
+    추가해 Express 서버를 Deno Edge Function으로 포팅하고 Supabase에 배포함(함수명 `api`,
+    `verify_jwt=false` — 함수가 예전 서버와 동일한 자체 권한 판정을 하므로).
+  - **경로 설계**: Supabase는 `/functions/v1/{함수명}/{나머지}`로 라우팅하므로 함수명을 `api`로
+    두면 기존 `${SERVER_URL}/api/users` 호출이 그대로 맞아떨어진다 — 그래서 프론트는
+    `SERVER_URL` 상수 한 줄만 교체(`https://pvrgwvfjnebsxnlxaxhc.supabase.co/functions/v1`).
+  - 이전 완료: 계정 목록/생성/삭제/비번초기화/아이디변경, 푸시 구독·해지, 알림 6종, 급식 수집.
+    포팅하면서 `listUsers`가 200명에서 조용히 잘리던 것을 페이지네이션으로 고쳤고, `web-push`는
+    Deno에서 로드 실패해도 **함수 전체가 죽지 않도록** 동적 import로 감쌌다.
+  - **아직 이전 안 됨**: 뉴스 수집(네이버+Groq), 캠스터디 영상통화, 기기 간 타이머 동기화.
+    뒤 둘은 Socket.IO 상시 연결 서버가 필요해 Edge Function으로 안 옮겨지고 Supabase Realtime
+    재설계가 필요함. 그래서 소켓 주소를 `SOCKET_URL` 상수로 분리하고 **빈 값이면 연결 자체를
+    안 하도록** 함(죽은 주소로 무한 재연결하면 콘솔이 에러로 뒤덮이고 배터리만 축남).
+    캠스터디 입장 버튼도 서버를 두드리기 전에 "이전 작업 중" 안내를 띄운다. **타이머 기기 간
+    동기화는 완전히 죽은 게 아니라** 기존 60초 주기 `applyServerTimerTruth()` 폴링이 남아 있어
+    즉시 반영에서 최대 1분 지연으로 품질만 떨어진 상태.
+  - ⚠️ **Edge Function 시크릿은 Supabase 대시보드에서 직접 등록해야 함**(MCP 도구가 없음):
+    `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`(푸시), `NEIS_API_KEY`(급식), 이후 뉴스용
+    `NAVER_CLIENT_ID`/`NAVER_CLIENT_SECRET`/`GROQ_API_KEY`. `SUPABASE_URL`과
+    `SUPABASE_SERVICE_ROLE_KEY`는 런타임이 자동 주입하므로 등록 불필요.
+  - 뉴스/급식 자동 수집 스케줄러(예전엔 서버의 setInterval)는 `pg_cron`+`pg_net`으로 옮길 예정.
+    `pg_net`은 이미 활성화해둠.
 - 2026-08-14 (6차): **백엔드 호출에 타임아웃이 없어서 "계정 생성 누르면 렉 걸림"으로 보이던 것
   수정.** `sw.js`의 `SW_BUILD`도 `2026-08-14-6`으로 올림. `fetch()`는 서버가 응답을 안 주면
   스스로 끝나지 않는다 — 백엔드가 잠들거나 죽은 지금 상태에서 계정 생성을 누르면 버튼은

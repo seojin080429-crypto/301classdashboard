@@ -1952,78 +1952,24 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
       <!-- 대학별 내신 환산점수 (2027학년도 학생부교과전형 21개 대학) -->
       <div class="card spacer" id="uc-root">
         <div class="card-title">대학별 환산점수 · 환산등급</div>
-        <div class="card-sub">생기부 성적을 넣으면 21개 대학 학생부교과전형 기준으로 환산점수를 계산해요. 위 학기별 입력과는 별개로 동작하며, 원점수·성취도 분포까지 있으면 더 정확해요.</div>
-
-        <!-- 성적 입력 방법 -->
-        <div class="uc-tabs">
-          <button class="tab on" data-p="uc-pane-html">📄 생기부 HTML</button>
-          <button class="tab" data-p="uc-pane-app">⬆ 위 입력에서 가져오기</button>
-          <button class="tab" data-p="uc-pane-json">🤖 AI로 JSON 변환</button>
-          <button class="tab" data-p="uc-pane-manual">✏️ 직접 추가</button>
-        </div>
-
-        <!-- 1) 나이스+ HTML -->
-        <div class="pane on" id="uc-pane-html">
-          <div class="uc-drop" id="uc-drop">
-            <b>생기부 HTML 파일을 여기에 놓거나 클릭해서 선택</b>
-            <span>나이스+ → 학교생활기록부 화면을 브라우저에서 <b>다른 이름으로 저장(HTML)</b> 한 파일이에요. "7. 교과학습발달상황" 표를 직접 읽어서 과목·학점·등급·원점수까지 한 번에 가져옵니다.</span>
-          </div>
-          <input type="file" id="uc-file" accept=".html,.htm,.mhtml" style="display:none">
-        </div>
-
-        <!-- 2) 앱의 학기별 입력에서 가져오기 -->
-        <div class="pane" id="uc-pane-app">
-          <div class="uc-hint">위 "학기별 성적 입력"에 넣어둔 과목을 그대로 가져옵니다. 다만 앱의 교과군은 <b>탐구</b> 하나로 묶여 있어 사회·과학을 구분하지 못하므로, 아래 <b>계열</b> 선택을 기준으로 배정합니다. 사회·과학을 섞어 들은 경우엔 생기부 HTML로 넣는 편이 정확해요.</div>
-          <button class="btn-primary" style="font-size:13px;padding:8px 18px" onclick="UC.importFromAppCalc()">위 입력에서 가져오기</button>
-        </div>
-
-        <!-- 3) AI(제미나이 등)로 JSON 변환 -->
-        <div class="pane" id="uc-pane-json">
-          <div class="uc-hint">생기부 PDF를 AI에 올리고 아래 프롬프트를 붙여넣으면 JSON이 나와요. 그 결과를 그대로 아래 칸에 붙여넣으세요.</div>
-          <textarea class="modal-input uc-ta" id="uc-prompt" rows="3" readonly></textarea>
-          <button class="btn-ghost" style="font-size:12px;padding:6px 12px;margin:6px 0" onclick="UC.copyPrompt()">프롬프트 복사<span id="uc-copied"></span></button>
-          <textarea class="modal-input uc-ta" id="uc-json" rows="5" placeholder='{"subjects":[{"grade":1,"sem":1,"category":"국어","name":"국어","unit":4,"type":"general","rank":2}]}'></textarea>
-          <button class="btn-primary" style="font-size:13px;padding:8px 18px;margin-top:6px" onclick="UC.loadJSON()">JSON 불러오기</button>
-        </div>
-
-        <!-- 4) 직접 추가 -->
-        <div class="pane" id="uc-pane-manual">
-          <div class="uc-grid">
-            <label>학년<select class="modal-input" id="uc-m-grade"><option>1</option><option>2</option><option selected>3</option></select></label>
-            <label>학기<select class="modal-input" id="uc-m-sem"><option>1</option><option>2</option></select></label>
-            <label>교과<select class="modal-input" id="uc-m-cat"><option>국어</option><option>수학</option><option>영어</option><option>사회</option><option>과학</option><option>한국사</option><option>체육</option><option>예술</option><option>기타</option></select></label>
-            <label>과목명<input class="modal-input" id="uc-m-name" placeholder="예: 미적분"></label>
-            <label>학점수<input class="modal-input" id="uc-m-unit" type="number" step="0.5" min="0.5" placeholder="4"></label>
-            <label>유형<select class="modal-input" id="uc-m-type"><option value="general">일반(석차등급)</option><option value="career">진로선택</option><option value="peart">체육·예술</option></select></label>
-            <label>석차등급<input class="modal-input" id="uc-m-rank" type="number" min="1" max="9" placeholder="1~9"></label>
-            <label>성취도<select class="modal-input" id="uc-m-ach"><option value="">—</option><option>A</option><option>B</option><option>C</option></select></label>
-            <label>원점수<input class="modal-input" id="uc-m-raw" type="number" step="0.1"></label>
-            <label>과목평균<input class="modal-input" id="uc-m-mean" type="number" step="0.1"></label>
-            <label>표준편차<input class="modal-input" id="uc-m-sd" type="number" step="0.1"></label>
-            <label>A 비율(%)<input class="modal-input" id="uc-m-da" type="number" step="0.1"></label>
-            <label>B 비율(%)<input class="modal-input" id="uc-m-db" type="number" step="0.1"></label>
-            <label>C 비율(%)<input class="modal-input" id="uc-m-dc" type="number" step="0.1"></label>
-          </div>
-          <button class="btn-primary" style="font-size:13px;padding:8px 18px;margin-top:8px" onclick="UC.addManual()">과목 추가</button>
-        </div>
+        <div class="card-sub">위 <b>학기별 성적 입력</b>을 그대로 사용합니다 — 따로 입력할 필요 없어요. 성적을 고치면 아래 표도 바로 다시 계산됩니다. 생기부 HTML로 불러오면 원점수·성취도 분포까지 들어와 연세대·고려대 계산이 더 정확해져요.</div>
 
         <!-- 조건 + 불러온 과목 -->
         <div class="uc-opts">
           <label>계열
-            <select class="modal-input" id="uc-track" onchange="UC.calc()">
+            <select class="modal-input" id="uc-track" onchange="UC.refresh()">
               <option value="humanities">인문·사회</option>
               <option value="science">자연·공학</option>
               <option value="commerce">경상 (숭실대 전용 가중치)</option>
             </select>
           </label>
           <label>3학년 2학기
-            <select class="modal-input" id="uc-use32" onchange="UC.calc()">
+            <select class="modal-input" id="uc-use32" onchange="UC.refresh()">
               <option value="0">미반영 (재학생)</option>
               <option value="1">반영 (졸업생)</option>
             </select>
           </label>
           <span class="uc-cnt-wrap">불러온 과목 <b id="uc-cnt">0과목</b></span>
-          <button class="btn-ghost" style="font-size:12px;padding:6px 12px;margin-left:auto" onclick="UC.clearAll()">전체 삭제</button>
         </div>
 
         <div class="uc-stat" id="uc-stat"></div>
@@ -2032,7 +1978,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
           <summary>불러온 과목 목록 보기</summary>
           <div class="admin-table-wrap">
             <table class="admin-table uc-table">
-              <thead><tr><th>학년</th><th>학기</th><th>교과</th><th>과목</th><th>학점</th><th>유형</th><th>등급</th><th>성취</th><th>원점수/평균(편차)</th><th></th></tr></thead>
+              <thead><tr><th>학년</th><th>학기</th><th>교과</th><th>과목</th><th>학점</th><th>유형</th><th>등급</th><th>성취</th><th>원점수/평균(편차)</th></tr></thead>
               <tbody id="uc-tb"></tbody>
             </table>
           </div>
@@ -2714,6 +2660,14 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
   <div class="modal" style="max-width:560px">
     <button class="modal-close" onclick="closeImportModal()">×</button>
     <div class="modal-title">생기부로 성적 자동 입력</div>
+
+    <div class="uc-drop" id="neis-drop" style="margin-bottom:6px">
+      <b>📄 생기부 HTML 파일 올리기 (가장 정확)</b>
+      <span>나이스+ → 학교생활기록부 화면을 브라우저에서 <b>다른 이름으로 저장(HTML)</b> 한 파일이에요.
+        과목·학점·등급은 물론 원점수·성취도 분포까지 읽어서, 대학별 환산점수도 더 정확해집니다.</span>
+    </div>
+    <input type="file" id="neis-file" accept=".html,.htm,.mhtml" style="display:none">
+    <div style="text-align:center;font-size:11.5px;color:var(--ink-48);margin:10px 0">— 또는 PDF만 있다면 아래 AI 방법 —</div>
 
     <div style="font-size:13px;color:var(--ink-80);line-height:1.6;margin-bottom:10px">
       <b>1단계.</b> Gemini(또는 다른 AI)에 생기부 PDF를 올리고 아래 프롬프트를 그대로 붙여넣으세요.
@@ -8501,7 +8455,12 @@ async function updateTeacherViewData(){
 // ── 내신 산출 계산기 (학기별 과목/단위수/등급) ──
 // TODO: 대학별 실제 입시 요강(반영비율·환산방식·등급컷) 데이터가 오면 대학별 환산 점수 기능을 다시 붙일 예정
 const CALC_SEMESTERS=['1-1','1-2','2-1','2-2','3-1','3-2'];
-const CALC_CATEGORIES=['국어','수학','영어','탐구','기타'];
+// 대학별 환산식은 사회/과학/한국사를 서로 다르게 반영하므로 교과군을 그 단위까지 쪼갠다
+// (예전엔 '탐구' 하나로 묶여 있어서 대학 계산에 그대로 쓸 수 없었다).
+// '탐구'는 그 이전에 저장해둔 데이터에 남아 있을 수 있어 **유효값으로 계속 받아준다** —
+// 목록에서 빼버리면 sanitizeCalcRow가 '기타'로 바꿔 기존 입력이 조용히 망가진다.
+const CALC_CATEGORIES=['국어','수학','영어','사회','과학','한국사','체육','예술','기타'];
+const CALC_LEGACY_CATEGORIES=['탐구'];
 let currentCalcSemester='1-1';
 let calcData=null;
 
@@ -8554,22 +8513,38 @@ async function copyGeminiPrompt(){
   }
 }
 
+// 대학 환산식이 쓰는 상세 성적(원점수/과목평균/표준편차 — 연세대 Z점수, 성취도별 분포비율 —
+// 고려대 변환석차등급)은 생기부 HTML/JSON에서만 들어온다. 없으면 그 대학만 정확도가 떨어질 뿐
+// 나머지는 그대로 계산되므로, 있으면 보존하고 없으면 빼는 선택적 필드로 다룬다.
+function calcDetailFields(r){
+  const d={};
+  ['raw','mean','sd','dA','dB','dC'].forEach(k=>{
+    const v=Number(r[k]);
+    if(r[k]!=null&&r[k]!==''&&isFinite(v))d[k]=v;
+  });
+  return d;
+}
 function sanitizeCalcRow(r){
   if(!r||typeof r!=='object')return null;
   const name=String(r.name||'').trim().slice(0,40);
   if(!name)return null;
-  const category=CALC_CATEGORIES.includes(r.category)?r.category:'기타';
+  const category=(CALC_CATEGORIES.includes(r.category)||CALC_LEGACY_CATEGORIES.includes(r.category))?r.category:'기타';
   let unit=Math.round((+r.unit||1)*2)/2;
   unit=Math.min(10,Math.max(0.5,unit));
   const type=r.type==='career'?'career':'general';
+  const detail=calcDetailFields(r);
   if(type==='general'){
     let grade=Math.round(+r.grade);
     if(!(grade>=1&&grade<=9))grade=5;
-    return{name,category,unit,type,grade};
+    // 일반선택도 성취도가 같이 오면 남겨둔다(연세대 반영과목B 감점 판정 등에 쓰임)
+    const ach=String(r.achievement||'').trim().toUpperCase();
+    const out={name,category,unit,type,grade,...detail};
+    if(['A','B','C'].includes(ach))out.achievement=ach;
+    return out;
   }else{
     let ach=String(r.achievement||'A').trim().toUpperCase();
     if(!['A','B','C','P'].includes(ach))ach='A';
-    return{name,category,unit,type,achievement:ach};
+    return{name,category,unit,type,achievement:ach,...detail};
   }
 }
 
@@ -8673,7 +8648,11 @@ function switchCalcSemester(sem){
 }
 
 function catOptions(sel){
-  return CALC_CATEGORIES.map(c=>`<option value="${c}"${c===sel?' selected':''}>${c}</option>`).join('');
+  // 예전에 '탐구'로 저장해둔 행은 그 값이 목록에 없으면 select가 첫 항목으로 튀어 조용히
+  // 바뀌어버린다 — 해당 행에서만 legacy 항목을 함께 노출해서 사용자가 사회/과학으로
+  // 직접 고쳐 넣을 수 있게 한다.
+  const list=CALC_LEGACY_CATEGORIES.includes(sel)?[...CALC_CATEGORIES,sel]:CALC_CATEGORIES;
+  return list.map(c=>`<option value="${c}"${c===sel?' selected':''}>${c===sel&&CALC_LEGACY_CATEGORIES.includes(c)?c+' (사회/과학 중 선택 필요)':c}</option>`).join('');
 }
 
 function renderCalcTable(){
@@ -8747,6 +8726,9 @@ function calcAll(){
   const totalUnit=all.reduce((s,r)=>s+(+r.unit||0),0);
   const overallAvg=totalUnit?(all.reduce((s,r)=>s+r.grade*r.unit,0)/totalUnit):null;
   document.getElementById('calc-avg').textContent=overallAvg!=null?overallAvg.toFixed(2):'—';
+
+  // 대학별 환산점수도 같은 입력(calcData)에서 파생되므로 여기서 함께 갱신한다.
+  if(window.UC)UC.refresh();
 }
 
 // ── 내 학생 (타반 계정 멘토용 — 내가 등록한 학생만 모아보는 미니 학생현황) ──
@@ -9181,45 +9163,9 @@ if ('serviceWorker' in navigator) {
    ====================== */
 var SUBS = [];
 
-var PROMPT = '첨부한 학교생활기록부(생기부) PDF에서 "7. 교과학습발달상황" 항목만 참고해서, 아래 JSON 형식으로만 출력해줘.\n'
-+ '세부능력 및 특기사항(서술형 문장)은 전부 무시하고 성적표의 표 데이터만 사용해.\n'
-+ '설명·머리말·코드블록 표시 없이 순수 JSON만 출력해.\n\n'
-+ '{"subjects":[\n'
-+ ' {"grade":1,"sem":1,"category":"국어","name":"국어","unit":4,"type":"general","rank":2,"ach":"A","raw":91,"mean":73.8,"sd":15.5,"count":190},\n'
-+ ' {"grade":2,"sem":1,"category":"수학","name":"인공지능 수학","unit":2,"type":"career","ach":"A","raw":92,"mean":92.6,"dA":100.0,"dB":0.0,"dC":0.0},\n'
-+ ' {"grade":1,"sem":1,"category":"체육","name":"체육","unit":2,"type":"peart","ach":"A"}\n'
-+ ']}\n\n'
-+ '규칙:\n'
-+ '- grade=학년, sem=학기, unit=학점수(단위수)\n'
-+ '- category 는 반드시 다음 중 하나: 국어, 수학, 영어, 한국사, 사회, 과학, 체육, 예술, 기타\n'
-+ '  (생기부의 "사회(역사/도덕포함)"은 "사회", "기술・가정/제2외국어/한문/교양"은 "기타"로 적어)\n'
-+ '- type 은 다음 기준으로 판단:\n'
-+ '  · 석차등급(1~9)이 적혀 있으면 "general"\n'
-+ '  · 석차등급 없이 성취도별 분포비율(A/B/C %)이 적혀 있으면 "career"\n'
-+ '  · 성취도(A/B/C)만 있고 원점수도 없는 체육·예술 과목이면 "peart"\n'
-+ '- rank 는 석차등급 숫자, ach 는 성취도(A/B/C)\n'
-+ '- raw=원점수, mean=과목평균, sd=표준편차, count=수강자수, dA/dB/dC=성취도별 분포비율(%)\n'
-+ '- 값이 없으면 그 키를 아예 빼. P(이수) 과목은 포함하지 마.';
 
-document.getElementById('uc-prompt').value = PROMPT;
 
 /* ---- 탭 ---- */
-var tabs = document.querySelectorAll('#uc-root .tab');
-for(var ti=0; ti<tabs.length; ti++){
-  tabs[ti].onclick = (function(t){ return function(){
-    for(var i=0;i<tabs.length;i++) tabs[i].classList.remove('on');
-    var ps=document.querySelectorAll('#uc-root .pane');
-    for(var j=0;j<ps.length;j++) ps[j].classList.remove('on');
-    t.classList.add('on');
-    document.getElementById(t.dataset.p).classList.add('on');
-  };})(tabs[ti]);
-}
-function copyPrompt(){
-  navigator.clipboard.writeText(PROMPT).then(function(){
-    var c=document.getElementById('uc-copied'); c.classList.remove('hide');
-    setTimeout(function(){c.classList.add('hide');},1600);
-  });
-}
 
 /* ---- 유틸 ---- */
 function num(v){ var n=parseFloat(v); return isNaN(n)?null:n; }
@@ -9258,37 +9204,11 @@ function normalize(s){
 }
 
 /* ---- JSON 입력 ---- */
-function loadJSON(){
-  var t = document.getElementById('uc-json').value.trim();
-  if(!t){ toast('JSON을 붙여넣으세요.'); return; }
-  t = t.replace(/^```(json)?/i,'').replace(/```$/,'').trim();
-  try{
-    var o = JSON.parse(t);
-    var arr = Object.prototype.toString.call(o)==='[object Array]' ? o : (o.subjects || o.과목 || []);
-    if(!arr.length) throw new Error('subjects 배열이 비어 있습니다.');
-    var out=[];
-    for(var i=0;i<arr.length;i++){ var n=normalize(arr[i]); if(n) out.push(n); }
-    SUBS = out; render(); calc();
-    toast(SUBS.length + '개 과목을 불러왔습니다.');
-  }catch(e){ toast('JSON 형식 오류: ' + e.message); }
-}
 
 /* ---- 나이스+ HTML 파싱 ---- */
-var drop = document.getElementById('uc-drop'), fileI = document.getElementById('uc-file');
-drop.onclick = function(){ fileI.click(); };
-drop.ondragover = function(e){ e.preventDefault(); drop.classList.add('hot'); };
-drop.ondragleave = function(){ drop.classList.remove('hot'); };
-drop.ondrop = function(e){ e.preventDefault(); drop.classList.remove('hot');
-  if(e.dataTransfer.files[0]) readNeis(e.dataTransfer.files[0]); };
-fileI.onchange = function(e){ if(e.target.files[0]) readNeis(e.target.files[0]); };
 
-function readNeis(f){
-  var r = new FileReader();
-  r.onload = function(){ try{ parseNeis(r.result); }catch(e){ toast('파일 분석 실패: '+e.message); } };
-  r.readAsText(f, 'utf-8');
-}
 
-function parseNeis(html){
+function parseNeisRows(html){
   var doc = new DOMParser().parseFromString(html, 'text/html');
   var sec = null;
   var cand = doc.querySelectorAll('h1,h2,h3,h4,div,span,p');
@@ -9381,33 +9301,10 @@ function parseNeis(html){
       out.push(s);
     }
   }
-  if(!out.length){ toast('교과 성적 표를 찾지 못했습니다. 나이스+ 「학교생활기록부」 화면 전체를 HTML로 저장했는지 확인하세요.'); return; }
-  SUBS = out; render(); calc();
-  toast(out.length + '개 과목을 불러왔습니다.');
+  return out;
 }
 
 /* ---- 직접 입력 ---- */
-function gv(id){ return document.getElementById('uc-'+id).value; }
-function addManual(){
-  var nm = gv('m-name').trim();
-  var un = parseFloat(gv('m-unit'));
-  if(!nm){ toast('과목명을 입력하세요.'); return; }
-  if(!un || un <= 0){ toast('학점수를 입력하세요.'); return; }
-  var type = gv('m-type');
-  var rank = parseInt(gv('m-rank'),10) || null;
-  var ach = gv('m-ach') || null;
-  if(type === 'general' && !rank){ toast('일반 과목은 석차등급이 필요합니다.'); return; }
-  if(type !== 'general' && !ach){ toast('진로선택·체육예술 과목은 성취도가 필요합니다.'); return; }
-  SUBS.push({ grade:parseInt(gv('m-grade'),10), sem:parseInt(gv('m-sem'),10),
-    category:gv('m-cat'), name:nm, unit:un, type:type, rank:rank, ach:ach,
-    raw:num(gv('m-raw')), mean:num(gv('m-mean')), sd:num(gv('m-sd')),
-    dA:num(gv('m-da')), dB:num(gv('m-db')), dC:num(gv('m-dc')), count:null });
-  var clear = ['m-name','m-raw','m-mean','m-sd','m-da','m-db','m-dc'];
-  for(var i=0;i<clear.length;i++) document.getElementById('uc-'+clear[i]).value = '';
-  render(); calc();
-}
-function del(i){ SUBS.splice(i,1); render(); calc(); }
-function clearAll(){ if(SUBS.length && confirm('입력한 과목을 모두 지울까요?')){ SUBS=[]; render(); calc(); } }
 
 /* ===== 계산 공통 ===== */
 var MAIN = ['국어','수학','영어','사회','과학','한국사'];
@@ -9973,7 +9870,7 @@ function render(){
       + '<td class="c mono"><b>'+(s.rank||'-')+'</b></td>'
       + '<td class="c mono">'+(s.ach||'-')+'</td>'
       + '<td class="c mono" style="font-size:11.5px;color:var(--ink3)">'+sc+'</td>'
-      + '<td class="c"><button class="del" onclick=\"UC.del('+idx+')\" title="삭제">&times;</button></td></tr>';
+      + '</tr>';
   }
   tb.innerHTML = h;
 
@@ -10091,46 +9988,97 @@ function calc(){
   rb.innerHTML = html;
 }
 
-render();
-calc();
+refresh();
 
 
-  // 이 앱의 "학기별 성적 입력"(calcData)에 이미 넣어둔 성적을 그대로 끌어온다 — 같은 성적을
-  // 두 번 입력하지 않도록. 다만 앱 쪽 교과군은 5종(국·수·영·탐구·기타)뿐이라 '탐구'가
-  // 사회인지 과학인지 구분되지 않는다. 대학 환산식은 둘을 다르게 쓰므로 아래 계열 선택값
-  // 기준으로 배정하고, 그 사실을 사용자에게 분명히 알린다(원문 그대로 믿게 두면 안 됨).
-  function importFromAppCalc(){
-    if(typeof calcData === 'undefined' || !calcData){ toast('먼저 위 학기별 성적 입력을 사용해주세요'); return; }
-    var trackSel = document.getElementById('uc-track').value;
-    var explore = trackSel === 'science' ? '과학' : '사회';
-    var out = [], vague = 0;
+  // ── 단일 원본: 이 앱의 "학기별 성적 입력"(calcData) ──
+  // 예전엔 이 계산기가 SUBS라는 자기만의 과목 목록을 따로 들고 있어서 같은 성적을 두 번
+  // 넣어야 했다. 이제 calcData 하나만 보고, 그게 바뀔 때마다(calcAll에서 refresh 호출)
+  // 다시 계산한다. SUBS는 계산 직전에 calcData에서 파생되는 임시 배열일 뿐이다.
+  function syncFromCalcData(){
+    if(typeof calcData === 'undefined' || !calcData){ SUBS = []; return; }
+    // 앱 교과군의 legacy '탐구'는 사회/과학 구분이 없다 — 계열 선택값으로 배정한다.
+    var trackEl = document.getElementById('uc-track');
+    var explore = (trackEl && trackEl.value === 'science') ? '과학' : '사회';
+    var out = [];
     Object.keys(calcData).forEach(function(sem){
       var m = String(sem).match(/^(\d)-(\d)$/); if(!m) return;
       (calcData[sem] || []).forEach(function(r){
         if(!r || !r.name) return;
-        var cat = r.category;
-        if(cat === '탐구'){ cat = explore; vague++; }
+        var cat = (r.category === '탐구') ? explore : r.category;
         var isGen = r.type !== 'career';
-        if(isGen && !(r.grade >= 1 && r.grade <= 9)) return;
         var ach = String(r.achievement || '').toUpperCase();
-        if(!isGen && ['A','B','C'].indexOf(ach) < 0) return; // P(이수)는 제외
+        if(isGen && !(r.grade >= 1 && r.grade <= 9)) return;
+        if(!isGen && ['A','B','C'].indexOf(ach) < 0) return; // P(이수)는 대학 반영 대상이 아님
         out.push({ grade:parseInt(m[1],10), sem:parseInt(m[2],10), category:normCat(cat),
           name:String(r.name), unit:Number(r.unit) || 1, type:isGen ? 'general' : 'career',
-          rank:isGen ? Number(r.grade) : null, ach:isGen ? null : ach,
-          raw:null, mean:null, sd:null, count:null, dA:null, dB:null, dC:null });
+          rank:isGen ? Number(r.grade) : null, ach:ach || null,
+          raw:r.raw != null ? Number(r.raw) : null, mean:r.mean != null ? Number(r.mean) : null,
+          sd:r.sd != null ? Number(r.sd) : null, count:null,
+          dA:r.dA != null ? Number(r.dA) : null, dB:r.dB != null ? Number(r.dB) : null,
+          dC:r.dC != null ? Number(r.dC) : null });
       });
     });
-    if(!out.length){ toast('가져올 과목이 없어요. 위에서 먼저 입력해주세요'); return; }
-    SUBS = out; render(); calc();
-    toast(out.length + '개 과목을 가져왔어요' + (vague ? ' · "탐구" ' + vague + '개는 ' + explore + '로 배정했어요(계열 선택 기준)' : '') + ' ✓');
+    SUBS = out;
+  }
+  function refresh(){ syncFromCalcData(); render(); calc(); }
+
+  // 나이스+ 생기부 HTML을 파싱해 **calcData에 직접** 써넣는다 — 이 계산기 전용 목록이 아니라
+  // 위 학기별 입력이 채워지므로, 한 번 올리면 교과군 평균과 대학 환산점수가 동시에 갱신된다.
+  function importNeisIntoCalcData(htmlText){
+    var parsed = parseNeisRows(htmlText);
+    if(!parsed.length){ toast('교과 성적 표를 찾지 못했어요. 나이스+ 「학교생활기록부」 화면 전체를 HTML로 저장했는지 확인해주세요'); return 0; }
+    CALC_SEMESTERS.forEach(function(sem){ calcData[sem] = []; });
+    var n = 0;
+    parsed.forEach(function(s){
+      var key = s.grade + '-' + s.sem;
+      if(!calcData[key]) return;
+      var row = { name:s.name, category:s.category, unit:s.unit,
+        type:(s.type === 'general') ? 'general' : 'career' };
+      if(s.type === 'general') row.grade = s.rank; else row.achievement = s.ach;
+      if(s.ach) row.achievement = s.ach;
+      ['raw','mean','sd','dA','dB','dC'].forEach(function(k){ if(s[k] != null) row[k] = s[k]; });
+      var clean = sanitizeCalcRow(row);
+      if(clean){ calcData[key].push(clean); n++; }
+    });
+    return n;
   }
 
   // 인라인 핸들러(onclick)에서 쓰는 진입점만 공개
   window.UC = {
-    loadJSON: loadJSON, addManual: addManual, del: del, clearAll: clearAll,
-    setSort: setSort, calc: calc, copyPrompt: copyPrompt, importFromAppCalc: importFromAppCalc
+    setSort: setSort, calc: calc, refresh: refresh,
+    importNeisIntoCalcData: importNeisIntoCalcData
   };
 })();
+
+
+// ── 생기부 HTML 업로드 (가져오기 모달) ──
+// 파싱 자체는 대학 계산기 쪽에 이미 있는 검증된 파서(UC.importNeisIntoCalcData)를 그대로 쓰고,
+// 여기서는 파일을 읽어 넘기고 결과를 화면에 반영하는 일만 한다.
+function initNeisDrop(){
+  const drop=document.getElementById('neis-drop'),f=document.getElementById('neis-file');
+  if(!drop||!f)return;
+  drop.onclick=()=>f.click();
+  drop.ondragover=e=>{e.preventDefault();drop.classList.add('hot')};
+  drop.ondragleave=()=>drop.classList.remove('hot');
+  drop.ondrop=e=>{e.preventDefault();drop.classList.remove('hot');if(e.dataTransfer.files[0])readNeisFile(e.dataTransfer.files[0])};
+  f.onchange=e=>{if(e.target.files[0])readNeisFile(e.target.files[0])};
+}
+function readNeisFile(file){
+  const r=new FileReader();
+  r.onload=()=>{
+    let n=0;
+    try{ n=window.UC?UC.importNeisIntoCalcData(r.result):0 }
+    catch(e){ toast('파일 분석 실패: '+e.message); return }
+    if(!n)return; // 실패 안내는 파서가 이미 띄움
+    currentCalcSemester=CALC_SEMESTERS.find(sem=>(calcData[sem]||[]).length)||'1-1';
+    renderCalcTabs();renderCalcTable();calcAll();saveCalcData();
+    closeImportModal();
+    toast(`생기부에서 과목 ${n}개를 불러왔습니다 ✓`);
+  };
+  r.readAsText(file,'utf-8');
+}
+initNeisDrop();
 
 </script>
 </body>

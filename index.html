@@ -1012,10 +1012,14 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 #uc-root .pane.on{display:block}
 #uc-root .uc-hint{font-size:12px;color:var(--ink-48);line-height:1.6;margin-bottom:8px}
 #uc-root .uc-ta{width:100%;font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;resize:vertical}
-#uc-root .uc-drop{border:1.5px dashed var(--hairline);border-radius:var(--radius-md);padding:22px 16px;text-align:center;cursor:pointer;transition:border-color var(--t),background var(--t);display:flex;flex-direction:column;gap:6px}
-#uc-root .uc-drop:hover,#uc-root .uc-drop.hot{border-color:var(--blue);background:var(--parchment)}
-#uc-root .uc-drop b{font-size:13.5px;color:var(--ink)}
-#uc-root .uc-drop span{font-size:11.5px;color:var(--ink-48);line-height:1.6}
+/* 드롭존만은 #uc-root로 한정하지 않는다 — 생기부 HTML 업로드 영역은 "생기부로 자동 입력"
+   모달 안(= #uc-root 바깥)에 있어서, 한정해두면 스타일이 하나도 안 먹어 그냥 맨 텍스트로
+   보인다(업로드 칸이 사라진 것처럼 보였던 원인). .uc-drop은 이 용도로만 쓰는 이름이라
+   전역으로 둬도 다른 화면과 부딪히지 않는다. */
+.uc-drop{border:1.5px dashed var(--hairline);border-radius:var(--radius-md);padding:22px 16px;text-align:center;cursor:pointer;transition:border-color var(--t),background var(--t);display:flex;flex-direction:column;gap:6px}
+.uc-drop:hover,.uc-drop.hot{border-color:var(--blue);background:var(--parchment)}
+.uc-drop b{font-size:13.5px;color:var(--ink)}
+.uc-drop span{font-size:11.5px;color:var(--ink-48);line-height:1.6}
 #uc-root .uc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
 #uc-root .uc-grid label{display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:var(--ink-48)}
 #uc-root .uc-grid .modal-input{font-size:13px;padding:7px 10px}

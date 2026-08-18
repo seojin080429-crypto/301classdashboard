@@ -8535,7 +8535,10 @@ function sanitizeCalcRow(r){
   const category=(CALC_CATEGORIES.includes(r.category)||CALC_LEGACY_CATEGORIES.includes(r.category))?r.category:'기타';
   let unit=Math.round((+r.unit||1)*2)/2;
   unit=Math.min(10,Math.max(0.5,unit));
-  const type=r.type==='career'?'career':'general';
+  // 'peart'(체육·예술 — 성취도만 있고 원점수/분포비율이 없는 과목)는 반드시 career와 구분해서
+  // 보존해야 한다. 고려대는 peart를 아예 제외하고, 서울시립대는 진로선택(career)만 100점 항목에
+  // 넣는데, peart를 career로 뭉뚱그리면 체육 과목이 진로선택으로 잘못 반영돼 점수가 어긋난다.
+  const type=['career','peart'].includes(r.type)?r.type:'general';
   const detail=calcDetailFields(r);
   if(type==='general'){
     let grade=Math.round(+r.grade);
@@ -8675,8 +8678,9 @@ function renderCalcTable(){
         <td><select class="calc-cell-select" onchange="updateCalcField(${i},'category',this.value)">${catOptions(r.category)}</select></td>
         <td><input class="calc-cell-input calc-unit-input" type="number" min="0.5" step="0.5" value="${r.unit}" onchange="updateCalcField(${i},'unit',this.value)"></td>
         <td><select class="calc-cell-select" onchange="updateCalcField(${i},'type',this.value)">
-          <option value="general"${isGeneral?' selected':''}>일반선택</option>
-          <option value="career"${!isGeneral?' selected':''}>진로선택</option>
+          <option value="general"${r.type==='general'?' selected':''}>일반선택</option>
+          <option value="career"${r.type==='career'?' selected':''}>진로선택</option>
+          <option value="peart"${r.type==='peart'?' selected':''}>체육·예술</option>
         </select></td>
         <td>${gradeCell}</td>
         <td><button class="calc-row-del" onclick="removeCalcSubject(${i})" title="삭제">×</button></td>
@@ -8696,7 +8700,7 @@ function updateCalcField(idx,field,value){
   else if(field==='grade')row.grade=Math.min(9,Math.max(1,+value||1));
   else row[field]=value;
   if(field==='type'){
-    if(value==='career'&&row.grade!=null){row.achievement=row.achievement||'A';}
+    if(value!=='general')row.achievement=row.achievement||'A';
     if(value==='general'&&row.grade==null)row.grade=3;
   }
   renderCalcTable();renderCalcTabs();calcAll();saveCalcData();
@@ -10010,12 +10014,12 @@ refresh();
       (calcData[sem] || []).forEach(function(r){
         if(!r || !r.name) return;
         var cat = (r.category === '탐구') ? explore : r.category;
-        var isGen = r.type !== 'career';
+        var isGen = r.type === 'general';
         var ach = String(r.achievement || '').toUpperCase();
         if(isGen && !(r.grade >= 1 && r.grade <= 9)) return;
         if(!isGen && ['A','B','C'].indexOf(ach) < 0) return; // P(이수)는 대학 반영 대상이 아님
         out.push({ grade:parseInt(m[1],10), sem:parseInt(m[2],10), category:normCat(cat),
-          name:String(r.name), unit:Number(r.unit) || 1, type:isGen ? 'general' : 'career',
+          name:String(r.name), unit:Number(r.unit) || 1, type:r.type || 'general',
           rank:isGen ? Number(r.grade) : null, ach:ach || null,
           raw:r.raw != null ? Number(r.raw) : null, mean:r.mean != null ? Number(r.mean) : null,
           sd:r.sd != null ? Number(r.sd) : null, count:null,
@@ -10037,8 +10041,7 @@ refresh();
     parsed.forEach(function(s){
       var key = s.grade + '-' + s.sem;
       if(!calcData[key]) return;
-      var row = { name:s.name, category:s.category, unit:s.unit,
-        type:(s.type === 'general') ? 'general' : 'career' };
+      var row = { name:s.name, category:s.category, unit:s.unit, type:s.type };
       if(s.type === 'general') row.grade = s.rank; else row.achievement = s.ach;
       if(s.ach) row.achievement = s.ach;
       ['raw','mean','sd','dA','dB','dC'].forEach(function(k){ if(s[k] != null) row[k] = s[k]; });

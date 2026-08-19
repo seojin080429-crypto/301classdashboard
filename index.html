@@ -1965,10 +1965,10 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         <div class="calc-result-tile" style="margin-top:14px"><div class="calc-result-label">전체 평균 등급</div><div class="calc-result-num" id="calc-avg">—</div></div>
       </div>
 
-      <!-- 대학별 내신 환산점수 (2027학년도 학생부교과전형 21개 대학) -->
+      <!-- 대학별 내신 환산점수 (2027학년도 학생부교과전형 49개 대학) -->
       <div class="card spacer" id="uc-root">
         <div class="card-title">대학별 환산점수 · 환산등급</div>
-        <div class="card-sub">위 <b>학기별 성적 입력</b>을 그대로 사용합니다 — 따로 입력할 필요 없어요. 성적을 고치면 아래 표도 바로 다시 계산됩니다. 생기부 HTML로 불러오면 원점수·성취도 분포까지 들어와 연세대·고려대 계산이 더 정확해져요.</div>
+        <div class="card-sub">위 <b>학기별 성적 입력</b>을 그대로 사용합니다 — 따로 입력할 필요 없어요. 성적을 고치면 아래 표도 바로 다시 계산됩니다. 생기부 HTML로 불러오면 원점수·성취도 분포까지 들어와 연세대·고려대 계산이 더 정확해져요. <b>49개 대학</b>을 지원하며, 대학명 옆 배지가 <b>미검증</b>인 곳은 정리된 표를 근거로 넣은 값이라 실제 모집요강과 다를 수 있어요.</div>
 
         <!-- 조건 + 불러온 과목 -->
         <div class="uc-opts">
@@ -2010,7 +2010,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
             <option value="name:1">대학명 가나다순</option>
           </select>
         </div>
-        <div class="uc-hint">환산점수는 대학마다 만점 척도가 달라 직접 비교가 안 됩니다. 대학 간 비교는 <b>달성률</b>이나 <b>환산등급</b>으로 하세요. 표 머리글을 눌러도 정렬됩니다.</div>
+        <div class="uc-hint">환산점수는 대학마다 만점 척도가 달라 직접 비교가 안 됩니다. 대학 간 비교는 <b>달성률</b>이나 <b>환산등급</b>으로 하세요. 표 머리글을 눌러도 정렬됩니다. 배점표가 일부만 공개된 대학은 점수 대신 <b>환산등급</b>만 나옵니다.</div>
 
         <div class="admin-table-wrap">
           <table class="admin-table uc-table" id="uc-res">
@@ -9230,7 +9230,7 @@ if ('serviceWorker' in navigator) {
 
 
 // ── 대학별 내신 환산점수 계산기 ────────────────────────────────────────────────
-// 사용자가 따로 만들어 쓰던 단독 HTML 계산기(2027학년도 21개 대학 학생부교과전형)를
+// 사용자가 따로 만들어 쓰던 단독 HTML 계산기(2027학년도 학생부교과전형)를
 // 이 앱의 "내신 산출 계산기" 페이지 안으로 옮긴 것. 원본 로직(대학별 배점표·환산식,
 // 나이스+ 생기부 HTML 파싱)은 검증된 자산이라 손대지 않고 그대로 두고, 통합에 필요한
 // 부분만 바꿨다:
@@ -9505,7 +9505,150 @@ function isCommon(s){ return s.grade === 1 && COMMON_NAMES.indexOf(s.name.replac
 var LIBERAL = ['철학','논리학','심리학','교육학','종교학','진로와직업','보건','환경','실용경제','논술'];
 function isLiberal(s){ return LIBERAL.indexOf(s.name.replace(/\s/g,'')) >= 0; }
 
-/* ===== 21개 대학 =====
+/* ===== 공통 산식 엔진 (17~54위권 대학용) =====
+   아래에 추가되는 대학들은 배점표와 진로선택 처리 방식만 다를 뿐 계산 골격이 거의 같다.
+   대학마다 calc 함수를 손으로 쓰면 코드가 수천 줄로 불어나고, 무엇보다 배점표를 옮겨
+   적다가 오탈자가 섞이기 쉬워서 반복되는 부분을 이 엔진 하나로 묶고 각 대학은
+   **데이터(spec)** 로만 적는다. 위쪽 21개 대학(원문 확인분)은 손으로 쓴 기존 로직을
+   그대로 두었다 — 검증이 끝난 코드를 건드리면 결과가 바뀔 위험이 있어서다.
+
+   spec 필드
+     T         1~9등급 배점 (내림차순 9개) — 필수
+     cats      반영 교과. 배열 또는 function(track). 없으면 cats(track, hist)
+     hist      cats 기본값에 한국사를 포함할지
+     optCat    ['사회','과학'] 처럼 "둘 중 유리한 하나"를 고르는 대학(동덕여대)
+     upTo31    true면 졸업 여부와 관계없이 3학년 1학기까지만 (false면 화면의 3-2 토글을 따름)
+     weights   function(track) → {교과:가중치} — 교과별 비중이 다른 대학(인천대)
+     catRank   {w:[...], top:N} 교과별 평균을 성적 좋은 순으로 정렬해 가중(가천대·수원대·한림대)
+     scale     등급 부분에 곱할 배율 (교과 배점이 T 만점과 다를 때 — 전남대 885점 등)
+     unitBonus 총 이수단위 × 이 값을 가산 (인천대)
+     career    진로선택 처리
+        {mode:'none'}                             미반영
+        {mode:'merge', map:[A,B,C], top:N}        성취도를 등급으로 바꿔 일반과목과 함께 평균
+        {mode:'split', pct:0.1, tbl:[..], top:N}  교과점수의 일정 비율을 진로선택 점수로
+        {mode:'bonus', tbl:[..], top:N, avg:true} 환산점수에 가산
+        score: function(s, T)                     성취도 점수를 직접 계산해야 할 때(가천대)
+     warn      결과표에 함께 띄울 주의 문구
+   ============================================= */
+
+/* wavg는 항상 이수단위로 가중평균한다. 교과별 가중치가 있는 대학은 가중치가 곱해진
+   값을 써야 해서, 기존 wavg는 그대로 두고 가중함수를 받는 판을 따로 뒀다. */
+function wavgW(list, fn, wOf){
+  var u = 0, t = 0;
+  for(var i=0;i<list.length;i++){
+    var w = wOf ? wOf(list[i]) : list[i].unit;
+    if(!w) continue;
+    u += w; t += fn(list[i]) * w;
+  }
+  return u ? t/u : null;
+}
+/* 교과별로 평균을 낸 뒤 "성적이 좋은 교과 순"으로 가중치를 얹는 방식
+   (가천대 35:30:20:15, 수원대 30:30:25:15, 한림대 상위 3교과 균등) */
+function catRankAvg(list, scoreOf, cs, W, topN){
+  var vals = [];
+  for(var i=0;i<cs.length;i++){
+    var g = [];
+    for(var j=0;j<list.length;j++){ if(list[j].category === cs[i]) g.push(list[j]); }
+    if(!g.length) continue;
+    if(topN){
+      g.sort(function(a,b){ return scoreOf(b) - scoreOf(a); });
+      g = g.slice(0, topN);
+    }
+    var a = wavgW(g, scoreOf, null);
+    if(a != null) vals.push(a);
+  }
+  if(!vals.length) return null;
+  vals.sort(function(a,b){ return b - a; });
+  var t = 0, w = 0;
+  for(var k=0; k<vals.length && k<W.length; k++){ t += vals[k]*W[k]; w += W[k]; }
+  return w ? t/w : null;
+}
+function keysOf(o){ var a=[]; for(var k in o){ if(o.hasOwnProperty(k)) a.push(k); } return a; }
+
+function bySpec(sp){
+  var T = sp.T, cr = sp.career || {mode:'none'};
+  /* 진로선택 상위 N과목: 성취도(A>B>C) 우선, 같으면 이수단위가 큰 쪽 */
+  var topCar = function(list, n){
+    if(!n || list.length <= n) return list;
+    var c = list.slice();
+    c.sort(function(a,b){ return achOrd(b.ach) - achOrd(a.ach) || b.unit - a.unit; });
+    return c.slice(0, n);
+  };
+  var carGrade = function(s){
+    var m = cr.map || [1, 2, 4];
+    return s.ach === 'A' ? m[0] : s.ach === 'B' ? m[1] : m[2];
+  };
+  var scoreOf = function(s){
+    if(s.type !== 'general' && cr.score) return cr.score(s, T);
+    return S(T, s.type === 'general' ? s.rank : carGrade(s));
+  };
+
+  return function(tr){
+    var W = sp.weights ? sp.weights(tr) : null;
+    var wOf = W ? function(s){ return s.unit * (W[s.category] || 0); } : null;
+
+    var run = function(cs){
+      var L = sp.upTo31 ? upTo31(act()) : act();
+      var gen = [], car = [], units = 0;
+      for(var i=0;i<L.length;i++){
+        var s = L[i];
+        if(cs.indexOf(s.category) < 0) continue;
+        if(s.type === 'general' && s.rank){ gen.push(s); units += s.unit; }
+        else if(s.type === 'career' && s.ach){ car.push(s); units += s.unit; }
+      }
+      if(!gen.length) return null;
+
+      var use = gen, n = gen.length;
+      if(cr.mode === 'merge' && car.length){
+        var m = topCar(car, cr.top);
+        use = gen.concat(m); n = use.length;
+      }
+      var base, ge;
+      if(sp.catRank){
+        base = catRankAvg(use, scoreOf, cs, sp.catRank.w, sp.catRank.top);
+        ge = (base == null) ? null : toGrade(T, base);
+      } else {
+        base = wavgW(use, scoreOf, wOf);
+        ge = geOf(use, T, scoreOf, wOf);
+      }
+      if(base == null) return null;
+
+      var bonus = 0;
+      if(cr.mode === 'split' && car.length){
+        var sel = topCar(car, cr.top);
+        var b = wavgW(sel, function(s){ return A3(cr.tbl, s.ach); }, null);
+        if(b != null){ base = base*(1 - cr.pct) + b*cr.pct; n += sel.length; }
+      } else if(cr.mode === 'bonus' && car.length){
+        var sel2 = topCar(car, cr.top), t = 0;
+        for(var k=0;k<sel2.length;k++) t += A3(cr.tbl, sel2[k].ach);
+        bonus = cr.avg ? t/sel2.length : t;
+        n += sel2.length;
+      }
+      var scale = sp.scale == null ? 1 : sp.scale;
+      return {v: base*scale + bonus + (sp.unitBonus ? units*sp.unitBonus : 0),
+              n:n, ge:ge, warn:sp.warn || null};
+    };
+
+    var cs0 = W ? keysOf(W)
+            : (typeof sp.cats === 'function' ? sp.cats(tr)
+            : (sp.cats || cats(tr, !!sp.hist)));
+    if(!sp.optCat) return run(cs0) || {v:null};
+    // "사회 또는 과학 중 유리한 한 교과" — 각각 계산해 높은 쪽을 쓴다
+    var best = null;
+    for(var i=0;i<sp.optCat.length;i++){
+      var r = run(cs0.concat([sp.optCat[i]]));
+      if(r && (best == null || r.v > best.v)) best = r;
+    }
+    return best || {v:null};
+  };
+}
+/* 계열별 반영 교과가 표준형(국·수·영 + 사/과)과 다를 때 쓰는 헬퍼 */
+function CT(hum, sci){ return function(tr){ return tr === 'science' ? sci : hum; }; }
+/* 배점표가 일부만 공개된 대학용 — 등급 간격이 균등한 가상의 표.
+   이 표를 쓰면 환산점수는 의미가 없어서 max를 0으로 두고 환산등급만 보여준다. */
+var LIN = [100, 90, 80, 70, 60, 50, 40, 30, 20];
+
+/* ===== 대학 데이터 =====
    v: 'f'=원문확인 / 'p'=일부확인 / 'n'=미검증
    ==================== */
 var UNIV = [
@@ -9781,6 +9924,24 @@ var UNIV = [
              return s.type === 'general' ? S(T, s.rank) : A3([10, 9, 7], s.ach) * 10; })};
  }},
 
+{g:'아인숙', n:'아주대', t:'고교추천', max:100, v:'n',
+ note:'인문=국·수·영·사 / 자연=국·수·영·과 전 과목 · 등급점수 100·98·96·93·85·70·45·20·0 · 진로선택은 <b>반영교과 내 성취도 상위 3과목</b>을 A→1등급·B→2등급·C→4등급으로 환산해 일반과목과 함께 이수단위 가중평균 · <b>졸업생도 3학년 1학기까지</b> · 수능최저 있음(일반 2개 합 5)',
+ calc:bySpec({T:[100,98,96,93,85,70,45,20,0], upTo31:true,
+   career:{mode:'merge', map:[1,2,4], top:3}})},
+
+{g:'아인숙', n:'인하대', t:'지역균형', max:100, v:'n',
+ note:'인문=국·수·영·사(한국사 포함) / 자연=국·수·영·과 전 과목 · 등급점수 100·98·96·90·80·70·50·30·0 · 진로선택 <b>성취도 상위 3과목</b>을 A→1등급·B→2등급·C→4등급으로 환산 · <b>졸업예정자 3-1까지 / 졸업자 3-2까지</b>(위의 3학년 2학기 옵션을 따름) · 수능최저 있음(2개 합 6)',
+ calc:bySpec({T:[100,98,96,90,80,70,50,30,0],
+   cats:CT(['국어','수학','영어','사회','한국사'], ['국어','수학','영어','과학']),
+   career:{mode:'merge', map:[1,2,4], top:3}})},
+
+{g:'아인숙', n:'숙명여대', t:'지역균형선발', max:100, v:'n',
+ note:'<b>교과 70% + 서류 30%</b> 중 교과 70%만 100점 만점으로 환산한 값 · 인문=국·수·영·사(역사/도덕)·한국사 / 자연=국·수·영·과 · 등급점수 100·98·95·90·85·80·70·50·0 · <b>졸업생도 3학년 1학기까지</b> · 일반학과 수능최저 폐지(약학부만 3개 합 5)',
+ calc:bySpec({T:[100,98,95,90,85,80,70,50,0], upTo31:true,
+   cats:CT(['국어','수학','영어','사회','한국사'], ['국어','수학','영어','과학']),
+   career:{mode:'merge', map:[1,2,4]},
+   warn:'진로선택 반영 방식이 요강에 수치로 공개되지 않아 A→1·B→2·C→4등급 환산으로 가정했습니다'})},
+
 {g:'국숭세단', n:'국민대', t:'교과우수자(학교장추천)', max:1000, v:'f',
  note:'인문=국·영·수·사 / 자연=국·영·수·과 · 배점 100·99·98·95·90·70·50·30·0 · 공통·일반선택 85% + 진로선택 15%(<b>성취도 상위 3과목</b>, 동점 시 이수단위 높은 순, A100·B98·C90) · 전문교과·제2외국어 미반영 · <b>재수생도 3학년 1학기까지</b>',
  calc:function(tr){
@@ -9861,6 +10022,19 @@ var UNIV = [
    return {v:a*0.95, n:L.length, ge:geOf(L, T, scoreF)};
  }},
 
+{g:'광명상가', n:'한국항공대', t:'학교장추천 / 교과성적우수자', max:100, v:'n',
+ note:'공학·AI융합=국·수·영·과 / 항공경영·인문자유=국·수·영·사(한국사 포함) 전 과목 · 등급점수 100·98·95·90·80·60·40·20·0 · <b>졸업예정자 3-1 / 졸업자 3-2</b> · 학교장추천은 수능최저 없음, 교과성적우수자는 2개 합 6',
+ calc:bySpec({T:[100,98,95,90,80,60,40,20,0],
+   cats:CT(['국어','수학','영어','사회','한국사'], ['국어','수학','영어','과학']),
+   career:{mode:'none'},
+   warn:'진로선택 상위 3과목 가산점의 배점이 공개되지 않아 미반영했습니다 (실제 점수는 이보다 높을 수 있음)'})},
+
+{g:'광명상가', n:'서울과기대', t:'고교추천', max:100, v:'n',
+ note:'인문=국·수·영·사(한국사 포함) / 자연=국·수·영·과 전 과목 · <b>공통·일반선택 90% + 진로선택 10%</b>(성취도 상위 3과목 A100·B95·C85) · 등급점수 100·98·95·90·80·60·40·20·0 · <b>졸업생도 3학년 1학기까지</b> · 반영교과 80학점 이상 이수 조건, 수능최저 2개 합 7',
+ calc:bySpec({T:[100,98,95,90,80,60,40,20,0], upTo31:true,
+   cats:CT(['국어','수학','영어','사회','한국사'], ['국어','수학','영어','과학']),
+   career:{mode:'split', pct:0.1, tbl:[100,95,85], top:3}})},
+
 {g:'광명상가', n:'광운대', t:'지역균형전형', max:100, v:'f',
  note:'<b>2027 수시 모집요강 47쪽 원문 확인:</b> 교과성적 100%(비교과 없음), 학년별 반영비율 없음, <b>졸업여부에 관계없이 3학년 1학기까지</b>, 반영 교과(군) 국어·영어·수학·사회(한국사 포함)·과학의 <b>이수한 모든 과목</b>, 석차등급 및 이수학점 활용, 진로선택은 <b>A→1등급·B→2등급·C→4등급</b>, <b>과학탐구실험 미반영</b> · 모집 198명, 수능최저 없음, 지원자격 5개 학기 이상으로 강화 · 등급 배점표 숫자만 미확인',
  calc:function(){
@@ -9926,7 +10100,143 @@ var UNIV = [
      return S(T, s.ach === 'A' ? 1 : s.ach === 'B' ? 2 : 4); };
    var a = wavg(L, scoreF);
    return {v:a, n:L.length, ge:geOf(L, T, scoreF)};
- }}
+ }},
+
+{g:'수도권 사립·여대', n:'가천대', t:'학생부우수자 / 지역균형', max:100, v:'n',
+ note:'인문=국·수·영·사 / 자연=국·수·영·과 · 등급점수 100·98·95·92·86·80·60·50·30 · <b>교과별 평균을 성적 좋은 순으로 35:30:20:15 가중</b> · 진로선택은 성취도 A이거나 <b>원점수 70점 이상이면 만점</b>, 그 외 B→2등급·C→4등급 · <b>졸업생도 3학년 1학기까지</b>',
+ calc:bySpec({T:[100,98,95,92,86,80,60,50,30], upTo31:true,
+   catRank:{w:[0.35,0.30,0.20,0.15]},
+   career:{mode:'merge', map:[1,2,4], score:function(s, T){
+     return (s.ach === 'A' || (s.raw != null && s.raw >= 70)) ? T[0]
+          : S(T, s.ach === 'B' ? 2 : 4); }}})},
+
+{g:'수도권 사립·여대', n:'경기대', t:'학교장추천 / 교과성적우수자', max:100, v:'n',
+ note:'<b>교과 90% + 출결 10%</b> 중 교과만 100점 만점으로 환산한 값 · 인문=국·수·영·사(한국사 포함) / 자연=국·수·영·과 · 교과 안에서 <b>공통·일반 90% + 진로선택 10%</b>(A100·B99·C95, 이수 전 과목) · 등급점수 100·99·97·95·90·70·40·20·0 · <b>졸업생도 3학년 1학기까지</b>',
+ calc:bySpec({T:[100,99,97,95,90,70,40,20,0], upTo31:true,
+   cats:CT(['국어','수학','영어','사회','한국사'], ['국어','수학','영어','과학']),
+   career:{mode:'split', pct:0.1, tbl:[100,99,95]}})},
+
+{g:'수도권 사립·여대', n:'성신여대', t:'지역균형', max:100, v:'n',
+ note:'<b>교과 90% + 출석 10%</b> 중 교과만 100점 만점으로 환산한 값 · 전 계열 국·수·영·사(한국사/도덕 포함)·과 이수 전 과목 · 등급점수 100·97·94·85·60·40·25·10·0 · 진로선택은 <b>상위 4과목</b>을 A→1·B→2·C→4등급으로 변환해 합산 · <b>졸업생도 3학년 1학기까지</b> · 수능최저 2개 합 7',
+ calc:bySpec({T:[100,97,94,85,60,40,25,10,0], upTo31:true,
+   cats:['국어','수학','영어','사회','과학','한국사'],
+   career:{mode:'merge', map:[1,2,4], top:4}})},
+
+{g:'수도권 사립·여대', n:'덕성여대', t:'고교추천', max:100, v:'n',
+ note:'전 모집단위 국·영·수·사·과 중 석차등급이 산출되는 전 과목 · <b>공통·일반 90% + 진로선택 10%</b>(A100·B95·C85) · 등급점수 100·98·95·90·85·80·70·50·0 · <b>졸업생도 3학년 1학기까지</b> · 수능최저 있음(글로벌융합 2개 합 7)',
+ calc:bySpec({T:[100,98,95,90,85,80,70,50,0], upTo31:true,
+   cats:['국어','수학','영어','사회','과학'],
+   career:{mode:'split', pct:0.1, tbl:[100,95,85]}})},
+
+{g:'수도권 사립·여대', n:'서울여대', t:'교과우수자', max:100, v:'n',
+ note:'인문·자연 공통으로 국·수·영·사·과 중 석차등급 산출 전 과목(<b>한국사 제외</b>) · 등급점수 100·97·93·85·70·50·35·20·0 · 진로선택은 <b>상위 3과목 가산점</b>(A 1.0·B 0.9·C 0.5의 평균, 최대 1점)이라 100점을 넘을 수 있음 · <b>졸업생도 3학년 1학기까지</b> · 수능최저 2개 합 7',
+ calc:bySpec({T:[100,97,93,85,70,50,35,20,0], upTo31:true,
+   cats:['국어','수학','영어','사회','과학'],
+   career:{mode:'bonus', tbl:[1,0.9,0.5], top:3, avg:true}})},
+
+{g:'수도권 사립·여대', n:'동덕여대', t:'학생부교과우수자', max:100, v:'n',
+ note:'국·영·수 필수 + <b>사회 또는 과학 중 유리한 1개 교과</b>(이 계산기는 둘 다 계산해 높은 쪽을 씁니다) 전 과목 · 등급점수 100·98·96·94·90·80·70·60·40 · <b>진로선택 미반영</b> · 졸업예정자 3-1 / 졸업자 3-2 · 수능최저 2개 합 6',
+ calc:bySpec({T:[100,98,96,94,90,80,70,60,40],
+   cats:['국어','수학','영어'], optCat:['사회','과학'],
+   career:{mode:'none'}})},
+
+{g:'수도권 사립·여대', n:'수원대', t:'고교추천', max:100, v:'n',
+ note:'인문=국·수·영·사 / 자연=국·수·영·과 · <b>교과별 상위 5과목씩 총 20과목</b>을 뽑아 교과 평균을 낸 뒤 성적 좋은 교과 순으로 30:30:25:15 가중 · 등급점수 100·98·96·94·90·80·70·60·40 · <b>진로선택 미반영</b> · 졸업예정자 3-1 / 졸업자 3-2 · 수능최저 없음',
+ calc:bySpec({T:[100,98,96,94,90,80,70,60,40],
+   catRank:{w:[0.30,0.30,0.25,0.15], top:5},
+   career:{mode:'none'}})},
+
+{g:'국공립대', n:'부산대', t:'학생부교과', max:100, v:'n',
+ note:'<b>교과 80% + 학업역량 서류 20%</b> 중 교과만 100점 만점으로 환산한 값 · 전 계열 국·수·영·사(역사/도덕/한국사 포함)·과 이수 전 과목 · 등급점수 100·99·98·96·93·88·75·50·0 · 졸업예정자 3-1 / 졸업자 3-2 · 수능최저 있음(2개 합 5~6)',
+ calc:bySpec({T:[100,99,98,96,93,88,75,50,0],
+   cats:['국어','수학','영어','사회','과학','한국사'],
+   career:{mode:'merge', map:[1,2,4]},
+   warn:'진로선택 성취도 환산 배점이 요강에 수치로 공개되지 않아 A→1·B→2·C→4등급으로 가정했습니다'})},
+
+{g:'국공립대', n:'경북대', t:'교과우수자', max:800, v:'n',
+ note:'<b>교과 80% + 교과이수충실도 서류 20%</b> 중 교과 800점만 산출한 값 · 인문=국·수·영·사·한국사 / 자연=국·수·영·과·한국사 전 과목 · 등급점수 800·776·736·672·584·472·336·176·0 · 졸업예정자 3-1 / 졸업자 3-2 · <b>진로선택은 정량 반영 없이 서류 20%에서 정성평가</b>',
+ calc:bySpec({T:[800,776,736,672,584,472,336,176,0], hist:true,
+   career:{mode:'none'}})},
+
+{g:'국공립대', n:'인천대', t:'교과성적우수자 / 지역균형', max:100, v:'n',
+ note:'인문·패션·디자인=국30·영30·수20·사20 / 자연=수30·영30·국20·과20 <b>교과별 가중치</b> · 등급점수 100·98·95·90·80·60·40·20·0 · <b>총 이수단위 × 0.2 가산점</b>이 붙어 100점을 넘을 수 있음 · <b>졸업생도 3학년 1학기까지</b> · 교과우수자는 수능최저 2개 합 7, 지역균형은 없음',
+ calc:bySpec({T:[100,98,95,90,80,60,40,20,0], upTo31:true, unitBonus:0.2,
+   weights:function(tr){ return tr === 'science'
+     ? {'수학':0.30, '영어':0.30, '국어':0.20, '과학':0.20}
+     : {'국어':0.30, '영어':0.30, '수학':0.20, '사회':0.20}; },
+   career:{mode:'none'}})},
+
+{g:'국공립대', n:'충남대', t:'일반전형 / 지역인재', max:100, v:'n',
+ note:'국·수·영·한국사·사회·과학 + <b>기술가정·제2외국어/한문</b> 전 과목 · 등급점수 100·90·80·70·60·50·40·30·20 · 진로선택은 A→1등급(100)·B→3등급(80)·C→5등급(60)으로 변환 후 이수단위 가중평균 · <b>졸업생도 3학년 1학기까지</b> · 수능최저 있음(일반 3개 합 12)',
+ calc:bySpec({T:[100,90,80,70,60,50,40,30,20], upTo31:true,
+   cats:['국어','수학','영어','사회','과학','한국사','기타'],
+   career:{mode:'merge', map:[1,3,5]},
+   warn:"기술가정·제2외국어/한문은 이 앱의 '기타' 교과로 입력해야 반영됩니다"})},
+
+{g:'국공립대', n:'전남대', t:'일반전형 / 지역인재', max:900, v:'n',
+ note:'<b>교과 900점(석차등급 885점 + 진로선택 15점) + 출결 100점</b> 중 교과 900점만 산출한 값 · 국·수·영·사(역사/도덕)·과·한국사 6개 교과군 이수 전 과목 · 등급점수 100·95·90·85·80·75·70·60·50 을 885점으로 환산 · 진로선택은 성취도 평균으로 A15·B9·C3점 가산 · <b>졸업생도 3학년 1학기까지</b>',
+ calc:bySpec({T:[100,95,90,85,80,75,70,60,50], upTo31:true, scale:8.85,
+   cats:['국어','수학','영어','사회','과학','한국사'],
+   career:{mode:'bonus', tbl:[15,9,3], avg:true}})},
+
+{g:'국공립대', n:'전북대', t:'일반학생', max:0, v:'n',
+ note:'국·수·영·사(역사/도덕)·과·한국사 전 과목 · 진로선택은 <b>성취도 상위 3과목</b>을 A→1·B→2·C→3등급으로 환산 · <b>배점표가 1~3등급(100·95·90)까지만 공개돼 환산점수는 산출하지 않고 반영 교과 평균등급만 표시</b>합니다 · 졸업생도 3학년 1학기까지, 수능최저 있음',
+ calc:bySpec({T:LIN, upTo31:true,
+   cats:['국어','수학','영어','사회','과학','한국사'],
+   career:{mode:'merge', map:[1,2,3], top:3}})},
+
+{g:'국공립대', n:'충북대', t:'학생부교과', max:10, v:'n',
+ note:'국·수·영·사(역사/도덕)·과·한국사 전 과목 · 배점 10.0·9.5·9.0·8.5·8.0·7.0·6.0·4.0·0 (10점 만점) · 진로선택은 A→1등급(10)·B→2등급(9.5)·C→3등급(9.0)으로 환산해 일반과목과 함께 이수단위 가중평균 · <b>졸업생도 3학년 1학기까지</b> · 출결 미반영',
+ calc:bySpec({T:[10,9.5,9.0,8.5,8.0,7.0,6.0,4.0,0], upTo31:true,
+   cats:['국어','수학','영어','사회','과학','한국사'],
+   career:{mode:'merge', map:[1,2,3]}})},
+
+{g:'국공립대', n:'강원대', t:'일반전형', max:1000, v:'n',
+ note:'인문=국·영·수·사(도덕/역사)·한국사 / 자연=국·영·수·과·한국사 · 등급점수 1000·970·940·910·880·850·820·790·280 · 진로선택은 A→1·B→2·C→4등급으로 환산 후 일반과목과 함께 이수단위 가중평균 · <b>졸업생도 3학년 1학기까지</b> · 모집단위별 수능최저 상이',
+ calc:bySpec({T:[1000,970,940,910,880,850,820,790,280], upTo31:true, hist:true,
+   career:{mode:'merge', map:[1,2,4]}})},
+
+{g:'국공립대', n:'제주대', t:'일반학생', max:100, v:'n',
+ note:'인문=국·수·영·사(역사/도덕)·한국사 / 자연=국·수·영·과·한국사 · 등급점수 100·95·90·85·80·70·60·40·0 · 진로선택은 <b>상위 3과목</b>을 A→1·B→2·C→3등급으로 환산 · <b>졸업생도 3학년 1학기까지</b> · 모집단위별 수능최저 상이',
+ calc:bySpec({T:[100,95,90,85,80,70,60,40,0], upTo31:true, hist:true,
+   career:{mode:'merge', map:[1,2,3], top:3}})},
+
+{g:'국공립대', n:'국립부경대', t:'교과성적우수인재', max:0, v:'n',
+ note:'전 계열 국·수·영·사(역사/도덕)·과 이수 전 과목 · 진로선택은 A→1·B→2·C→3등급 환산 · <b>배점표가 1~5등급(100·98·95·90·85)까지만 공개돼 환산점수는 산출하지 않고 반영 교과 평균등급만 표시</b>합니다 · 졸업생도 3학년 1학기까지',
+ calc:bySpec({T:LIN, upTo31:true,
+   cats:['국어','수학','영어','사회','과학'],
+   career:{mode:'merge', map:[1,2,3]}})},
+
+{g:'국공립대', n:'국립한국해양대', t:'교과성적우수자 / 일반전형', max:0, v:'n',
+ note:'인문=국·영·수·사(한국사 포함) / 자연=국·영·수·과 전 과목 · 진로선택은 <b>성취도 상위 3과목</b>을 A→1·B→4·C→7등급으로 환산 · <b>대학 환산점수표가 공개되지 않아 환산점수 대신 반영 교과 평균등급만 표시</b>합니다 · 졸업예정자 3-1 / 졸업자 3-2',
+ calc:bySpec({T:LIN,
+   cats:CT(['국어','수학','영어','사회','한국사'], ['국어','수학','영어','과학']),
+   career:{mode:'merge', map:[1,4,7], top:3}})},
+
+{g:'지역 사립대', n:'영남대', t:'일반학생', max:100, v:'n',
+ note:'인문=국·수·영·사(역사/도덕)·한국사 / 자연=국·수·영·과·한국사 / 자율=전 교과 · 등급점수 100·95·90·85·80·70·60·40·0 · 진로선택은 <b>상위 3과목</b>을 A→1·B→2·C→3등급으로 환산 · <b>졸업생도 3학년 1학기까지</b> · 출결 미반영',
+ calc:bySpec({T:[100,95,90,85,80,70,60,40,0], upTo31:true, hist:true,
+   career:{mode:'merge', map:[1,2,3], top:3}})},
+
+{g:'지역 사립대', n:'울산대', t:'일반교과', max:0, v:'n',
+ note:'전 계열 국·수·영·사·과 전 과목(계열별 반영 교과가 같음) · 진로선택은 A→1·B→2·C→3등급 환산 · <b>배점표가 1~5등급(100·97·94·90·85)까지만 공개돼 환산점수는 산출하지 않고 반영 교과 평균등급만 표시</b>합니다 · 졸업생도 3학년 1학기까지',
+ calc:bySpec({T:LIN, upTo31:true,
+   cats:['국어','수학','영어','사회','과학'],
+   career:{mode:'merge', map:[1,2,3]}})},
+
+{g:'지역 사립대', n:'한림대', t:'교과우수자', max:0, v:'n',
+ note:'국·영·수·사·과 중 <b>성적이 좋은 상위 3개 교과</b>를 각 1/3씩 반영 · 진로선택 성취도 A10·B8·C4점을 등급으로 되돌려(A→1·B→3·C→7등급) 합산 · <b>교과 900점 배점표가 공개되지 않아 환산점수 대신 반영 교과 평균등급만 표시</b>합니다 · 졸업예정자 3-1 / 졸업자 3-2 · 출결 10% 별도',
+ calc:bySpec({T:LIN,
+   cats:['국어','수학','영어','사회','과학'],
+   catRank:{w:[1,1,1]},
+   career:{mode:'merge', map:[1,3,7]}})},
+
+{g:'지역 사립대', n:'순천향대', t:'교과우수자', max:1000, v:'n',
+ note:'국·수·영·사(한국사 포함)·과 중 이수한 전 과목 · 등급점수 1000·990·980·970·960·940·900·800·600 · 졸업예정자 3-1 / 졸업자 3-2 · 일반 모집단위는 수능최저 없음(의예 4개 합 6)',
+ calc:bySpec({T:[1000,990,980,970,960,940,900,800,600],
+   cats:['국어','수학','영어','사회','과학','한국사'],
+   career:{mode:'merge', map:[1,2,4]},
+   warn:'진로선택 성취도 처리 방식이 요강에 수치로 공개되지 않아 A→1·B→2·C→4등급 환산으로 가정했습니다'})}
 ];
 
 /* ===== 렌더 ===== */
@@ -10066,7 +10376,9 @@ function calc(){
           ? '<div style="display:flex;align-items:center;gap:8px"><div class="bar" style="flex:1"><i style="width:'
             + Math.max(0, Math.min(100, R.pct)) + '%"></i></div><span class="mono" style="font-size:12px;color:var(--ink2);min-width:46px;text-align:right">'
             + R.pct.toFixed(1) + '%</span></div>'
-          : '<span style="color:var(--ink3);font-size:12px">계산 불가</span>')+'</td>'
+          : '<span style="color:var(--ink3);font-size:12px">'
+            + ((R.r.v != null && !(U.max > 0)) ? '배점표 미공개 (환산등급만)' : '계산 불가')
+            + '</span>')+'</td>'
       + '<td class="r mono"><b style="font-size:15px;color:'+geColor(R.ge)+'">'
         + (R.ge != null ? R.ge.toFixed(2) : '—') + '</b>'
         + '<span style="font-size:10.5px;color:var(--ink3)">'+(R.ge != null ? '등급' : '')+'</span></td>'

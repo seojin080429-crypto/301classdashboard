@@ -9098,14 +9098,21 @@ let currentNewsCategory = '';
 async function renderNews(){
   // 요약 로드
   const today = localDateStr();
-  const {data:summaryData} = await sb.from('news_summary').select('*').eq('date', today).order('created_at',{ascending:false}).limit(1);
+  // 날짜를 정확히 일치시키지 않고 "가장 최근 요약"을 가져온다 — 요약을 만드는 쪽(Edge Function)은
+  // UTC 날짜로 저장하는데 여기서는 KST(브라우저 로컬) 날짜로 찾고 있어서, 한국 시간 오전
+  // (UTC로는 전날)에 수집하면 하루 어긋나 요약이 통째로 안 보였다. 백엔드도 KST로 맞췄지만,
+  // 그 전에 쌓인 데이터와 혹시 모를 시차까지 견디도록 조회 쪽도 느슨하게 둔다.
+  const {data:summaryData} = await sb.from('news_summary').select('*')
+    .order('date',{ascending:false}).order('created_at',{ascending:false}).limit(1);
   const summaryEl = document.getElementById('news-summary-text');
   const summaryDate = document.getElementById('news-summary-date');
   if(summaryData&&summaryData.length){
-    summaryEl.textContent = summaryData[0].summary;
-    summaryDate.textContent = today;
+    const row=summaryData[0];
+    summaryEl.textContent = row.summary;
+    // 오늘 것이 아니면 언제 만든 요약인지 분명히 알린다(옛 요약을 오늘 것처럼 보이면 안 됨)
+    summaryDate.textContent = row.date===today ? today : `${row.date} 기준`;
   } else {
-    summaryEl.textContent = '아직 오늘의 요약이 없습니다. 관리자가 수집하면 표시됩니다.';
+    summaryEl.textContent = '아직 요약이 없습니다. 관리자가 수집하면 표시됩니다.';
   }
 
   // 뉴스 목록 로드

@@ -3245,6 +3245,7 @@ async function initApp(user,sid,name){
   // 삭제 버튼이 안 뜰 수 있음 — 역할 로드가 끝난 시점에 이미 받아온 뉴스로 한 번 더 그려줌
   // (아직 뉴스 자체가 안 왔으면 renderNews()가 나중에 이미 반영된 권한으로 그리므로 건너뜀)
   if(allNewsData.length)filterNews(currentNewsCategory);
+  autoCollectDailyIfStale();
   resumeMiscTimersOnLoad();
   restoreLastPage();
   maybeAutoStartTour();
@@ -10160,6 +10161,52 @@ function readNeisFile(file){
   r.readAsText(file,'utf-8');
 }
 initNeisDrop();
+
+
+// ── 뉴스/급식 자동 수집 (스케줄러 대체) ──
+// 예전 Railway 서버는 setInterval로 매일 뉴스 07시·급식 06시에 수집했는데, 백엔드를 Edge
+// Function으로 옮기면서 상시 타이머가 사라졌다(원래 계획은 pg_cron이었지만 그것과 무관하게
+// 이 경로가 있으면 스케줄이 멈춰도 데이터가 비지 않는다).
+// 스태프가 앱을 열었을 때 "오늘치가 비어 있으면" 조용히 한 번 수집한다.
+//  - 수집 API가 관리자 권한을 요구하므로 스태프일 때만 시도한다.
+//  - 하루에 기기당 한 번만 시도한다(localStorage) — 실패하는 날 접속할 때마다 재시도하면
+//    무거운 외부 API를 계속 두드리게 된다.
+//  - 결과 토스트는 띄우지 않는다. 사용자가 요청한 동작이 아니라 배경 유지보수라서.
+async function autoCollectDailyIfStale(){
+  if(!isStaffRole())return;
+  const today=localDateStr();
+  let mark={};
+  try{mark=JSON.parse(localStorage.getItem('bugwang_auto_collect')||'{}')}catch(e){}
+
+  if(mark.news!==today){
+    try{
+      const {data}=await sb.from('news').select('id').gte('created_at',today+'T00:00:00Z').limit(1);
+      if(!data||!data.length){
+        mark.news=today; // 시도 자체를 기록해서, 실패해도 오늘은 더 조르지 않는다
+        try{localStorage.setItem('bugwang_auto_collect',JSON.stringify(mark))}catch(e){}
+        await postJson(`${SERVER_URL}/api/fetch-news`,{student_id:currentStudentId},{timeoutMs:60000});
+        await renderNews();
+      }else{mark.news=today}
+    }catch(e){console.warn('뉴스 자동 수집 실패:',e.message)}
+  }
+
+  if(mark.meal!==today){
+    try{
+      // 급식은 "이번 주" 단위로 수집하므로 이번 주 월요일 이후 데이터가 있는지로 판단한다
+      const mon=new Date();
+      const dow=mon.getDay();
+      mon.setDate(mon.getDate()-(dow===0?6:dow-1));
+      const {data}=await sb.from('meals').select('date').gte('date',localDateStr(mon)).limit(1);
+      if(!data||!data.length){
+        mark.meal=today;
+        try{localStorage.setItem('bugwang_auto_collect',JSON.stringify(mark))}catch(e){}
+        await postJson(`${SERVER_URL}/api/fetch-meal`,{student_id:currentStudentId},{timeoutMs:60000});
+        await loadMeal();
+      }else{mark.meal=today}
+    }catch(e){console.warn('급식 자동 수집 실패:',e.message)}
+  }
+  try{localStorage.setItem('bugwang_auto_collect',JSON.stringify(mark))}catch(e){}
+}
 
 </script>
 </body>

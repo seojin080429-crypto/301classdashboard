@@ -811,6 +811,35 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .form-textarea::placeholder{color:var(--ink-48)}
 .form-actions{display:flex;justify-content:flex-end}
 
+/* 공부인증 게시판 전용 테이블형 목록(2026-08-05) — 자랑/잡동사니/정보팁은 기존 인스타그램식
+   카드(.qna-card)를 그대로 두고, 공부인증만 참고 이미지처럼 표/리스트 형태로 따로 렌더링한다
+   (loadBoardPosts()의 type==='studycert' 분기 참고). <table>/<tr> 대신 CSS Grid + div로
+   만든 이유: 댓글을 행별로 펼치는 기존 toggleComments()가 대상 엘리먼트의 display를
+   'block'/'none'으로 그냥 토글하는데, 진짜 <tr>이면 display:block으로 바뀌는 순간 표 레이아웃이
+   깨진다 — 각 글의 셀들을 display:contents인 래퍼 div로 묶어 grid 정렬은 유지하면서 펼침
+   패널은 평범한 div(grid-column:1/-1)로 둬서 이 문제를 피함.
+   좋아요 버튼/카운트는 카드 버전과 동일하게 board-like-btn 클래스 + board-like-btn-*/
+   board-like-count-* id를 그대로 써서 toggleLike()/renderLikeButton()을 그대로 공유한다. */
+.sc-table-wrap{overflow-x:auto;border:1px solid var(--hairline);border-radius:var(--radius-lg);background:var(--canvas)}
+.sc-table{display:grid;grid-template-columns:36px 130px 92px 52px minmax(160px,1fr) 92px 76px 84px 32px;min-width:780px}
+.sc-th{padding:10px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-48);border-bottom:1px solid var(--hairline);white-space:nowrap;background:var(--parchment)}
+.sc-row{display:contents}
+.sc-cell{padding:10px;border-bottom:1px solid var(--hairline);color:var(--ink);font-size:13px;min-width:0}
+.sc-row:hover .sc-cell{background:var(--parchment)}
+.sc-cell-flex{display:flex;align-items:center;gap:6px}
+.sc-avatar{width:26px;height:26px;border-radius:50%;background:#1d1d1f;color:#fff;font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0}
+.sc-avatar img{width:100%;height:100%;object-fit:cover}
+.sc-name{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc-time-val{font-weight:700;color:var(--ig-blue)}
+.sc-thumb{width:34px;height:34px;border-radius:6px;object-fit:cover;cursor:pointer;display:block}
+.sc-content-cell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc-like-btn,.sc-comment-btn{display:flex;align-items:center;gap:4px;background:none;border:none;cursor:pointer;color:var(--ink-48);font-size:12px;padding:2px;max-width:100%;overflow:hidden}
+.sc-like-btn span,.sc-comment-btn span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc-like-btn svg,.sc-comment-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;flex-shrink:0}
+.sc-like-btn.liked svg{fill:#ed4956;stroke:#ed4956}
+.sc-date{font-size:12px;color:var(--ink-48);white-space:nowrap}
+.sc-comments-panel{grid-column:1/-1;border-bottom:1px solid var(--hairline);padding:14px 16px;background:var(--parchment)}
+
 /* CALC */
 .calc-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
 .calc-cell-input{width:100%;padding:6px 8px;border:1px solid var(--hairline);border-radius:var(--radius-sm);font-size:12.5px;color:var(--ink);background:var(--canvas);transition:border-color var(--t)}
@@ -1804,8 +1833,13 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
     <div class="page" id="page-free-board">
       <div class="page-title">자유게시판</div>
       <div class="page-sub">반 친구들과 자유롭게 이야기하세요</div>
-      <div class="view-toggle" id="free-category-tabs" style="flex-wrap:wrap"></div>
-      <div class="write-form">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+        <div class="view-toggle" id="free-category-tabs" style="flex-wrap:wrap;margin-bottom:0"></div>
+        <!-- 공부인증 탭에서만 보이는 글쓰기 버튼 — 이 탭은 아래 인라인 글쓰기 폼 대신
+             전용 모달(#studycert-write-modal)을 씀(renderFreeCategoryTabs() 참고) -->
+        <button class="btn-primary" id="studycert-write-btn" style="display:none;flex-shrink:0" onclick="openStudyCertModal()">+ 글쓰기</button>
+      </div>
+      <div class="write-form" id="free-write-form">
         <div class="write-form-title">글 작성</div>
         <div class="form-row">
           <select class="form-select" id="free-post-category"></select>
@@ -2618,6 +2652,50 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
     <div class="auth-error" id="share-dm-error"></div>
     <div class="modal-actions">
       <button class="btn-ghost" onclick="closeSharePostModal()">취소</button>
+    </div>
+  </div>
+</div>
+
+<!-- 공부인증 글쓰기 모달 — 공부 시간(수동 입력 또는 "학습 기록 불러오기"로 자동 채움)과
+     인증 사진을 받아 posts.study_seconds에 구조화해서 저장한다. -->
+<div class="modal-overlay" id="studycert-write-modal">
+  <div class="modal" style="max-width:480px">
+    <button class="modal-close" onclick="closeStudyCertModal()">×</button>
+    <div class="modal-title">공부 인증하기</div>
+    <div class="modal-field">
+      <label class="modal-label">공부 시간</label>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <input class="modal-input" type="number" min="0" id="sc-hour" style="width:64px;text-align:center;flex:none" placeholder="0">
+        <span style="color:var(--ink-48);font-size:13px">시간</span>
+        <input class="modal-input" type="number" min="0" max="59" id="sc-min" style="width:64px;text-align:center;flex:none" placeholder="0">
+        <span style="color:var(--ink-48);font-size:13px">분</span>
+        <button class="btn-ghost" style="margin-left:auto;font-size:12px;white-space:nowrap;padding:6px 10px" onclick="loadStudyRecordForCert()">📥 학습 기록 불러오기</button>
+      </div>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">인증 사진 (필수)</label>
+      <div class="photo-upload-row">
+        <label class="photo-upload-label" for="sc-photo">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          사진 선택
+        </label>
+        <input type="file" id="sc-photo" accept="image/*" style="display:none" onchange="previewPhoto('sc')">
+        <span class="photo-file-name" id="sc-photo-name">파일 없음</span>
+        <button class="photo-clear-btn" id="sc-photo-clear" onclick="clearPhoto('sc')" style="display:none">×</button>
+      </div>
+      <div class="photo-preview-wrap" id="sc-photo-preview" style="display:none">
+        <img id="sc-photo-img" src="" alt="미리보기" class="photo-preview-img">
+        <video id="sc-photo-video" class="photo-preview-img" controls playsinline style="display:none"></video>
+      </div>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">한마디 (선택)</label>
+      <textarea class="form-textarea" id="sc-content" placeholder="오늘 공부에 대한 한마디를 남겨보세요" style="min-height:56px"></textarea>
+    </div>
+    <div class="auth-error" id="sc-error"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeStudyCertModal()">취소</button>
+      <button class="btn-primary" id="sc-submit-btn" onclick="submitStudyCertPost()">인증하기</button>
     </div>
   </div>
 </div>
@@ -7201,7 +7279,15 @@ function renderFreeCategoryTabs(){
   if(tabsEl)tabsEl.innerHTML=FREE_BOARD_CATEGORIES.map(c=>
     `<button class="view-btn${c.key===currentFreeCategory?' active':''}" data-cat="${c.key}" onclick="switchFreeCategory('${c.key}')">${c.label}</button>`
   ).join('');
-  if(selectEl)selectEl.innerHTML=FREE_BOARD_CATEGORIES.map(c=>`<option value="${c.key}">${c.label}</option>`).join('');
+  // 공부인증은 전용 모달로만 작성하므로(공부 시간 필수 등 구조가 달라서) 일반 글쓰기 폼의
+  // 카테고리 선택지에서는 빼서, 이 폼으로 study_seconds 없는 공부인증 글이 만들어지는 걸 막는다.
+  if(selectEl)selectEl.innerHTML=FREE_BOARD_CATEGORIES.filter(c=>c.key!=='studycert').map(c=>`<option value="${c.key}">${c.label}</option>`).join('');
+  // 공부인증 탭은 아래 인라인 글쓰기 폼 대신 전용 "+ 글쓰기" 버튼(모달)을 씀
+  const isStudyCert=currentFreeCategory==='studycert';
+  const writeForm=document.getElementById('free-write-form');
+  const scWriteBtn=document.getElementById('studycert-write-btn');
+  if(writeForm)writeForm.style.display=isStudyCert?'none':'';
+  if(scWriteBtn)scWriteBtn.style.display=isStudyCert?'':'none';
 }
 function switchFreeCategory(cat){
   currentFreeCategory=cat;
@@ -7517,12 +7603,14 @@ async function submitComment(postId,type){
       <div class="comment-text" id="comment-text-${data.id}">${escHtml(data.content)}</div>
     </div>`;
   list.appendChild(item);
-  // 버튼 카운트 업데이트
+  // 버튼 카운트 업데이트 — 카드 뷰(.comment-toggle-btn 텍스트)와 공부인증 표 뷰
+  // (#sc-comment-count-* 숫자) 둘 다 지원
+  const cur=list.children.length;
   const card=document.getElementById(`post-${postId}`);
-  if(card){
-    const btn=card.querySelector('.comment-toggle-btn');
-    if(btn){const cur=list.children.length;btn.textContent=`댓글 ${cur}개 모두 보기`;}
-  }
+  const toggleBtn=card?.querySelector('.comment-toggle-btn');
+  if(toggleBtn)toggleBtn.textContent=`댓글 ${cur}개 모두 보기`;
+  const scCount=document.getElementById(`sc-comment-count-${postId}`);
+  if(scCount)scCount.textContent=cur||'';
   triggerNotify('comment',{comment_id:data.id});
 }
 
@@ -7564,6 +7652,160 @@ async function saveEditComment(commentId,postId,type){
   await boardLoader(type)();
 }
 
+// ── 공부인증 전용 테이블 렌더링 ──
+function fmtStudySeconds(sec){
+  if(!sec)return'-';
+  const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60);
+  if(h<=0)return`${m}분`;
+  if(m<=0)return`${h}시간`;
+  return`${h}시간 ${m}분`;
+}
+function renderStudyCertTable(posts,commentMap){
+  const header=`
+    <div class="sc-th">#</div>
+    <div class="sc-th">작성자</div>
+    <div class="sc-th">공부 시간</div>
+    <div class="sc-th">사진</div>
+    <div class="sc-th">내용</div>
+    <div class="sc-th">좋아요</div>
+    <div class="sc-th">댓글</div>
+    <div class="sc-th">날짜</div>
+    <div class="sc-th"></div>`;
+  const total=posts.length;
+  const rows=posts.map((p,i)=>renderStudyCertRow(p,total-i,commentMap[p.id]||[])).join('');
+  return`<div class="sc-table-wrap"><div class="sc-table">${header}${rows}</div></div>`;
+}
+function renderStudyCertRow(p,num,comments){
+  const isMe=p.student_id===currentStudentId;
+  const canManagePost=isMe||isBoardModerator();
+  const authorProfile=boardProfileMap[p.student_id];
+  const authorName=authorProfile?.display_name||p.author_name;
+  const likerIds=boardLikesMap[p.id]||[];
+  const isLiked=likerIds.includes(currentStudentId);
+  const likeCount=likerIds.length;
+  const commentCount=comments.length;
+  const thumbHtml=p.image_url
+    ?`<img class="sc-thumb" src="${p.image_url}" onclick="openLightbox('${p.image_url}')" alt="인증 사진">`
+    :`<span style="color:var(--ink-48)">-</span>`;
+  const moreMenuHtml=canManagePost?`<div class="post-more-wrap">
+      <button class="post-more-btn" onclick="togglePostMenu(event,'${p.id}')">⋯</button>
+      <div class="post-more-menu" id="post-menu-${p.id}">
+        <button class="post-edit-btn" onclick="closeAllPostMenus();startEditPost('${p.id}','studycert')">수정</button>
+        <button class="post-delete-btn" onclick="closeAllPostMenus();deletePost('${p.id}','${p.image_url||''}','studycert')">삭제</button>
+      </div>
+    </div>`:'';
+  const commentsHtml=comments.map(c=>{
+    const isMyComment=c.student_id===currentStudentId;
+    const canManageComment=isMyComment||isBoardModerator();
+    const commentProfile=boardProfileMap[c.student_id];
+    const commentAuthorName=commentProfile?.display_name||c.author_name;
+    return`<div class="comment-item">
+      <div class="comment-avatar">${avatarHtmlFor(commentAuthorName,commentProfile?.avatar_url)}</div>
+      <div class="comment-body">
+        <div class="comment-meta">
+          <span class="comment-author">${escHtml(commentAuthorName)}</span>
+          <span class="comment-time">${formatRelativeTime(c.created_at)}</span>
+          ${canManageComment?`<button class="comment-edit" onclick="startEditComment('${c.id}','${p.id}','studycert')">수정</button><button class="comment-del" onclick="deleteComment('${c.id}','${p.id}','studycert')">삭제</button>`:''}
+        </div>
+        <div class="comment-text" id="comment-text-${c.id}">${escHtml(c.content)}</div>
+      </div>
+    </div>`;
+  }).join('');
+  return`<div class="sc-row" id="post-${p.id}">
+    <div class="sc-cell">${num}</div>
+    <div class="sc-cell sc-cell-flex">
+      <div class="sc-avatar">${avatarHtmlFor(authorName,authorProfile?.avatar_url)}</div>
+      <span class="sc-name">${escHtml(authorName)}</span>
+    </div>
+    <div class="sc-cell"><span class="sc-time-val">${fmtStudySeconds(p.study_seconds)}</span></div>
+    <div class="sc-cell">${thumbHtml}</div>
+    <div class="sc-cell sc-content-cell" id="post-content-${p.id}">${escHtml(p.content)}</div>
+    <div class="sc-cell sc-cell-flex">
+      <button class="sc-like-btn board-like-btn${isLiked?' liked':''}" id="board-like-btn-${p.id}" onclick="toggleLike('${p.id}')">
+        <svg viewBox="0 0 24 24"><path d="M12 21s-6.716-4.443-9.192-8.143C.115 9.521 2.044 4 6.731 4c2.126 0 3.215 1.095 4.03 2.258C11.576 5.095 12.664 4 14.79 4 19.476 4 21.405 9.521 21.192 12.857 18.716 16.557 12 21 12 21z"></path></svg>
+        <span id="board-like-count-${p.id}">${likeCount||''}</span>
+      </button>
+    </div>
+    <div class="sc-cell sc-cell-flex">
+      <button class="sc-comment-btn" onclick="toggleComments('${p.id}')">
+        <svg viewBox="0 0 24 24"><path d="M20.656 17.008a9.993 9.993 0 1 0-3.59 3.615L21 21l-1.192-3.415z"></path></svg>
+        <span id="sc-comment-count-${p.id}">${commentCount||''}</span>
+      </button>
+    </div>
+    <div class="sc-cell sc-date">${formatRelativeTime(p.created_at)}</div>
+    <div class="sc-cell sc-cell-flex">${moreMenuHtml}</div>
+  </div>
+  <div class="sc-comments-panel" id="comments-${p.id}" style="display:none">
+    <div class="comment-list" id="comment-list-${p.id}">${commentsHtml}</div>
+    <div class="comment-input-row">
+      <input class="comment-input" id="comment-input-${p.id}" placeholder="댓글을 입력하세요..." onkeydown="if(event.key==='Enter'&&!event.isComposing)submitComment('${p.id}','studycert')">
+      <button class="comment-submit" onclick="submitComment('${p.id}','studycert')">등록</button>
+    </div>
+  </div>`;
+}
+
+// ── 공부인증 글쓰기 모달 ──
+function openStudyCertModal(){
+  document.getElementById('sc-hour').value='';
+  document.getElementById('sc-min').value='';
+  document.getElementById('sc-content').value='';
+  clearPhoto('sc');
+  document.getElementById('sc-error').style.display='none';
+  document.getElementById('studycert-write-modal').classList.add('open');
+}
+function closeStudyCertModal(){
+  document.getElementById('studycert-write-modal').classList.remove('open');
+}
+// "학습 기록 불러오기" — 오늘 이 어플의 학습 플래너로 실제 기록된 공부 시간(완료된 세션 +
+// 일시정지 없이 진행 중인 세션의 실시간 경과분)을 합산해서 시/분 입력칸에 채워준다. 직접
+// 입력도 여전히 가능 — 앱을 안 쓰고 공부한 경우까지 막을 이유는 없어서.
+async function loadStudyRecordForCert(){
+  if(!currentUser){toast('로그인이 필요해요');return}
+  const today=localDateStr();
+  const {data,error}=await sb.from('study_sessions').select('duration_seconds,start_timestamp,accumulated_seconds,ended_at').eq('user_id',currentUser.id).eq('date',today);
+  if(error){toast('학습 기록을 불러오지 못했어요');return}
+  let totalSec=0;
+  (data||[]).forEach(s=>{
+    totalSec+=s.ended_at?(s.duration_seconds||0):computeElapsedSeconds(s.start_timestamp,s.accumulated_seconds);
+  });
+  if(totalSec<=0){toast('오늘 기록된 공부 시간이 없어요');return}
+  const h=Math.floor(totalSec/3600),m=Math.floor((totalSec%3600)/60);
+  document.getElementById('sc-hour').value=h;
+  document.getElementById('sc-min').value=m;
+  toast(`오늘 기록된 공부 시간을 불러왔어요: ${h>0?h+'시간 ':''}${m}분 ✓`);
+}
+async function submitStudyCertPost(){
+  const errEl=document.getElementById('sc-error');
+  errEl.style.display='none';
+  const hour=parseInt(document.getElementById('sc-hour').value,10)||0;
+  const min=parseInt(document.getElementById('sc-min').value,10)||0;
+  const studySeconds=hour*3600+min*60;
+  const photoInput=document.getElementById('sc-photo');
+  const file=photoInput.files[0];
+  if(!file){errEl.textContent='인증 사진을 첨부해주세요';errEl.style.display='block';return}
+  if(studySeconds<=0){errEl.textContent='공부 시간을 입력하거나 학습 기록을 불러와주세요';errEl.style.display='block';return}
+  const submitBtn=document.getElementById('sc-submit-btn');
+  submitBtn.textContent='인증하는 중...';submitBtn.disabled=true;
+  const ext=file.name.split('.').pop();
+  const fileName=`img_${currentStudentId}_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+  const{error:upErr}=await sb.storage.from('board-photos').upload(fileName,file);
+  if(upErr){errEl.textContent='사진 업로드 실패: '+upErr.message;errEl.style.display='block';submitBtn.textContent='인증하기';submitBtn.disabled=false;return}
+  const{data:urlData}=sb.storage.from('board-photos').getPublicUrl(fileName);
+  const content=document.getElementById('sc-content').value.trim()||'오늘도 공부 완료!';
+  const{error}=await sb.from('posts').insert({
+    user_id:currentUser.id,student_id:currentStudentId,
+    author_name:currentName||currentStudentId+'번',
+    category:'studycert',subject:null,content,image_url:urlData.publicUrl,
+    study_seconds:studySeconds
+  });
+  submitBtn.textContent='인증하기';submitBtn.disabled=false;
+  if(error){errEl.textContent='게시 실패: '+error.message;errEl.style.display='block';return}
+  closeStudyCertModal();
+  toast('공부 인증이 등록되었습니다 ✓');
+  if(currentFreeCategory!=='studycert')switchFreeCategory('studycert');
+  else await loadFreeBoard();
+}
+
 async function loadBoardPosts(category,listElId,emptyMsg,type){
   const {data:posts}=await sb.from('posts').select('*').eq('category',category).order('created_at',{ascending:false}).limit(30);
   const el=document.getElementById(listElId);
@@ -7577,7 +7819,9 @@ async function loadBoardPosts(category,listElId,emptyMsg,type){
   boardProfileMap=profileMap;
   boardLikesMap={};(likes||[]).forEach(l=>{(boardLikesMap[l.post_id]=boardLikesMap[l.post_id]||[]).push(l.student_id)});
   const commentMap={};(comments||[]).forEach(c=>{if(!commentMap[c.post_id])commentMap[c.post_id]=[];commentMap[c.post_id].push(c)});
-  el.innerHTML=posts.map(p=>renderPost(p,type,commentMap[p.id]||[])).join('');
+  el.innerHTML=type==='studycert'
+    ?renderStudyCertTable(posts,commentMap)
+    :posts.map(p=>renderPost(p,type,commentMap[p.id]||[])).join('');
 }
 async function loadFreeBoard(){
   renderFreeCategoryTabs();

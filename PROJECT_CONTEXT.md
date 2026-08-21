@@ -226,6 +226,35 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-08-21: **자유게시판 "공부인증" 탭만 전용 표 형태 UI로 리디자인** (요청: 참고 이미지
+  2장 전달 — 학원 플랫폼의 "BEST 일일과제" 표 목록 + "일일과제 작성" 폼. "자랑/잡동사니/
+  정보팁은 기존 인스타그램 카드 UI 그대로 두고, 공부인증만 바꿔달라"). `sw.js`의 `SW_BUILD`도
+  `2026-08-21-1`로 올림. `posts` 테이블에 `study_seconds`(integer, nullable) 컬럼을 마이그레이션
+  으로 추가(Supabase MCP `apply_migration`).
+  - **목록**: `loadBoardPosts()`가 `type==='studycert'`일 때만 `renderStudyCertTable()`로 분기 —
+    #/작성자/공부시간/사진/내용/좋아요/댓글/날짜 컬럼의 표 형태(`.sc-table`). 실제 `<table>`
+    대신 CSS Grid + `display:contents` 래퍼 div로 구현했는데, 기존 `toggleComments()`가 대상
+    엘리먼트의 `display`를 그냥 `'block'`/`'none'`으로 토글해서 진짜 `<tr>`을 썼으면 펼칠 때
+    표 레이아웃이 깨졌을 것 — 각 글의 셀을 `display:contents` 래퍼로 묶어 grid 정렬은 유지하고
+    펼침 패널만 `grid-column:1/-1`인 평범한 div로 둬서 이 문제를 피함. 좋아요는 카드 버전과
+    동일하게 `board-like-btn` 클래스 + `board-like-btn-*`/`board-like-count-*` id를 그대로
+    써서 `toggleLike()`/`renderLikeButton()`을 그대로 공유(로직 중복 없음).
+  - **글쓰기**: 공부인증 탭에서는 기존 인라인 글쓰기 폼(`#free-write-form`) 대신 탭 목록 오른쪽
+    위에 파란색 "+ 글쓰기" 버튼(`#studycert-write-btn`)만 보이게 하고(`renderFreeCategoryTabs()`),
+    누르면 전용 모달(`#studycert-write-modal`)이 뜬다 — 공부 시간(시/분 직접 입력 또는
+    "📥 학습 기록 불러오기" 버튼), 인증 사진(필수), 한마디(선택). 일반 글쓰기 폼의 카테고리
+    선택지에서는 `studycert`를 아예 뺐다(그 폼으로 올리면 `study_seconds` 없는 공부인증 글이
+    생겨버리므로).
+  - **"학습 기록 불러오기"**(`loadStudyRecordForCert()`) — 이 앱으로 학습 플래너를 쓴 사람이면
+    오늘자 `study_sessions`를 조회해서(완료된 세션은 `duration_seconds` 합산, 진행 중인 세션은
+    `computeElapsedSeconds()`로 실시간 경과분까지) 실제 기록을 시/분 칸에 자동으로 채워준다.
+    수동 입력도 여전히 허용 — 앱 타이머 없이 공부한 경우까지 막을 이유는 없어서.
+  - **검증**: 로그인 필요한 앱이라 실제 화면은 못 열어봤지만, 이번엔 Node `vm` 모듈로 실행
+    가능한 스텁 환경(가짜 `document`/`window`/`supabase` 클라이언트)을 만들어서
+    `renderStudyCertTable()`/`renderPost()`/`fmtStudySeconds()`를 목 데이터로 실제 호출해
+    결과 HTML을 직접 확인함(최상위 `let`/`const`가 vm 컨텍스트 밖에 안 보이는 문제는 테스트
+    스크립트에서만 `var`로 바꿔치기해서 우회 — 배포 파일 자체는 안 건드림). 이전(2026-08-03)
+    보다 더 실제에 가까운 검증.
 - 2026-08-19: **대학별 환산점수 계산기에 27개 대학 추가 (총 22 → 49개 대학)** + 공통 산식 엔진
   도입. `SW_BUILD` `2026-08-19-1`.
   - 추가된 대학(순위 20~54 표 기준, 이미 있던 11곳은 중복 방지를 위해 넣지 않음):

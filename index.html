@@ -839,6 +839,19 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .sc-like-btn.liked svg{fill:#ed4956;stroke:#ed4956}
 .sc-date{font-size:12px;color:var(--ink-48);white-space:nowrap}
 .sc-comments-panel{grid-column:1/-1;border-bottom:1px solid var(--hairline);padding:14px 16px;background:var(--parchment)}
+/* 공부 인증 글쓰기 모달의 "과목별 학습 내역" 줄(과목 선택→과제→시간, 여러 줄 추가 가능) */
+.sc-log-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap}
+.sc-log-row .form-select{flex:0 0 100px}
+.sc-log-row .sc-log-task{flex:1;min-width:100px}
+.sc-log-row .sc-log-hm{width:44px;text-align:center;flex:none}
+.sc-log-unit{color:var(--ink-48);font-size:12px;flex:none}
+/* 게시글 상세(댓글 패널)에 함께 보여주는 과목별 학습 내역 요약 */
+.sc-log-summary{margin-bottom:10px;padding-bottom:10px;border-bottom:1px dashed var(--hairline)}
+.sc-log-summary-title{font-size:12px;font-weight:600;color:var(--ink-48);margin-bottom:6px}
+.sc-log-summary-row{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink);padding:3px 0}
+.sc-log-summary-subject{font-weight:600;flex-shrink:0}
+.sc-log-summary-task{flex:1;color:var(--ink-80);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sc-log-summary-time{flex-shrink:0;color:var(--ig-blue);font-weight:600;font-variant-numeric:tabular-nums}
 
 /* CALC */
 .calc-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
@@ -2656,20 +2669,26 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
   </div>
 </div>
 
-<!-- 공부인증 글쓰기 모달 — 공부 시간(수동 입력 또는 "학습 기록 불러오기"로 자동 채움)과
-     인증 사진을 받아 posts.study_seconds에 구조화해서 저장한다. -->
+<!-- 공부인증 글쓰기 모달 — 인증 날짜 + 과목/과제/시간별 학습 내역(여러 줄, 수동 입력 또는
+     "학습 기록 불러오기"로 그 날짜의 학습 플래너 기록을 그대로 채움)과 인증 사진을 받아
+     posts.study_date/study_log/study_seconds(합계)에 구조화해서 저장한다. -->
 <div class="modal-overlay" id="studycert-write-modal">
-  <div class="modal" style="max-width:480px">
+  <div class="modal" style="max-width:520px">
     <button class="modal-close" onclick="closeStudyCertModal()">×</button>
     <div class="modal-title">공부 인증하기</div>
     <div class="modal-field">
-      <label class="modal-label">공부 시간</label>
+      <label class="modal-label">인증할 날짜</label>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <input class="modal-input" type="number" min="0" id="sc-hour" style="width:64px;text-align:center;flex:none" placeholder="0">
-        <span style="color:var(--ink-48);font-size:13px">시간</span>
-        <input class="modal-input" type="number" min="0" max="59" id="sc-min" style="width:64px;text-align:center;flex:none" placeholder="0">
-        <span style="color:var(--ink-48);font-size:13px">분</span>
+        <input class="modal-input" type="date" id="sc-date" style="max-width:170px;flex:none">
         <button class="btn-ghost" style="margin-left:auto;font-size:12px;white-space:nowrap;padding:6px 10px" onclick="loadStudyRecordForCert()">📥 학습 기록 불러오기</button>
+      </div>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">과목별 학습 내역</label>
+      <div id="sc-log-rows"></div>
+      <button class="add-subject-btn" style="margin-top:8px;padding:9px" onclick="addScLogRow()">+ 과목 추가</button>
+      <div style="text-align:right;margin-top:8px;font-size:12px;color:var(--ink-48)">
+        총 공부 시간 <strong id="sc-total-time" style="color:var(--ink);font-size:14px;font-weight:700">0분</strong>
       </div>
     </div>
     <div class="modal-field">
@@ -7660,6 +7679,24 @@ function fmtStudySeconds(sec){
   if(m<=0)return`${h}시간`;
   return`${h}시간 ${m}분`;
 }
+// 인증 대상 날짜 표시용(작성 시각의 상대시간이 아니라 "그 날짜"가 중요해서 절대 날짜로 표시).
+function fmtStudyDateLabel(dateStr){
+  if(!dateStr)return'-';
+  const d=new Date(dateStr+'T00:00:00');
+  const days=['일','월','화','수','목','금','토'];
+  return`${d.getMonth()+1}월 ${d.getDate()}일(${days[d.getDay()]})`;
+}
+// 게시글 상세(댓글 패널)에 과목별 학습 내역을 함께 보여준다 — study_log가 없는(이 기능 이전에
+// 작성된) 옛 글은 조용히 생략.
+function renderStudyLogSummary(log){
+  if(!log||!log.length)return'';
+  const rows=log.map(l=>`<div class="sc-log-summary-row">
+      <span class="sc-log-summary-subject">${escHtml(l.subject||'')}</span>
+      <span class="sc-log-summary-task">${escHtml(l.task||'')}</span>
+      <span class="sc-log-summary-time">${fmtStudySeconds(l.seconds)}</span>
+    </div>`).join('');
+  return`<div class="sc-log-summary"><div class="sc-log-summary-title">과목별 학습 내역</div>${rows}</div>`;
+}
 function renderStudyCertTable(posts,commentMap){
   const header=`
     <div class="sc-th">#</div>
@@ -7717,7 +7754,7 @@ function renderStudyCertRow(p,num,comments){
       <div class="sc-avatar">${avatarHtmlFor(authorName,authorProfile?.avatar_url)}</div>
       <span class="sc-name">${escHtml(authorName)}</span>
     </div>
-    <div class="sc-cell"><span class="sc-time-val">${fmtStudySeconds(p.study_seconds)}</span></div>
+    <div class="sc-cell"><span class="sc-time-val" style="cursor:pointer" onclick="toggleComments('${p.id}')">${fmtStudySeconds(p.study_seconds)}</span></div>
     <div class="sc-cell">${thumbHtml}</div>
     <div class="sc-cell sc-content-cell" id="post-content-${p.id}">${escHtml(p.content)}</div>
     <div class="sc-cell sc-cell-flex">
@@ -7732,10 +7769,11 @@ function renderStudyCertRow(p,num,comments){
         <span id="sc-comment-count-${p.id}">${commentCount||''}</span>
       </button>
     </div>
-    <div class="sc-cell sc-date">${formatRelativeTime(p.created_at)}</div>
+    <div class="sc-cell sc-date">${fmtStudyDateLabel(p.study_date||p.created_at?.slice(0,10))}</div>
     <div class="sc-cell sc-cell-flex">${moreMenuHtml}</div>
   </div>
   <div class="sc-comments-panel" id="comments-${p.id}" style="display:none">
+    ${renderStudyLogSummary(p.study_log)}
     <div class="comment-list" id="comment-list-${p.id}">${commentsHtml}</div>
     <div class="comment-input-row">
       <input class="comment-input" id="comment-input-${p.id}" placeholder="댓글을 입력하세요..." onkeydown="if(event.key==='Enter'&&!event.isComposing)submitComment('${p.id}','studycert')">
@@ -7745,9 +7783,54 @@ function renderStudyCertRow(p,num,comments){
 }
 
 // ── 공부인증 글쓰기 모달 ──
+// 과목별 학습 내역(과목 선택→과제→시간)을 여러 줄 입력할 수 있게 함(2026-08-21, 요청:
+// "공부기록을 좀 더 자세하게 적을 수 있게 해줘 ... 과목선택-한 과제-시간"). 인증할 날짜도
+// 고를 수 있고(작성일과 다를 수 있음 — 어젯밤 공부를 오늘 아침에 인증하는 경우 등),
+// "학습 기록 불러오기"는 그 선택한 날짜의 학습 플래너 기록(과목/과제/시간)을 그대로 불러온다.
+function scSubjectOptionsHtml(){
+  return(subjects||[]).map(s=>`<option value="${escHtml(s.name)}">${escHtml(s.name)}</option>`).join('');
+}
+function addScLogRow(subject,task,seconds){
+  const wrap=document.getElementById('sc-log-rows');
+  const row=document.createElement('div');
+  row.className='sc-log-row';
+  const h=seconds?Math.floor(seconds/3600):'';
+  const m=seconds?Math.floor((seconds%3600)/60):'';
+  row.innerHTML=`
+    <select class="form-select sc-log-subject">${scSubjectOptionsHtml()}</select>
+    <input class="modal-input sc-log-task" placeholder="예: 모의고사 오답노트" value="${escHtml(task||'')}">
+    <input type="number" min="0" class="modal-input sc-log-hour" placeholder="0" value="${h}" oninput="recomputeScTotal()">
+    <span class="sc-log-unit">시간</span>
+    <input type="number" min="0" max="59" class="modal-input sc-log-min" placeholder="0" value="${m}" oninput="recomputeScTotal()">
+    <span class="sc-log-unit">분</span>
+    <button class="poll-option-remove-btn" onclick="removeScLogRow(this)">×</button>`;
+  wrap.appendChild(row);
+  if(subject)row.querySelector('.sc-log-subject').value=subject;
+  recomputeScTotal();
+}
+function removeScLogRow(btn){
+  btn.closest('.sc-log-row').remove();
+  recomputeScTotal();
+}
+function scLogRowsData(){
+  return Array.from(document.querySelectorAll('#sc-log-rows .sc-log-row')).map(row=>{
+    const subject=row.querySelector('.sc-log-subject').value;
+    const task=row.querySelector('.sc-log-task').value.trim();
+    const h=parseInt(row.querySelector('.sc-log-hour').value,10)||0;
+    const m=parseInt(row.querySelector('.sc-log-min').value,10)||0;
+    return{subject,task,seconds:h*3600+m*60};
+  }).filter(r=>r.seconds>0);
+}
+function recomputeScTotal(){
+  const totalSec=scLogRowsData().reduce((a,r)=>a+r.seconds,0);
+  document.getElementById('sc-total-time').textContent=fmtStudySeconds(totalSec);
+}
 function openStudyCertModal(){
-  document.getElementById('sc-hour').value='';
-  document.getElementById('sc-min').value='';
+  const dateEl=document.getElementById('sc-date');
+  dateEl.value=localDateStr();
+  dateEl.max=localDateStr(); // 미래 날짜는 인증할 수 없음
+  document.getElementById('sc-log-rows').innerHTML='';
+  addScLogRow(); // 바로 입력할 수 있게 빈 줄 하나는 기본으로 둠
   document.getElementById('sc-content').value='';
   clearPhoto('sc');
   document.getElementById('sc-error').style.display='none';
@@ -7756,34 +7839,42 @@ function openStudyCertModal(){
 function closeStudyCertModal(){
   document.getElementById('studycert-write-modal').classList.remove('open');
 }
-// "학습 기록 불러오기" — 오늘 이 어플의 학습 플래너로 실제 기록된 공부 시간(완료된 세션 +
-// 일시정지 없이 진행 중인 세션의 실시간 경과분)을 합산해서 시/분 입력칸에 채워준다. 직접
-// 입력도 여전히 가능 — 앱을 안 쓰고 공부한 경우까지 막을 이유는 없어서.
+// "학습 기록 불러오기" — 선택한 날짜에 이 어플의 학습 플래너로 실제 기록된 공부 내역을
+// 과목·과제별로 합산해서(완료된 세션 + 오늘 날짜면 진행 중인 세션의 실시간 경과분까지)
+// 줄 단위로 그대로 채워준다. 직접 입력도 여전히 가능 — 앱을 안 쓰고 공부한 경우까지
+// 막을 이유는 없어서.
 async function loadStudyRecordForCert(){
   if(!currentUser){toast('로그인이 필요해요');return}
-  const today=localDateStr();
-  const {data,error}=await sb.from('study_sessions').select('duration_seconds,start_timestamp,accumulated_seconds,ended_at').eq('user_id',currentUser.id).eq('date',today);
+  const dateStr=document.getElementById('sc-date').value||localDateStr();
+  const {data,error}=await sb.from('study_sessions').select('subject,task_name,duration_seconds,start_timestamp,accumulated_seconds,ended_at').eq('user_id',currentUser.id).eq('date',dateStr);
   if(error){toast('학습 기록을 불러오지 못했어요');return}
-  let totalSec=0;
+  const isToday=dateStr===localDateStr();
+  // 같은 과목+과제는 학습 플래너의 다른 날짜 기록 보기와 동일하게 합산한다
+  const groups={};
   (data||[]).forEach(s=>{
-    totalSec+=s.ended_at?(s.duration_seconds||0):computeElapsedSeconds(s.start_timestamp,s.accumulated_seconds);
+    const sec=s.ended_at?(s.duration_seconds||0):(isToday?computeElapsedSeconds(s.start_timestamp,s.accumulated_seconds):0);
+    if(sec<=0)return;
+    const key=`${s.subject}::${s.task_name}`;
+    if(!groups[key])groups[key]={subject:s.subject,task:s.task_name,seconds:0};
+    groups[key].seconds+=sec;
   });
-  if(totalSec<=0){toast('오늘 기록된 공부 시간이 없어요');return}
-  const h=Math.floor(totalSec/3600),m=Math.floor((totalSec%3600)/60);
-  document.getElementById('sc-hour').value=h;
-  document.getElementById('sc-min').value=m;
-  toast(`오늘 기록된 공부 시간을 불러왔어요: ${h>0?h+'시간 ':''}${m}분 ✓`);
+  const rows=Object.values(groups);
+  if(!rows.length){toast('그 날짜엔 기록된 공부가 없어요');return}
+  document.getElementById('sc-log-rows').innerHTML='';
+  rows.forEach(r=>addScLogRow(r.subject,r.task,r.seconds));
+  const totalSec=rows.reduce((a,r)=>a+r.seconds,0);
+  toast(`${dateStr} 기록을 불러왔어요: ${fmtStudySeconds(totalSec)} ✓`);
 }
 async function submitStudyCertPost(){
   const errEl=document.getElementById('sc-error');
   errEl.style.display='none';
-  const hour=parseInt(document.getElementById('sc-hour').value,10)||0;
-  const min=parseInt(document.getElementById('sc-min').value,10)||0;
-  const studySeconds=hour*3600+min*60;
+  const logRows=scLogRowsData();
+  const studySeconds=logRows.reduce((a,r)=>a+r.seconds,0);
+  const studyDate=document.getElementById('sc-date').value||localDateStr();
   const photoInput=document.getElementById('sc-photo');
   const file=photoInput.files[0];
   if(!file){errEl.textContent='인증 사진을 첨부해주세요';errEl.style.display='block';return}
-  if(studySeconds<=0){errEl.textContent='공부 시간을 입력하거나 학습 기록을 불러와주세요';errEl.style.display='block';return}
+  if(studySeconds<=0){errEl.textContent='과목별 공부 시간을 입력하거나 학습 기록을 불러와주세요';errEl.style.display='block';return}
   const submitBtn=document.getElementById('sc-submit-btn');
   submitBtn.textContent='인증하는 중...';submitBtn.disabled=true;
   const ext=file.name.split('.').pop();
@@ -7796,7 +7887,7 @@ async function submitStudyCertPost(){
     user_id:currentUser.id,student_id:currentStudentId,
     author_name:currentName||currentStudentId+'번',
     category:'studycert',subject:null,content,image_url:urlData.publicUrl,
-    study_seconds:studySeconds
+    study_seconds:studySeconds,study_date:studyDate,study_log:logRows
   });
   submitBtn.textContent='인증하기';submitBtn.disabled=false;
   if(error){errEl.textContent='게시 실패: '+error.message;errEl.style.display='block';return}

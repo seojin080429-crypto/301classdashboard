@@ -1634,6 +1634,24 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
       <div class="page-title">열품타</div>
       <div class="page-sub" id="planner-date-label">오늘의 학습 계획</div>
 
+      <!-- 사용법 안내 카드 — 요청: "열품타 기능 상단에 열품타 사용법 좀 제시해". 접어두면
+           localStorage에 기억해서 다음에 또 안 펼쳐지게(bugwang_planner_guide_collapsed). -->
+      <div class="card" id="planner-guide-card" style="margin-bottom:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="togglePlannerGuide()">
+          <div class="card-title" style="margin-bottom:0">📖 열품타 사용법</div>
+          <span class="section-hd-link" id="planner-guide-toggle-label">접기</span>
+        </div>
+        <div id="planner-guide-body" style="margin-top:10px">
+          <div class="card-sub" style="line-height:1.8">
+            <strong>1.</strong> 왼쪽 과목 옆 <strong>+</strong> 버튼으로 오늘 할 일을 추가하세요.<br>
+            <strong>2.</strong> 할 일 옆 ▶ 버튼을 누르면 전체화면 타이머가 시작돼요(한 번에 하나만 진행 가능).<br>
+            <strong>3.</strong> 전체화면에서는 반 친구들이 지금 얼마나 공부하고 있는지 실시간 랭킹도 볼 수 있어요.<br>
+            <strong>4.</strong> 오른쪽 리스트/타임테이블에서 오늘 기록을 확인하고, ‹ › 로 다른 날짜 기록도 넘겨볼 수 있어요.<br>
+            <strong>5.</strong> 과목 색깔이 마음에 안 들면 위쪽 "과목 색상 변경" 란에서 자유롭게 바꿀 수 있어요.
+          </div>
+        </div>
+      </div>
+
       <!-- 통계바 -->
       <div class="study-stats-bar" id="planner-stats-bar">
         <div class="study-stat-cell"><div class="study-stat-label">총 공부 시간</div><div class="study-stat-val blue" id="stat-total-time">00:00:00</div></div>
@@ -3152,6 +3170,23 @@ window.addEventListener('orientationchange',updateRealViewportHeight);
 if(window.visualViewport){
   window.visualViewport.addEventListener('resize',updateRealViewportHeight);
 }
+
+// ── 열품타(학습 플래너) 사용법 안내 카드 접기/펼치기 ──
+function togglePlannerGuide(){
+  const body=document.getElementById('planner-guide-body');
+  const collapsedNext=body.style.display!=='none';
+  body.style.display=collapsedNext?'none':'';
+  document.getElementById('planner-guide-toggle-label').textContent=collapsedNext?'펼치기':'접기';
+  try{localStorage.setItem('bugwang_planner_guide_collapsed',collapsedNext?'1':'0')}catch(e){}
+}
+(function initPlannerGuideState(){
+  let collapsed=false;
+  try{collapsed=localStorage.getItem('bugwang_planner_guide_collapsed')==='1'}catch(e){}
+  const body=document.getElementById('planner-guide-body');
+  if(!body)return;
+  body.style.display=collapsed?'none':'';
+  document.getElementById('planner-guide-toggle-label').textContent=collapsed?'펼치기':'접기';
+})();
 
 // ── 기기제한 (계정당 캠스터디 입장 가능 기기 수 제한 — 로그인 자체는 무제한) ──
 function getDeviceId(){

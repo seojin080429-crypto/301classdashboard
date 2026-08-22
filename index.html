@@ -3728,6 +3728,9 @@ function navigate(page){
       dmLayout.classList.remove('thread-open');
       document.body.style.overflow='';
     }
+    // DM 페이지를 완전히 벗어나면 "이 방을 보고 있음" 상태도 해제해야, 그 방에 새 메시지가
+    // 와도 다시 정상적으로 알림이 온다(안 그러면 서버가 영영 "보는 중"으로 착각함).
+    if(dmActiveRoomId){notifyDmLeftView();dmActiveRoomId=null}
   }
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -6829,8 +6832,28 @@ function renderDmRoomList(){
   }).join('');
 }
 
+// 지금 이 방을 보고 있다는 걸 서버 소켓에 알려서, 이 방에 새 메시지가 와도 나한테는
+// 알림(푸시/알림센터)이 안 가게 한다(요청: "dm창을 a라는 인물과 켜놓고 하고 있다면 그
+// 사람에게 오는 메세지 알람은 오지않게"). 소켓이 아직 없으면(SOCKET_URL 미설정 등)
+// 조용히 무시 — 이 경우 예전처럼 알림이 그냥 오는 정도로 저하될 뿐 에러는 아님.
+function notifyDmViewing(roomId){
+  if(studySocket)studySocket.emit('dm:open',{room_id:roomId});
+}
+function notifyDmLeftView(){
+  if(studySocket)studySocket.emit('dm:close');
+}
+// 탭을 백그라운드로 보내도(다른 앱 전환, 화면 끄기 등) 소켓 자체는 최대 90초까지는 안 끊겨서
+// (pingTimeout) "보는 중" 상태가 그동안 그대로 남아 알림이 계속 안 갈 수 있었다 — 탭이
+// 안 보이게 되는 즉시 dm:close로 알림을 재개하고, 다시 돌아오면(여전히 그 방을 보고 있는
+// 상태라면) dm:open으로 재개한다.
+document.addEventListener('visibilitychange',()=>{
+  if(!dmActiveRoomId)return;
+  if(document.hidden)notifyDmLeftView();
+  else notifyDmViewing(dmActiveRoomId);
+});
 async function openDmThread(roomId){
   dmActiveRoomId=roomId;
+  notifyDmViewing(roomId);
   document.getElementById('dm-layout').classList.add('thread-open');
   document.getElementById('dm-thread-empty').style.display='none';
   document.getElementById('dm-thread-active').classList.add('open');
@@ -6852,6 +6875,8 @@ async function openDmThread(roomId){
 function closeDmThreadMobile(){
   document.getElementById('dm-layout').classList.remove('thread-open');
   document.body.style.overflow='';
+  notifyDmLeftView();
+  dmActiveRoomId=null;
 }
 
 async function loadDmMessages(roomId){
@@ -7098,6 +7123,7 @@ async function leaveDmRoom(){
   if(!confirm('이 단톡방에서 나갈까요? 대화 목록에서 사라져요.'))return;
   const {error}=await sb.from('dm_participants').delete().eq('room_id',dmActiveRoomId).eq('user_id',currentUser.id);
   if(error){toast('나가기 실패: '+error.message);return}
+  notifyDmLeftView();
   dmActiveRoomId=null;
   document.getElementById('dm-thread-active').classList.remove('open');
   document.getElementById('dm-thread-empty').style.display='flex';

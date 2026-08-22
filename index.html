@@ -848,7 +848,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .sc-write-table td{padding:7px 10px;border-bottom:1px solid var(--hairline);vertical-align:middle}
 .sc-log-row .form-select,.sc-log-row .sc-log-task{width:100%}
 .sc-log-row-time{display:flex;align-items:center;gap:4px;flex-wrap:nowrap}
-.sc-log-row .sc-log-hm{width:44px;text-align:center;flex:none}
+.sc-log-row-time .sc-log-hour,.sc-log-row-time .sc-log-min{width:56px;min-width:56px;flex:none;text-align:center;padding:9px 4px}
 .sc-log-unit{color:var(--ink-48);font-size:12px;flex:none}
 /* 게시글 상세(댓글 패널)에 함께 보여주는 과목별 학습 내역 요약 */
 .sc-log-summary{margin-bottom:10px;padding-bottom:10px;border-bottom:1px dashed var(--hairline)}
@@ -2771,7 +2771,14 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
     </div>
     <div class="modal-field">
       <label class="modal-label">인증 시간 (몇 시까지 인증할지)</label>
-      <input class="modal-input" type="time" id="routine-deadline" style="max-width:150px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <select class="modal-input" id="routine-deadline-day" style="max-width:110px;flex:none">
+          <option value="same">오늘 안에</option>
+          <option value="next">다음날 새벽</option>
+        </select>
+        <input class="modal-input" type="time" id="routine-deadline" style="max-width:130px;flex:none">
+      </div>
+      <div class="card-sub" style="margin-top:4px">예: 새벽 2시까지 공부해도 괜찮다면 "다음날 새벽"을 고르고 02:00을 입력하세요</div>
     </div>
     <div class="modal-field">
       <label class="modal-label">벌칙 기준</label>
@@ -8007,6 +8014,20 @@ function weekStartStr(){
   d.setDate(d.getDate()-(dow===0?6:dow-1));
   return localDateStr(d);
 }
+// 'HH:MM' → '오전/오후 h시(분)'. 인증 시간이 다음날 새벽까지 연장되는 루틴(deadline_next_day)도
+// 표시할 수 있게 fmtDeadlineLabel()에서 이 값을 함께 쓴다(요청: "인증 시간은 다음날 오전
+// n시까지도 가능하게 해줘").
+function fmtTimeKorean(t){
+  if(!t)return'';
+  const [h,m]=t.split(':').map(Number);
+  const period=h<12?'오전':'오후';
+  const h12=h%12===0?12:h%12;
+  return`${period} ${h12}시${m?` ${m}분`:''}`;
+}
+function fmtDeadlineLabel(deadlineTime,nextDay){
+  if(!deadlineTime)return'';
+  return`${nextDay?'다음날':'오늘'} ${fmtTimeKorean(deadlineTime)}까지`;
+}
 function openRoutineModal(){
   document.getElementById('routine-error').style.display='none';
   document.getElementById('routine-subject').innerHTML=scSubjectOptionsHtml();
@@ -8014,12 +8035,14 @@ function openRoutineModal(){
     document.getElementById('routine-subject').value=myActiveRoutine.subject;
     document.getElementById('routine-task').value=myActiveRoutine.task;
     document.getElementById('routine-deadline').value=(myActiveRoutine.deadline_time||'').slice(0,5);
+    document.getElementById('routine-deadline-day').value=myActiveRoutine.deadline_next_day?'next':'same';
     document.getElementById('routine-threshold').value=myActiveRoutine.penalty_threshold;
     document.getElementById('routine-penalty').value=myActiveRoutine.penalty_desc||'';
     document.getElementById('routine-delete-btn').style.display='block';
   }else{
     document.getElementById('routine-task').value='';
     document.getElementById('routine-deadline').value='21:00';
+    document.getElementById('routine-deadline-day').value='same';
     document.getElementById('routine-threshold').value=2;
     document.getElementById('routine-penalty').value='';
     document.getElementById('routine-delete-btn').style.display='none';
@@ -8035,6 +8058,7 @@ async function saveRoutine(){
   const subject=document.getElementById('routine-subject').value;
   const task=document.getElementById('routine-task').value.trim();
   const deadline=document.getElementById('routine-deadline').value;
+  const deadlineNextDay=document.getElementById('routine-deadline-day').value==='next';
   const threshold=parseInt(document.getElementById('routine-threshold').value,10)||1;
   const penaltyDesc=document.getElementById('routine-penalty').value.trim()||null;
   if(!task){errEl.textContent='과제를 입력해주세요';errEl.style.display='block';return}
@@ -8046,7 +8070,8 @@ async function saveRoutine(){
   }
   const {error}=await sb.from('study_routines').insert({
     student_id:currentStudentId,user_id:currentUser.id,
-    subject,task,deadline_time:deadline,penalty_threshold:threshold,penalty_desc:penaltyDesc
+    subject,task,deadline_time:deadline,deadline_next_day:deadlineNextDay,
+    penalty_threshold:threshold,penalty_desc:penaltyDesc
   });
   submitBtn.textContent='저장';submitBtn.disabled=false;
   if(error){errEl.textContent='저장 실패: '+error.message;errEl.style.display='block';return}
@@ -8087,10 +8112,12 @@ async function renderStudyRoutineBoard(){
     const pastCertCount=[...certDates].filter(d=>d!==today).length;
     const missCount=Math.max(0,daysBeforeToday-pastCertCount);
     const atRisk=missCount>=r.penalty_threshold;
+    const deadlineLabel=fmtDeadlineLabel(r.deadline_time,r.deadline_next_day);
     return`<div class="routine-tile${atRisk?' at-risk':''}" title="${escHtml(r.penalty_desc||'')}">
       <div class="routine-tile-avatar">${avatarHtmlFor(name,profile?.avatar_url)}</div>
       <div class="routine-tile-name">${escHtml(name)}</div>
       <div class="routine-tile-task">${escHtml(r.subject)} · ${escHtml(r.task)}</div>
+      <div class="routine-tile-task">${deadlineLabel}</div>
       <div class="routine-tile-status">${doneToday?'✅':'❌'}</div>
       <div class="routine-tile-week${atRisk?' warn':''}">이번주 미인증 ${missCount}/${r.penalty_threshold}</div>
     </div>`;

@@ -226,6 +226,47 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-08-22: **공부 루틴 + ㅇㅈ/ㄴㅇㅈ 인증 투표 + 공부인증 글쓰기 전면 개편** (요청: "공부
+  루틴 설정과 ㅇㅈ기능을 만들고싶어 ... 벌칙설정도 같이하는데 ... 인증을 하면 다른
+  사람들에게 알람이 가고 ... ㅇㅈ,ㄴㅇㅈ버튼을 누르게 해줘 ... 상단에 네모박스로 ... 글쓰기를
+  누르면 위에 뜨는게 아니라 걍 창이 바뀌게 ... 가로로 넓게"). `sw.js`의 `SW_BUILD`도
+  `2026-08-22-1`로 올림. **DB 마이그레이션 2건**: `study_routines`(student_id/user_id/subject/
+  task/deadline_time/penalty_threshold/penalty_desc/is_active, RLS는 SELECT 전체공개+쓰기는
+  본인만 — post_likes와 동일한 컨벤션), `posts.routine_id`(FK→study_routines, on delete set
+  null), `post_verifications`(post_id+student_id PK, vote 'ojd'/'nojd' — post_likes와 완전히
+  동일한 패턴). **백엔드(`bugwang-server`)에 알림 API 2개 추가**: `/api/notify/study-cert`
+  (인증 작성 시 본인 뺀 학급 전체 방송, camstudy-join과 동일 패턴), `/api/notify/study-vote`
+  (누가 ㅇㅈ/ㄴㅇㅈ 누르면 작성자에게만, poll-vote와 동일 패턴) — **이 백엔드 커밋은 별도
+  저장소라 로컬엔 있지만 push 실패(토큰 인증 오류)로 아직 Railway에 반영 안 됐을 수 있음,
+  사용자가 토큰 갱신 후 직접 push 필요**.
+  - **공부 루틴**: 학생당 활성 루틴 1개(과목/과제/인증시간/주간 벌칙 기준/벌칙 내용 선택),
+    "⏰ 루틴 설정" 모달(`openRoutineModal`/`saveRoutine`/`deactivateRoutine`)에서 관리. 새로
+    저장하면 이전 루틴은 `is_active=false`로만 바꾸고 남겨둠(기록 보존). 반 전체가 서로의
+    루틴을 볼 수 있음(RLS SELECT 전체공개) — 요청의 "상단 네모박스" 자체가 이미 공개 전제.
+  - **상단 현황판**(`renderStudyRoutineBoard()`, `#study-routine-board`) — 활성 루틴이 있는
+    학생마다 네모박스 하나: 아바타/이름/과목·과제, 오늘 인증 여부(✅/❌), 이번 주 미인증
+    횟수(오늘은 아직 안 끝난 하루라 미인증 집계에서 제외 — 어제까지만 셈). 미인증 횟수가
+    벌칙 기준 이상이면 박스 테두리가 빨갛게(`.at-risk`) 강조됨. 주 경계는 기존 컨벤션과 동일한
+    월요일 시작(`weekStartStr()`, `getPieRangeStart()`와 같은 공식).
+  - **ㅇㅈ/ㄴㅇㅈ 투표**: 공부인증 표의 "좋아요" 컬럼을 "인증" 컬럼으로 교체(`voteStudyCert()`,
+    `post_verifications`) — post_likes/toggleLike()와 동일한 낙관적 업데이트+upsert 패턴이라
+    새 개념을 따로 안 만들고 재사용. 투표하면 글쓴이에게 study-vote 알림 발송(본인 글 제외).
+  - **글쓰기를 모달→전용 페이지로 전환**(요청: "글쓰기를 누르면 위에 뜨는게 아니라 걍
+    창이 바뀌게") — `page-notice-write`와 동일한 패턴(`openStudyCertWritePage()`/
+    `closeStudyCertWritePage()`가 `navigate('free-board')` 호출). 활성 루틴이 있으면 이
+    인증이 자동으로 그 루틴에 연결된다는 안내(`#sc-routine-hint`)와 함께 `routine_id`를
+    같이 저장 — 별도 연결 여부 선택 UI는 만들지 않음(한 명당 루틴이 하나뿐이라 항상 그
+    루틴에 연결하는 게 자연스러움).
+  - **과목별 학습 내역을 실제 `<table>`로 교체**(요청: "밑으로 쭉 나열하니까 안 예뻐 ...
+    가로로 넓게") — 기존엔 `.sc-log-row`가 flex-row div를 세로로 쌓았는데, 이제 진짜
+    `<table class="sc-write-table">`의 `<tr>`(과목 셀렉트/과제 입력/시간 입력이 한 줄에
+    가로로 나열)로 바뀜. 등록/삭제/합계 계산 로직(`addScLogRow`/`removeScLogRow`/
+    `scLogRowsData`/`recomputeScTotal`)은 DOM 태그만 div→tr/td로 바뀌고 그대로 재사용.
+  - 검증: 이번에도 Node vm 하네스로 실행 — `renderStudyCertRow()`가 만드는 ㅇㅈ/ㄴㅇㅈ
+    버튼의 active 클래스(내 투표 여부)가 목데이터대로 정확히 찍히는지, `weekStartStr()`가
+    실제 날짜에 대해 올바른 월요일을 돌려주는지, `renderStudyRoutineBoard()`가 빈 상태에서
+    예외 없이 도는지 확인. 실제 DB 왕복이 필요한 저장/투표/알림 함수(saveRoutine 등)는
+    post_likes 등 기존에 검증된 패턴과 동일 구조라 코드 리뷰로만 검증.
 - 2026-08-21 (2차): **공부인증 글쓰기를 과목별 상세 학습 내역으로 확장** (요청: "공부기록을
   좀 더 자세하게 적을 수 있게 해줘, 언제(며칠)의 공부인증인지 고르게 해주고 과목선택-과제-시간
   으로 구성, 학습 기록 불러오기는 그 날짜의 플래너 과목-과제-시간을 불러오게"). `sw.js`의

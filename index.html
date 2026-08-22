@@ -821,7 +821,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
    좋아요 버튼/카운트는 카드 버전과 동일하게 board-like-btn 클래스 + board-like-btn-*/
    board-like-count-* id를 그대로 써서 toggleLike()/renderLikeButton()을 그대로 공유한다. */
 .sc-table-wrap{overflow-x:auto;border:1px solid var(--hairline);border-radius:var(--radius-lg);background:var(--canvas)}
-.sc-table{display:grid;grid-template-columns:36px 130px 92px 52px minmax(160px,1fr) 92px 76px 84px 32px;min-width:780px}
+.sc-table{display:grid;grid-template-columns:36px 130px 92px 52px minmax(160px,1fr) 140px 70px 84px 32px;min-width:820px}
 .sc-th{padding:10px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-48);border-bottom:1px solid var(--hairline);white-space:nowrap;background:var(--parchment)}
 .sc-row{display:contents}
 .sc-cell{padding:10px;border-bottom:1px solid var(--hairline);color:var(--ink);font-size:13px;min-width:0}
@@ -840,9 +840,14 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .sc-date{font-size:12px;color:var(--ink-48);white-space:nowrap}
 .sc-comments-panel{grid-column:1/-1;border-bottom:1px solid var(--hairline);padding:14px 16px;background:var(--parchment)}
 /* 공부 인증 글쓰기 모달의 "과목별 학습 내역" 줄(과목 선택→과제→시간, 여러 줄 추가 가능) */
-.sc-log-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap}
-.sc-log-row .form-select{flex:0 0 100px}
-.sc-log-row .sc-log-task{flex:1;min-width:100px}
+/* 공부 인증 글쓰기 페이지의 "과목별 학습 내역" 표 — 참고 이미지처럼 과목/과제/시간을
+   세로로 쌓지 않고 가로로 넓은 표 한 줄에 담는다(요청: "과목별 학습 내역은 밑으로 쭉
+   나열하니까 안 예뻐 ... 가로로 넓게"). */
+.sc-write-table{width:100%;border-collapse:collapse;font-size:13px}
+.sc-write-table th{padding:9px 10px;text-align:left;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-48);border-bottom:1px solid var(--hairline);background:var(--parchment);white-space:nowrap}
+.sc-write-table td{padding:7px 10px;border-bottom:1px solid var(--hairline);vertical-align:middle}
+.sc-log-row .form-select,.sc-log-row .sc-log-task{width:100%}
+.sc-log-row-time{display:flex;align-items:center;gap:4px;flex-wrap:nowrap}
 .sc-log-row .sc-log-hm{width:44px;text-align:center;flex:none}
 .sc-log-unit{color:var(--ink-48);font-size:12px;flex:none}
 /* 게시글 상세(댓글 패널)에 함께 보여주는 과목별 학습 내역 요약 */
@@ -852,6 +857,23 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .sc-log-summary-subject{font-weight:600;flex-shrink:0}
 .sc-log-summary-task{flex:1;color:var(--ink-80);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sc-log-summary-time{flex-shrink:0;color:var(--ig-blue);font-weight:600;font-variant-numeric:tabular-nums}
+/* 공부인증 탭 상단 현황판 — 반 친구들의 오늘 루틴 인증 여부를 네모박스로 한눈에 보여줌 */
+.routine-board{display:flex;gap:10px;overflow-x:auto;padding:2px 2px 10px}
+.routine-tile{flex:0 0 132px;background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--radius-lg);padding:12px 10px;text-align:center;cursor:pointer;transition:border-color var(--t)}
+.routine-tile:hover{border-color:var(--ig-blue)}
+.routine-tile.at-risk{border-color:rgba(237,73,86,.35);background:rgba(237,73,86,.05)}
+.routine-tile-avatar{width:36px;height:36px;border-radius:50%;background:#1d1d1f;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;margin:0 auto 6px;overflow:hidden}
+.routine-tile-avatar img{width:100%;height:100%;object-fit:cover}
+.routine-tile-name{font-size:12px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.routine-tile-task{font-size:11px;color:var(--ink-48);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:2px 0 6px}
+.routine-tile-status{font-size:20px;line-height:1}
+.routine-tile-week{font-size:10px;color:var(--ink-48);margin-top:4px}
+.routine-tile-week.warn{color:#ed4956;font-weight:600}
+/* ㅇㅈ/ㄴㅇㅈ 인증 투표 버튼(공부인증 표의 "인증" 컬럼) */
+.sc-vote-group{display:flex;gap:4px;flex-wrap:wrap}
+.sc-vote-btn{display:flex;align-items:center;gap:3px;padding:3px 7px;border-radius:var(--radius-pill);border:1px solid var(--hairline);background:var(--canvas);font-size:11px;color:var(--ink-48);cursor:pointer;white-space:nowrap;transition:all var(--t)}
+.sc-vote-btn.ojd.active{background:rgba(46,204,113,.12);border-color:rgba(46,204,113,.4);color:#1a9c53}
+.sc-vote-btn.nojd.active{background:rgba(237,73,86,.1);border-color:rgba(237,73,86,.4);color:#ed4956}
 
 /* CALC */
 .calc-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
@@ -1848,10 +1870,15 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
       <div class="page-sub">반 친구들과 자유롭게 이야기하세요</div>
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
         <div class="view-toggle" id="free-category-tabs" style="flex-wrap:wrap;margin-bottom:0"></div>
-        <!-- 공부인증 탭에서만 보이는 글쓰기 버튼 — 이 탭은 아래 인라인 글쓰기 폼 대신
-             전용 모달(#studycert-write-modal)을 씀(renderFreeCategoryTabs() 참고) -->
-        <button class="btn-primary" id="studycert-write-btn" style="display:none;flex-shrink:0" onclick="openStudyCertModal()">+ 글쓰기</button>
+        <!-- 공부인증 탭에서만 보이는 버튼들 — 이 탭은 아래 인라인 글쓰기 폼 대신 전용 페이지
+             (#page-studycert-write)로 이동한다(renderFreeCategoryTabs() 참고) -->
+        <div id="studycert-write-btn" style="display:none;flex-shrink:0;gap:8px">
+          <button class="btn-ghost" onclick="openRoutineModal()">⏰ 루틴 설정</button>
+          <button class="btn-primary" onclick="openStudyCertWritePage()">+ 글쓰기</button>
+        </div>
       </div>
+      <!-- 공부인증 탭 상단 — 반 친구들의 오늘 인증 현황을 한눈에(네모박스, 가로 스크롤) -->
+      <div id="study-routine-board" style="display:none"></div>
       <div class="write-form" id="free-write-form">
         <div class="write-form-title">글 작성</div>
         <div class="form-row">
@@ -1877,6 +1904,63 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         </div>
       </div>
       <div class="qna-list" id="free-list"></div>
+    </div>
+
+    <!-- 공부인증 글쓰기 전용 페이지(모달 대신 화면 전환 — 요청: "글쓰기를 누르면 위에 뜨는게
+         아니라 걍 창이 바뀌게"). 인증 날짜 + 과목/과제/시간별 학습 내역(표 형태, 여러 줄) +
+         인증 사진을 받아 posts.study_date/study_log/study_seconds(합계)에 저장한다. -->
+    <div class="page" id="page-studycert-write">
+      <span class="section-hd-link" onclick="closeStudyCertWritePage()">← 공부인증으로</span>
+      <div class="page-title" style="margin-top:10px">공부 인증하기</div>
+      <div class="page-sub">과목별 학습 내역과 인증 사진을 남겨보세요</div>
+      <div class="card spacer">
+        <div class="modal-field">
+          <label class="modal-label">인증할 날짜</label>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <input class="modal-input" type="date" id="sc-date" style="max-width:170px;flex:none">
+            <button class="btn-ghost" style="margin-left:auto;font-size:12px;white-space:nowrap;padding:6px 10px" onclick="loadStudyRecordForCert()">📥 학습 기록 불러오기</button>
+          </div>
+        </div>
+        <div class="modal-field" id="sc-routine-hint" style="display:none"></div>
+        <div class="modal-field">
+          <label class="modal-label">과목별 학습 내역</label>
+          <div style="overflow-x:auto">
+            <table class="sc-write-table">
+              <thead><tr><th style="width:130px">과목</th><th>오늘 공부한 내용</th><th style="width:160px">공부 시간</th><th style="width:40px"></th></tr></thead>
+              <tbody id="sc-log-rows"></tbody>
+            </table>
+          </div>
+          <button class="add-subject-btn" style="margin-top:8px;padding:9px" onclick="addScLogRow()">+ 과목 추가</button>
+          <div style="text-align:right;margin-top:8px;font-size:12px;color:var(--ink-48)">
+            총 공부 시간 <strong id="sc-total-time" style="color:var(--ink);font-size:14px;font-weight:700">0분</strong>
+          </div>
+        </div>
+        <div class="modal-field">
+          <label class="modal-label">인증 사진 (필수)</label>
+          <div class="photo-upload-row">
+            <label class="photo-upload-label" for="sc-photo">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              사진 선택
+            </label>
+            <input type="file" id="sc-photo" accept="image/*" style="display:none" onchange="previewPhoto('sc')">
+            <span class="photo-file-name" id="sc-photo-name">파일 없음</span>
+            <button class="photo-clear-btn" id="sc-photo-clear" onclick="clearPhoto('sc')" style="display:none">×</button>
+          </div>
+          <div class="photo-preview-wrap" id="sc-photo-preview" style="display:none">
+            <img id="sc-photo-img" src="" alt="미리보기" class="photo-preview-img">
+            <video id="sc-photo-video" class="photo-preview-img" controls playsinline style="display:none"></video>
+          </div>
+        </div>
+        <div class="modal-field">
+          <label class="modal-label">한마디 (선택)</label>
+          <textarea class="form-textarea" id="sc-content" placeholder="오늘 공부에 대한 한마디를 남겨보세요" style="min-height:56px"></textarea>
+        </div>
+        <div class="auth-error" id="sc-error"></div>
+        <div class="modal-actions">
+          <button class="btn-ghost" onclick="closeStudyCertWritePage()">취소</button>
+          <button class="btn-primary" id="sc-submit-btn" onclick="submitStudyCertPost()">인증하기</button>
+        </div>
+      </div>
     </div>
 
     <!-- QNA BOARD -->
@@ -2669,52 +2753,43 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
   </div>
 </div>
 
-<!-- 공부인증 글쓰기 모달 — 인증 날짜 + 과목/과제/시간별 학습 내역(여러 줄, 수동 입력 또는
-     "학습 기록 불러오기"로 그 날짜의 학습 플래너 기록을 그대로 채움)과 인증 사진을 받아
-     posts.study_date/study_log/study_seconds(합계)에 구조화해서 저장한다. -->
-<div class="modal-overlay" id="studycert-write-modal">
-  <div class="modal" style="max-width:520px">
-    <button class="modal-close" onclick="closeStudyCertModal()">×</button>
-    <div class="modal-title">공부 인증하기</div>
+<!-- 공부 루틴 설정 모달 — 과목/과제/인증시간 + 주간 벌칙 기준. 학생당 활성 루틴은 하나만
+     유지되고(새로 저장하면 이전 루틴은 비활성화), 반 전체가 서로의 루틴/진행 상황을 볼 수 있다
+     (study_routines RLS가 SELECT 전체공개). -->
+<div class="modal-overlay" id="routine-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeRoutineModal()">×</button>
+    <div class="modal-title">공부 루틴 설정</div>
+    <div class="card-sub" style="margin-bottom:14px">매일 지킬 공부 습관과, 못 지켰을 때의 벌칙을 정해두세요. 반 친구들 모두에게 공개돼요.</div>
     <div class="modal-field">
-      <label class="modal-label">인증할 날짜</label>
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <input class="modal-input" type="date" id="sc-date" style="max-width:170px;flex:none">
-        <button class="btn-ghost" style="margin-left:auto;font-size:12px;white-space:nowrap;padding:6px 10px" onclick="loadStudyRecordForCert()">📥 학습 기록 불러오기</button>
+      <label class="modal-label">과목</label>
+      <select class="modal-input" id="routine-subject"></select>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">과제</label>
+      <input class="modal-input" id="routine-task" placeholder="예: 매일 단어 30개 암기">
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">인증 시간 (몇 시까지 인증할지)</label>
+      <input class="modal-input" type="time" id="routine-deadline" style="max-width:150px">
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">벌칙 기준</label>
+      <div style="display:flex;align-items:center;gap:8px">
+        일주일에
+        <input class="modal-input" type="number" min="1" max="7" id="routine-threshold" style="width:56px;text-align:center" value="2">
+        번 이상 못 지키면 벌칙
       </div>
     </div>
     <div class="modal-field">
-      <label class="modal-label">과목별 학습 내역</label>
-      <div id="sc-log-rows"></div>
-      <button class="add-subject-btn" style="margin-top:8px;padding:9px" onclick="addScLogRow()">+ 과목 추가</button>
-      <div style="text-align:right;margin-top:8px;font-size:12px;color:var(--ink-48)">
-        총 공부 시간 <strong id="sc-total-time" style="color:var(--ink);font-size:14px;font-weight:700">0분</strong>
-      </div>
+      <label class="modal-label">벌칙 내용 (선택)</label>
+      <input class="modal-input" id="routine-penalty" placeholder="예: 반 친구들에게 떡볶이 쏘기">
     </div>
-    <div class="modal-field">
-      <label class="modal-label">인증 사진 (필수)</label>
-      <div class="photo-upload-row">
-        <label class="photo-upload-label" for="sc-photo">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-          사진 선택
-        </label>
-        <input type="file" id="sc-photo" accept="image/*" style="display:none" onchange="previewPhoto('sc')">
-        <span class="photo-file-name" id="sc-photo-name">파일 없음</span>
-        <button class="photo-clear-btn" id="sc-photo-clear" onclick="clearPhoto('sc')" style="display:none">×</button>
-      </div>
-      <div class="photo-preview-wrap" id="sc-photo-preview" style="display:none">
-        <img id="sc-photo-img" src="" alt="미리보기" class="photo-preview-img">
-        <video id="sc-photo-video" class="photo-preview-img" controls playsinline style="display:none"></video>
-      </div>
-    </div>
-    <div class="modal-field">
-      <label class="modal-label">한마디 (선택)</label>
-      <textarea class="form-textarea" id="sc-content" placeholder="오늘 공부에 대한 한마디를 남겨보세요" style="min-height:56px"></textarea>
-    </div>
-    <div class="auth-error" id="sc-error"></div>
+    <div class="auth-error" id="routine-error"></div>
     <div class="modal-actions">
-      <button class="btn-ghost" onclick="closeStudyCertModal()">취소</button>
-      <button class="btn-primary" id="sc-submit-btn" onclick="submitStudyCertPost()">인증하기</button>
+      <button class="btn-ghost" id="routine-delete-btn" style="display:none;color:#ed4956" onclick="deactivateRoutine()">루틴 그만두기</button>
+      <button class="btn-ghost" onclick="closeRoutineModal()">취소</button>
+      <button class="btn-primary" id="routine-submit-btn" onclick="saveRoutine()">저장</button>
     </div>
   </div>
 </div>
@@ -6396,6 +6471,8 @@ const NOTIF_TYPE_META={
   'teacher-message':{icon:'👩‍🏫',bg:'rgba(46,204,113,.16)'},
   'dm-message':{icon:'✉️',bg:'rgba(226,32,91,.14)'},
   'camstudy-join':{icon:'📹',bg:'rgba(0,163,163,.16)'},
+  'study-cert':{icon:'📚',bg:'rgba(0,149,246,.14)'},
+  'study-vote':{icon:'🙋',bg:'rgba(46,204,113,.14)'},
 };
 let notifItems=[], notifDropdownOpen=false;
 
@@ -7233,7 +7310,10 @@ function showFirstLaunchGuide(){
 // ── BOARDS ──
 // renderPost()가 참조하는 학번→프로필 맵/좋아요 명단 — loadBoardPosts()가 게시판을 불러올
 // 때마다 최신으로 채운다.
-let boardProfileMap={}, boardLikesMap={};
+let boardProfileMap={}, boardLikesMap={}, boardVerifyMap={};
+// 로그인 계정의 활성 공부 루틴(있으면 하나) — 공부인증 글쓰기 페이지를 열 때마다
+// loadMyActiveRoutine()으로 최신화해서 자동 연결/힌트 표시에 쓴다.
+let myActiveRoutine=null;
 // createObjectURL로 만든 blob URL은 (data URL과 달리) 명시적으로 revokeObjectURL하지 않으면
 // 페이지가 떠 있는 동안 메모리에 계속 남는다. 하루 종일 켜두는 모바일 PWA에서 사진/동영상을
 // 여러 번 첨부·교체하며 게시하면 조금씩 누적되므로, 새 미리보기로 갈아끼우기 전/제출 후
@@ -7298,15 +7378,18 @@ function renderFreeCategoryTabs(){
   if(tabsEl)tabsEl.innerHTML=FREE_BOARD_CATEGORIES.map(c=>
     `<button class="view-btn${c.key===currentFreeCategory?' active':''}" data-cat="${c.key}" onclick="switchFreeCategory('${c.key}')">${c.label}</button>`
   ).join('');
-  // 공부인증은 전용 모달로만 작성하므로(공부 시간 필수 등 구조가 달라서) 일반 글쓰기 폼의
+  // 공부인증은 전용 페이지로만 작성하므로(공부 시간 필수 등 구조가 달라서) 일반 글쓰기 폼의
   // 카테고리 선택지에서는 빼서, 이 폼으로 study_seconds 없는 공부인증 글이 만들어지는 걸 막는다.
   if(selectEl)selectEl.innerHTML=FREE_BOARD_CATEGORIES.filter(c=>c.key!=='studycert').map(c=>`<option value="${c.key}">${c.label}</option>`).join('');
-  // 공부인증 탭은 아래 인라인 글쓰기 폼 대신 전용 "+ 글쓰기" 버튼(모달)을 씀
+  // 공부인증 탭은 아래 인라인 글쓰기 폼 대신 전용 버튼들(루틴 설정/글쓰기)과 상단 현황판을 씀
   const isStudyCert=currentFreeCategory==='studycert';
   const writeForm=document.getElementById('free-write-form');
   const scWriteBtn=document.getElementById('studycert-write-btn');
+  const routineBoard=document.getElementById('study-routine-board');
   if(writeForm)writeForm.style.display=isStudyCert?'none':'';
-  if(scWriteBtn)scWriteBtn.style.display=isStudyCert?'':'none';
+  if(scWriteBtn)scWriteBtn.style.display=isStudyCert?'flex':'none';
+  if(routineBoard)routineBoard.style.display=isStudyCert?'block':'none';
+  if(isStudyCert)renderStudyRoutineBoard();
 }
 function switchFreeCategory(cat){
   currentFreeCategory=cat;
@@ -7704,7 +7787,7 @@ function renderStudyCertTable(posts,commentMap){
     <div class="sc-th">공부 시간</div>
     <div class="sc-th">사진</div>
     <div class="sc-th">내용</div>
-    <div class="sc-th">좋아요</div>
+    <div class="sc-th">인증</div>
     <div class="sc-th">댓글</div>
     <div class="sc-th">날짜</div>
     <div class="sc-th"></div>`;
@@ -7717,9 +7800,10 @@ function renderStudyCertRow(p,num,comments){
   const canManagePost=isMe||isBoardModerator();
   const authorProfile=boardProfileMap[p.student_id];
   const authorName=authorProfile?.display_name||p.author_name;
-  const likerIds=boardLikesMap[p.id]||[];
-  const isLiked=likerIds.includes(currentStudentId);
-  const likeCount=likerIds.length;
+  const votes=Object.values(boardVerifyMap[p.id]||{});
+  const ojdCount=votes.filter(v=>v==='ojd').length;
+  const nojdCount=votes.filter(v=>v==='nojd').length;
+  const myVote=boardVerifyMap[p.id]?.[currentStudentId];
   const commentCount=comments.length;
   const thumbHtml=p.image_url
     ?`<img class="sc-thumb" src="${p.image_url}" onclick="openLightbox('${p.image_url}')" alt="인증 사진">`
@@ -7757,11 +7841,11 @@ function renderStudyCertRow(p,num,comments){
     <div class="sc-cell"><span class="sc-time-val" style="cursor:pointer" onclick="toggleComments('${p.id}')">${fmtStudySeconds(p.study_seconds)}</span></div>
     <div class="sc-cell">${thumbHtml}</div>
     <div class="sc-cell sc-content-cell" id="post-content-${p.id}">${escHtml(p.content)}</div>
-    <div class="sc-cell sc-cell-flex">
-      <button class="sc-like-btn board-like-btn${isLiked?' liked':''}" id="board-like-btn-${p.id}" onclick="toggleLike('${p.id}')">
-        <svg viewBox="0 0 24 24"><path d="M12 21s-6.716-4.443-9.192-8.143C.115 9.521 2.044 4 6.731 4c2.126 0 3.215 1.095 4.03 2.258C11.576 5.095 12.664 4 14.79 4 19.476 4 21.405 9.521 21.192 12.857 18.716 16.557 12 21 12 21z"></path></svg>
-        <span id="board-like-count-${p.id}">${likeCount||''}</span>
-      </button>
+    <div class="sc-cell">
+      <div class="sc-vote-group" id="sc-vote-${p.id}">
+        <button class="sc-vote-btn ojd${myVote==='ojd'?' active':''}" onclick="voteStudyCert('${p.id}','ojd')">👍 ㅇㅈ ${ojdCount||''}</button>
+        <button class="sc-vote-btn nojd${myVote==='nojd'?' active':''}" onclick="voteStudyCert('${p.id}','nojd')">👎 ㄴㅇㅈ ${nojdCount||''}</button>
+      </div>
     </div>
     <div class="sc-cell sc-cell-flex">
       <button class="sc-comment-btn" onclick="toggleComments('${p.id}')">
@@ -7782,28 +7866,31 @@ function renderStudyCertRow(p,num,comments){
   </div>`;
 }
 
-// ── 공부인증 글쓰기 모달 ──
-// 과목별 학습 내역(과목 선택→과제→시간)을 여러 줄 입력할 수 있게 함(2026-08-21, 요청:
-// "공부기록을 좀 더 자세하게 적을 수 있게 해줘 ... 과목선택-한 과제-시간"). 인증할 날짜도
+// ── 공부인증 글쓰기 (전용 페이지) ──
+// 과목별 학습 내역(과목 선택→과제→시간)을 표 형태로 여러 줄 입력할 수 있게 함. 인증할 날짜도
 // 고를 수 있고(작성일과 다를 수 있음 — 어젯밤 공부를 오늘 아침에 인증하는 경우 등),
 // "학습 기록 불러오기"는 그 선택한 날짜의 학습 플래너 기록(과목/과제/시간)을 그대로 불러온다.
+// 표 한 줄 = <tr class="sc-log-row"> — 실제 <table>이라 참고 이미지처럼 가로로 넓게 보인다
+// (예전엔 flex-row div를 세로로 쌓아서 좁고 안 예뻤음).
 function scSubjectOptionsHtml(){
   return(subjects||[]).map(s=>`<option value="${escHtml(s.name)}">${escHtml(s.name)}</option>`).join('');
 }
 function addScLogRow(subject,task,seconds){
   const wrap=document.getElementById('sc-log-rows');
-  const row=document.createElement('div');
+  const row=document.createElement('tr');
   row.className='sc-log-row';
   const h=seconds?Math.floor(seconds/3600):'';
   const m=seconds?Math.floor((seconds%3600)/60):'';
   row.innerHTML=`
-    <select class="form-select sc-log-subject">${scSubjectOptionsHtml()}</select>
-    <input class="modal-input sc-log-task" placeholder="예: 모의고사 오답노트" value="${escHtml(task||'')}">
-    <input type="number" min="0" class="modal-input sc-log-hour" placeholder="0" value="${h}" oninput="recomputeScTotal()">
-    <span class="sc-log-unit">시간</span>
-    <input type="number" min="0" max="59" class="modal-input sc-log-min" placeholder="0" value="${m}" oninput="recomputeScTotal()">
-    <span class="sc-log-unit">분</span>
-    <button class="poll-option-remove-btn" onclick="removeScLogRow(this)">×</button>`;
+    <td><select class="form-select sc-log-subject">${scSubjectOptionsHtml()}</select></td>
+    <td><input class="modal-input sc-log-task" placeholder="예: 모의고사 오답노트" value="${escHtml(task||'')}"></td>
+    <td><div class="sc-log-row-time">
+      <input type="number" min="0" class="modal-input sc-log-hour" placeholder="0" value="${h}" oninput="recomputeScTotal()">
+      <span class="sc-log-unit">시간</span>
+      <input type="number" min="0" max="59" class="modal-input sc-log-min" placeholder="0" value="${m}" oninput="recomputeScTotal()">
+      <span class="sc-log-unit">분</span>
+    </div></td>
+    <td><button class="poll-option-remove-btn" onclick="removeScLogRow(this)">×</button></td>`;
   wrap.appendChild(row);
   if(subject)row.querySelector('.sc-log-subject').value=subject;
   recomputeScTotal();
@@ -7825,7 +7912,7 @@ function recomputeScTotal(){
   const totalSec=scLogRowsData().reduce((a,r)=>a+r.seconds,0);
   document.getElementById('sc-total-time').textContent=fmtStudySeconds(totalSec);
 }
-function openStudyCertModal(){
+function openStudyCertWritePage(){
   const dateEl=document.getElementById('sc-date');
   dateEl.value=localDateStr();
   dateEl.max=localDateStr(); // 미래 날짜는 인증할 수 없음
@@ -7834,10 +7921,20 @@ function openStudyCertModal(){
   document.getElementById('sc-content').value='';
   clearPhoto('sc');
   document.getElementById('sc-error').style.display='none';
-  document.getElementById('studycert-write-modal').classList.add('open');
+  // 활성 루틴이 있으면 이 인증이 그 루틴에 자동으로 연결된다는 걸 미리 안내
+  const hintEl=document.getElementById('sc-routine-hint');
+  if(myActiveRoutine){
+    hintEl.style.display='block';
+    hintEl.innerHTML=`<div style="font-size:12px;color:var(--ig-blue);background:rgba(0,149,246,.08);border-radius:var(--radius-sm);padding:8px 12px">🔗 내 루틴(${escHtml(myActiveRoutine.subject)} · ${escHtml(myActiveRoutine.task)})에 대한 인증으로 기록돼요</div>`;
+  }else{
+    hintEl.style.display='none';
+  }
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-studycert-write').classList.add('active');
+  window.scrollTo(0,0);
 }
-function closeStudyCertModal(){
-  document.getElementById('studycert-write-modal').classList.remove('open');
+function closeStudyCertWritePage(){
+  navigate('free-board'); // page-notice-write의 closeNoticeWritePage()와 동일한 패턴
 }
 // "학습 기록 불러오기" — 선택한 날짜에 이 어플의 학습 플래너로 실제 기록된 공부 내역을
 // 과목·과제별로 합산해서(완료된 세션 + 오늘 날짜면 진행 중인 세션의 실시간 경과분까지)
@@ -7883,18 +7980,152 @@ async function submitStudyCertPost(){
   if(upErr){errEl.textContent='사진 업로드 실패: '+upErr.message;errEl.style.display='block';submitBtn.textContent='인증하기';submitBtn.disabled=false;return}
   const{data:urlData}=sb.storage.from('board-photos').getPublicUrl(fileName);
   const content=document.getElementById('sc-content').value.trim()||'오늘도 공부 완료!';
-  const{error}=await sb.from('posts').insert({
+  const{data:newPost,error}=await sb.from('posts').insert({
     user_id:currentUser.id,student_id:currentStudentId,
     author_name:currentName||currentStudentId+'번',
     category:'studycert',subject:null,content,image_url:urlData.publicUrl,
-    study_seconds:studySeconds,study_date:studyDate,study_log:logRows
-  });
+    study_seconds:studySeconds,study_date:studyDate,study_log:logRows,
+    routine_id:myActiveRoutine?myActiveRoutine.id:null
+  }).select().single();
   submitBtn.textContent='인증하기';submitBtn.disabled=false;
   if(error){errEl.textContent='게시 실패: '+error.message;errEl.style.display='block';return}
-  closeStudyCertModal();
+  // 이 글쓰기 페이지는 공부인증 탭의 버튼으로만 들어올 수 있어 currentFreeCategory는 항상
+  // 'studycert' — closeStudyCertWritePage()의 navigate('free-board')가 알아서 새로고침해준다.
+  closeStudyCertWritePage();
   toast('공부 인증이 등록되었습니다 ✓');
-  if(currentFreeCategory!=='studycert')switchFreeCategory('studycert');
-  else await loadFreeBoard();
+  triggerNotify('study-cert',{post_id:newPost.id});
+}
+
+// ── 공부 루틴(설정 + 상단 현황판) ──
+// 학생당 활성 루틴은 하나만(is_active=true) 유지하고(새로 저장하면 이전 루틴은 비활성화),
+// 반 전체가 서로의 루틴/진행 상황을 볼 수 있다(요청: "일주일이 몇번 안 했을시에 벌칙",
+// "상단에 네모박스로 아이들의 각각 인증이 보이게"). 주 경계는 이 프로젝트 기존 컨벤션과
+// 동일하게 월요일 시작(getPieRangeStart() 참고).
+function weekStartStr(){
+  const d=new Date();d.setHours(0,0,0,0);
+  const dow=d.getDay();
+  d.setDate(d.getDate()-(dow===0?6:dow-1));
+  return localDateStr(d);
+}
+function openRoutineModal(){
+  document.getElementById('routine-error').style.display='none';
+  document.getElementById('routine-subject').innerHTML=scSubjectOptionsHtml();
+  if(myActiveRoutine){
+    document.getElementById('routine-subject').value=myActiveRoutine.subject;
+    document.getElementById('routine-task').value=myActiveRoutine.task;
+    document.getElementById('routine-deadline').value=(myActiveRoutine.deadline_time||'').slice(0,5);
+    document.getElementById('routine-threshold').value=myActiveRoutine.penalty_threshold;
+    document.getElementById('routine-penalty').value=myActiveRoutine.penalty_desc||'';
+    document.getElementById('routine-delete-btn').style.display='block';
+  }else{
+    document.getElementById('routine-task').value='';
+    document.getElementById('routine-deadline').value='21:00';
+    document.getElementById('routine-threshold').value=2;
+    document.getElementById('routine-penalty').value='';
+    document.getElementById('routine-delete-btn').style.display='none';
+  }
+  document.getElementById('routine-modal').classList.add('open');
+}
+function closeRoutineModal(){
+  document.getElementById('routine-modal').classList.remove('open');
+}
+async function saveRoutine(){
+  const errEl=document.getElementById('routine-error');
+  errEl.style.display='none';
+  const subject=document.getElementById('routine-subject').value;
+  const task=document.getElementById('routine-task').value.trim();
+  const deadline=document.getElementById('routine-deadline').value;
+  const threshold=parseInt(document.getElementById('routine-threshold').value,10)||1;
+  const penaltyDesc=document.getElementById('routine-penalty').value.trim()||null;
+  if(!task){errEl.textContent='과제를 입력해주세요';errEl.style.display='block';return}
+  if(!deadline){errEl.textContent='인증 시간을 정해주세요';errEl.style.display='block';return}
+  const submitBtn=document.getElementById('routine-submit-btn');
+  submitBtn.textContent='저장 중...';submitBtn.disabled=true;
+  if(myActiveRoutine){
+    await sb.from('study_routines').update({is_active:false}).eq('id',myActiveRoutine.id);
+  }
+  const {error}=await sb.from('study_routines').insert({
+    student_id:currentStudentId,user_id:currentUser.id,
+    subject,task,deadline_time:deadline,penalty_threshold:threshold,penalty_desc:penaltyDesc
+  });
+  submitBtn.textContent='저장';submitBtn.disabled=false;
+  if(error){errEl.textContent='저장 실패: '+error.message;errEl.style.display='block';return}
+  closeRoutineModal();
+  toast('공부 루틴이 저장되었습니다 ✓');
+  await renderStudyRoutineBoard();
+}
+async function deactivateRoutine(){
+  if(!myActiveRoutine)return;
+  if(!confirm('루틴을 그만둘까요? 이번 주 인증 기록은 그대로 남아요.'))return;
+  await sb.from('study_routines').update({is_active:false}).eq('id',myActiveRoutine.id);
+  closeRoutineModal();
+  toast('루틴을 그만뒀어요');
+  await renderStudyRoutineBoard();
+}
+// 상단 현황판 — 활성 루틴이 있는 학생들의 오늘 인증 여부 + 이번 주 미인증 횟수를 네모박스로
+// 보여준다. myActiveRoutine 캐시도 여기서 함께 최신화한다(글쓰기 페이지의 자동 연결/힌트용).
+async function renderStudyRoutineBoard(){
+  const wrap=document.getElementById('study-routine-board');
+  if(!wrap)return;
+  const {data:routines}=await sb.from('study_routines').select('*').eq('is_active',true);
+  myActiveRoutine=(routines||[]).find(r=>r.student_id===currentStudentId)||null;
+  if(!routines||!routines.length){wrap.innerHTML='<div style="text-align:center;padding:16px;color:var(--ink-48);font-size:12px">아직 설정된 공부 루틴이 없어요. "⏰ 루틴 설정"으로 먼저 만들어보세요!</div>';return}
+  const profileMap=await loadProfileMap();
+  const today=localDateStr();
+  const weekStart=weekStartStr();
+  const routineIds=routines.map(r=>r.id);
+  const {data:certs}=await sb.from('posts').select('routine_id,study_date').eq('category','studycert').in('routine_id',routineIds).gte('study_date',weekStart);
+  const certDatesByRoutine={};
+  (certs||[]).forEach(c=>{(certDatesByRoutine[c.routine_id]=certDatesByRoutine[c.routine_id]||new Set()).add(c.study_date)});
+  // 오늘은 아직 안 끝난 하루라 "미인증"으로 안 세고, 오늘 이전(이미 다 지난 날)만 놓친 횟수로 센다.
+  const daysBeforeToday=Math.floor((new Date(today)-new Date(weekStart))/86400000);
+  wrap.innerHTML=`<div class="routine-board">${routines.slice().sort((a,b)=>a.student_id.localeCompare(b.student_id)).map(r=>{
+    const profile=profileMap[r.student_id];
+    const name=profile?.display_name||r.student_id+'번';
+    const certDates=certDatesByRoutine[r.id]||new Set();
+    const doneToday=certDates.has(today);
+    const pastCertCount=[...certDates].filter(d=>d!==today).length;
+    const missCount=Math.max(0,daysBeforeToday-pastCertCount);
+    const atRisk=missCount>=r.penalty_threshold;
+    return`<div class="routine-tile${atRisk?' at-risk':''}" title="${escHtml(r.penalty_desc||'')}">
+      <div class="routine-tile-avatar">${avatarHtmlFor(name,profile?.avatar_url)}</div>
+      <div class="routine-tile-name">${escHtml(name)}</div>
+      <div class="routine-tile-task">${escHtml(r.subject)} · ${escHtml(r.task)}</div>
+      <div class="routine-tile-status">${doneToday?'✅':'❌'}</div>
+      <div class="routine-tile-week${atRisk?' warn':''}">이번주 미인증 ${missCount}/${r.penalty_threshold}</div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+// ── 공부인증 ㅇㅈ/ㄴㅇㅈ 투표 ──
+// post_likes와 동일한 패턴(참가자별 행)이라 loadBoardPosts()가 boardVerifyMap을 함께 채운다.
+async function voteStudyCert(postId,vote){
+  const prevVote=boardVerifyMap[postId]?.[currentStudentId];
+  if(prevVote===vote)return; // 이미 같은 걸 눌렀으면 무시
+  if(!boardVerifyMap[postId])boardVerifyMap[postId]={};
+  boardVerifyMap[postId][currentStudentId]=vote; // 낙관적 업데이트
+  renderVoteButtons(postId);
+  const {error}=await sb.from('post_verifications').upsert({
+    post_id:postId,student_id:currentStudentId,user_id:currentUser.id,vote
+  },{onConflict:'post_id,student_id'});
+  if(error){
+    if(prevVote)boardVerifyMap[postId][currentStudentId]=prevVote;else delete boardVerifyMap[postId][currentStudentId];
+    renderVoteButtons(postId);
+    toast('투표 실패: '+error.message);
+    return;
+  }
+  triggerNotify('study-vote',{post_id:postId,vote});
+}
+function renderVoteButtons(postId){
+  const el=document.getElementById(`sc-vote-${postId}`);
+  if(!el)return;
+  const votes=Object.values(boardVerifyMap[postId]||{});
+  const ojdCount=votes.filter(v=>v==='ojd').length;
+  const nojdCount=votes.filter(v=>v==='nojd').length;
+  const myVote=boardVerifyMap[postId]?.[currentStudentId];
+  el.innerHTML=`
+    <button class="sc-vote-btn ojd${myVote==='ojd'?' active':''}" onclick="voteStudyCert('${postId}','ojd')">👍 ㅇㅈ ${ojdCount||''}</button>
+    <button class="sc-vote-btn nojd${myVote==='nojd'?' active':''}" onclick="voteStudyCert('${postId}','nojd')">👎 ㄴㅇㅈ ${nojdCount||''}</button>`;
 }
 
 async function loadBoardPosts(category,listElId,emptyMsg,type){
@@ -7902,13 +8133,16 @@ async function loadBoardPosts(category,listElId,emptyMsg,type){
   const el=document.getElementById(listElId);
   if(!posts||!posts.length){el.innerHTML=`<div style="text-align:center;padding:32px;color:var(--ink-48);font-size:13px">${emptyMsg}</div>`;return}
   const ids=posts.map(p=>p.id);
-  const [{data:comments},{data:likes},profileMap]=await Promise.all([
+  const isStudyCert=type==='studycert';
+  const [{data:comments},{data:likes},{data:verifications},profileMap]=await Promise.all([
     sb.from('comments').select('*').in('post_id',ids).order('created_at'),
-    FREE_CATEGORY_KEYS.includes(type)?sb.from('post_likes').select('post_id,student_id').in('post_id',ids):Promise.resolve({data:[]}),
+    (FREE_CATEGORY_KEYS.includes(type)&&!isStudyCert)?sb.from('post_likes').select('post_id,student_id').in('post_id',ids):Promise.resolve({data:[]}),
+    isStudyCert?sb.from('post_verifications').select('post_id,student_id,vote').in('post_id',ids):Promise.resolve({data:[]}),
     loadProfileMap()
   ]);
   boardProfileMap=profileMap;
   boardLikesMap={};(likes||[]).forEach(l=>{(boardLikesMap[l.post_id]=boardLikesMap[l.post_id]||[]).push(l.student_id)});
+  boardVerifyMap={};(verifications||[]).forEach(v=>{(boardVerifyMap[v.post_id]=boardVerifyMap[v.post_id]||{})[v.student_id]=v.vote});
   const commentMap={};(comments||[]).forEach(c=>{if(!commentMap[c.post_id])commentMap[c.post_id]=[];commentMap[c.post_id].push(c)});
   el.innerHTML=type==='studycert'
     ?renderStudyCertTable(posts,commentMap)

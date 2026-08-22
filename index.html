@@ -702,6 +702,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .dm-msg-row.mine .dm-msg-bubble{background:var(--blue);color:#fff;border-bottom-right-radius:4px}
 .dm-msg-img{max-width:220px;max-height:260px;border-radius:12px;margin-top:2px;cursor:pointer;display:block;background:var(--parchment);min-height:60px;object-fit:cover}
 .dm-msg-meta{font-size:10px;color:var(--ink-48);margin-top:3px;padding:0 4px;display:flex;align-items:center;gap:6px}
+.dm-read-receipt{color:var(--ig-blue);font-weight:600}
 .dm-msg-del{cursor:pointer}
 .dm-msg-del:hover{color:#e11d48}
 .dm-thread-input-row{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--hairline);align-items:center}
@@ -850,6 +851,16 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .sc-log-row-time{display:flex;align-items:center;gap:4px;flex-wrap:nowrap}
 .sc-log-row-time .sc-log-hour,.sc-log-row-time .sc-log-min{width:56px;min-width:56px;flex:none;text-align:center;padding:9px 4px}
 .sc-log-unit{color:var(--ink-48);font-size:12px;flex:none}
+/* 모바일에서는 가로로 넓은 표 대신 줄마다 세로 카드로 쌓는다(요청: "모바일에서 글쓰기 기능을
+   하면 가로로 봐야 다 보인다" — 가로 스크롤 없이 화면 폭 안에서 다 보이게). td의
+   data-label(addScLogRow() 참고)이 각 값 위에 작은 라벨로 붙는다. */
+@media(max-width:834px){
+  .sc-write-table thead{display:none}
+  .sc-write-table,.sc-write-table tbody,.sc-write-table tr,.sc-write-table td{display:block;width:100%}
+  .sc-write-table tr{border:1px solid var(--hairline);border-radius:var(--radius-md);margin-bottom:10px;padding:10px}
+  .sc-write-table td{border-bottom:none;padding:6px 0}
+  .sc-write-table td[data-label]::before{content:attr(data-label);display:block;font-size:11px;font-weight:600;color:var(--ink-48);margin-bottom:4px}
+}
 /* 게시글 상세(댓글 패널)에 함께 보여주는 과목별 학습 내역 요약 */
 .sc-log-summary{margin-bottom:10px;padding-bottom:10px;border-bottom:1px dashed var(--hairline)}
 .sc-log-summary-title{font-size:12px;font-weight:600;color:var(--ink-48);margin-bottom:6px}
@@ -865,6 +876,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .routine-tile-avatar{width:36px;height:36px;border-radius:50%;background:#1d1d1f;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;margin:0 auto 6px;overflow:hidden}
 .routine-tile-avatar img{width:100%;height:100%;object-fit:cover}
 .routine-tile-name{font-size:12px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.routine-tile-streak{font-size:10px;font-weight:700;color:#e87820;background:rgba(232,120,32,.1);border-radius:var(--radius-pill);padding:2px 8px;display:inline-block;margin-bottom:6px}
 .routine-tile-task{font-size:11px;color:var(--ink-48);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:2px 0 6px}
 .routine-tile-status{font-size:20px;line-height:1}
 .routine-tile-week{font-size:10px;color:var(--ink-48);margin-top:4px}
@@ -1418,7 +1430,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
       <div class="nav-group">
         <div class="nav-group-label">학습</div>
         <div class="nav-item" data-page="planner" onclick="navigate('planner')">
-          <svg viewBox="0 0 24 24" style="stroke:#2ecc71"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>학습 플래너
+          <svg viewBox="0 0 24 24" style="stroke:#2ecc71"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>열품타
         </div>
         <div class="nav-item" data-page="report" onclick="navigate('report')">
           <svg viewBox="0 0 24 24" style="stroke:#8b5cf6"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>학습 리포트
@@ -1524,7 +1536,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         <div class="stat-tile"><div class="stat-label">수능까지</div><div class="stat-num" id="dash-dday2">—</div><div class="stat-detail">일 남았습니다</div></div>
       </div>
       <div class="spacer">
-        <div class="section-hd" id="dash-timetable-hd"><div class="section-hd-title">오늘 시간표</div><span class="section-hd-link" onclick="navigate('planner')">플래너 →</span></div>
+        <div class="section-hd" id="dash-timetable-hd"><div class="section-hd-title">오늘 시간표</div><span class="section-hd-link" onclick="navigate('planner')">열품타 →</span></div>
         <div class="card"><div class="period-list" id="dash-timetable"></div></div>
       </div>
       <div class="spacer">
@@ -1619,7 +1631,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 
     <!-- PLANNER -->
     <div class="page" id="page-planner">
-      <div class="page-title">학습 플래너</div>
+      <div class="page-title">열품타</div>
       <div class="page-sub" id="planner-date-label">오늘의 학습 계획</div>
 
       <!-- 통계바 -->
@@ -2342,7 +2354,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
           <!-- 선택과목 변경 (선생님 계정은 선택과목 자체가 없으므로 숨김) -->
           <div class="card" id="mp-subjects-card" style="margin-top:14px">
             <div class="card-title" style="margin-bottom:4px">선택과목 변경</div>
-            <div class="card-sub">변경하면 학습 플래너 과목 목록이 업데이트됩니다</div>
+            <div class="card-sub">변경하면 열품타 과목 목록이 업데이트됩니다</div>
             <div class="auth-row" style="margin-bottom:10px">
               <div class="auth-field">
                 <label class="auth-label">국어 선택</label>
@@ -3740,6 +3752,10 @@ function navigate(page){
   if(page==='free-board')loadFreeBoard();
   if(page==='qna-board')loadQnaBoard();
   if(page==='bug-report')loadBugBoard();
+  // notice는 원래 여기 없어서, 다른 페이지에 있는 동안 투표 결과 등이 바뀌어도 공지 페이지로
+  // 넘어올 때 새로 안 불러와 예전 상태 그대로 보였다(제보: "투표같은 수정사항이 생겼을때
+  // 알람으로 들어가면 수정이 안돼있어서 다시 눌러야하는데"). 다른 게시판들과 동일하게 맞춘다.
+  if(page==='notice')loadNotices();
 }
 // 로그인 직후엔 항상 대시보드가 기본으로 떠 있는 상태이므로, 마지막으로 본 페이지가 그와
 // 다르고(대시보드는 굳이 다시 안 눌러도 됨) 지금 권한으로도 여전히 사이드바에 보이는
@@ -3819,7 +3835,7 @@ function buildTourSteps(){
     {sel:'[data-page="favorites"]',title:'즐겨찾기',desc:'대학어디가·리로스쿨 등 자주 쓰는 사이트로 바로 이동해요.'},
     {sel:'#favorite-grid',page:'favorites',title:'바로가기 카드',desc:'카드를 탭하면 새 탭에서 해당 사이트로 바로 이동해요.'},
 
-    {sel:'[data-page="planner"]',title:'학습 플래너',desc:'과목별로 타이머를 켜고 오늘 할 일을 체크하며 공부 시간을 기록해요.'},
+    {sel:'[data-page="planner"]',title:'열품타',desc:'과목별로 타이머를 켜고 오늘 할 일을 체크하며 공부 시간을 기록해요.'},
     {sel:'.study-stats-bar',page:'planner',title:'오늘의 학습 통계',desc:'총 공부 시간, 참여자 수, 내 등수·상위 %가 실시간으로 갱신돼요.'},
     {sel:'#subject-list',page:'planner',title:'과목 · 할 일',desc:'과목을 펼쳐 + 로 할 일을 추가하고, ▶ 로 타이머를 시작해요. 연필은 이름 수정, 시계 아이콘은 잘못 기록된 시간을 직접 고칠 때 써요.'},
     {sel:'#btn-list-view',page:'planner',title:'기록 보기',desc:'리스트 또는 타임테이블(시간대별) 형태로 오늘 공부 흐름을 볼 수 있어요.'},
@@ -6554,8 +6570,14 @@ async function openNotifItem(id){
   if(!n)return;
   closeNotifDropdown();
   if(!n.is_read){
-    n.is_read=true;
-    await sb.from('notifications').update({is_read:true}).eq('id',id);
+    // 같은 대상(ref_id, 예: 같은 DM 방·같은 글)을 가리키는 다른 안읽은 알림도 함께 읽음
+    // 처리한다(요청: "디엠이 동일 인물에게 3개 왔을때 그 알람 클릭하면 나머지 알람도 꺼지게",
+    // "공지사항도 ... 하나만 누르면 나머지도 읽은 취급"). ref_id가 없는 타입(공지/선생님
+    // 메시지 등)은 타입 전체가 한 그룹 — 어차피 같은 페이지에서 다 함께 보이기 때문.
+    notifItems.forEach(x=>{if(!x.is_read&&x.type===n.type&&(x.ref_id||null)===(n.ref_id||null))x.is_read=true});
+    let q=sb.from('notifications').update({is_read:true}).eq('recipient_user_id',currentUser.id).eq('type',n.type).eq('is_read',false);
+    q=n.ref_id?q.eq('ref_id',n.ref_id):q.is('ref_id',null);
+    await q;
     loadNotifCount();
   }
   if(n.link)navigate(n.link);
@@ -6824,6 +6846,7 @@ async function openDmThread(roomId){
   renderDmRoomList();
   await loadDmMessages(roomId);
   await markDmRoomRead(roomId);
+  await refreshDmReadReceipts();
 }
 
 function closeDmThreadMobile(){
@@ -6844,26 +6867,44 @@ async function loadDmMessages(roomId){
 
 // 내 메시지 목록을 편집(startEditDmMessage)에서 원문을 다시 찾아 쓸 수 있도록 캐시해둔다.
 let dmCurrentMessages=[];
+// 메시지 한 줄 템플릿 — 전체 재렌더(renderDmThreadMessages)와 낙관적 한 줄 추가
+// (appendDmMessage)가 공유한다.
+function dmMessageRowHtml(m,isGroup){
+  const mine=m.sender_student_id===currentStudentId;
+  const time=new Date(m.created_at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  const senderHtml=(!mine&&isGroup)?`<div class="dm-msg-sender">${escHtml(m.sender_name)}</div>`:'';
+  const imgHtml=m.image_url?`<img class="dm-msg-img" data-path="${m.image_url}" onclick="if(this.src)openLightbox(this.src)" alt="사진">`:'';
+  const textHtml=m.content?`<div class="dm-msg-bubble" id="dm-msg-bubble-${m.id}">${escHtml(m.content)}</div>`:'';
+  // 내 메시지만 모바일 꾹 누르기/PC 우클릭으로 삭제·수정 메뉴를 띄운다(showDmMsgMenu).
+  const menuAttrs=mine?`oncontextmenu="showDmMsgMenu(event,'${m.id}')" ontouchstart="dmTouchStart(event,'${m.id}')" ontouchend="dmTouchEnd(event)" ontouchmove="dmTouchEnd(event)"`:'';
+  return`<div class="dm-msg-row ${mine?'mine':'theirs'}" data-msg-id="${m.id}" ${menuAttrs}>
+      ${senderHtml}${imgHtml}${textHtml}
+      <div class="dm-msg-meta">${time}</div>
+    </div>`;
+}
 function renderDmThreadMessages(messages){
   dmCurrentMessages=messages;
   const log=document.getElementById('dm-thread-log');
   const room=dmRooms.find(r=>r.id===dmActiveRoomId);
   const isGroup=room?.is_group;
-  log.innerHTML=messages.map(m=>{
-    const mine=m.sender_student_id===currentStudentId;
-    const time=new Date(m.created_at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
-    const senderHtml=(!mine&&isGroup)?`<div class="dm-msg-sender">${escHtml(m.sender_name)}</div>`:'';
-    const imgHtml=m.image_url?`<img class="dm-msg-img" data-path="${m.image_url}" onclick="if(this.src)openLightbox(this.src)" alt="사진">`:'';
-    const textHtml=m.content?`<div class="dm-msg-bubble" id="dm-msg-bubble-${m.id}">${escHtml(m.content)}</div>`:'';
-    // 내 메시지만 모바일 꾹 누르기/PC 우클릭으로 삭제·수정 메뉴를 띄운다(showDmMsgMenu).
-    const menuAttrs=mine?`oncontextmenu="showDmMsgMenu(event,'${m.id}')" ontouchstart="dmTouchStart(event,'${m.id}')" ontouchend="dmTouchEnd(event)" ontouchmove="dmTouchEnd(event)"`:'';
-    return`<div class="dm-msg-row ${mine?'mine':'theirs'}" data-msg-id="${m.id}" ${menuAttrs}>
-      ${senderHtml}${imgHtml}${textHtml}
-      <div class="dm-msg-meta">${time}</div>
-    </div>`;
-  }).join('')||'<div style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">아직 메시지가 없어요. 첫 메시지를 보내보세요!</div>';
+  log.innerHTML=messages.map(m=>dmMessageRowHtml(m,isGroup)).join('')||'<div style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">아직 메시지가 없어요. 첫 메시지를 보내보세요!</div>';
   log.scrollTop=log.scrollHeight;
   hydrateDmPhotoUrls();
+}
+// 내가 방금 보낸 메시지 하나만 이어붙인다 — sendDmMessage()가 예전엔 여기서 200개를 통째로
+// 다시 불러오고(그때마다 사진 서명URL도 전부 재발급) 방 목록/읽음처리까지 순서대로 기다린
+// 뒤에야 화면이 반응해서, 보낼 때마다 눈에 띄는 텀이 있었다(제보: "디엠 보내지는데 텀이
+// 좀 있어"). 이제 새로 생긴 한 줄만 그려서 체감 지연을 없앤다.
+function appendDmMessage(m){
+  dmCurrentMessages.push(m);
+  dmLastRenderedMsgId=m.id;
+  const log=document.getElementById('dm-thread-log');
+  const room=dmRooms.find(r=>r.id===dmActiveRoomId);
+  if(dmCurrentMessages.length===1)log.innerHTML=''; // "아직 메시지가 없어요" 안내문구 제거
+  log.insertAdjacentHTML('beforeend',dmMessageRowHtml(m,room?.is_group));
+  log.scrollTop=log.scrollHeight;
+  if(m.image_url)hydrateDmPhotoUrls();
+  renderDmReadReceipt();
 }
 
 // ── DM 메시지 삭제/수정 메뉴 (모바일 꾹 누르기 / PC 우클릭) ──
@@ -6944,7 +6985,10 @@ async function saveEditDmMessage(id){
 // — 렌더링 시점마다 서명URL(1시간 유효)을 새로 발급해서 대화 참가자만 열람 가능하게 한다.
 async function hydrateDmPhotoUrls(){
   const log=document.getElementById('dm-thread-log');
-  const imgs=Array.from(document.querySelectorAll('#dm-thread-log .dm-msg-img[data-path]'));
+  // .src가 이미 있으면(직전 호출에서 서명URL을 이미 발급받은 것) 다시 요청하지 않는다 —
+  // 예전엔 호출될 때마다 대화창에 보이는 사진 전부를 매번 다시 서명받고 있었음(사진이
+  // 많은 방일수록, 그리고 메시지를 보낼 때마다/폴링마다 계속 반복돼서 낭비가 컸음).
+  const imgs=Array.from(document.querySelectorAll('#dm-thread-log .dm-msg-img[data-path]')).filter(el=>!el.src);
   if(!imgs.length)return;
   // 서명URL을 받아오기 전엔 이미지가 placeholder 높이(min-height:60px)뿐이라, 나중에 실제
   // 사진 높이(최대 260px)로 로드되는 순간 로그 전체 높이가 늘어나면서 스크롤 위치가 상대적으로
@@ -7019,10 +7063,12 @@ async function sendDmMessage(){
   if(error){toast('전송 실패: '+error.message);return}
   inp.value='';
   clearDmPhoto();
-  await loadDmMessages(dmActiveRoomId);
-  await markDmRoomRead(dmActiveRoomId);
+  // 방금 보낸 메시지만 바로 그려서 체감 지연을 없애고, 나머지 뒷정리(읽음 처리/방 목록
+  // 갱신/알림)는 화면 반응을 막지 않도록 기다리지 않는다.
+  appendDmMessage(data);
+  markDmRoomRead(dmActiveRoomId).catch(()=>{});
   triggerNotify('dm-message',{message_id:data.id});
-  await loadDmRooms();
+  loadDmRooms().catch(()=>{});
 }
 
 async function deleteDmMessage(id){
@@ -7067,6 +7113,39 @@ async function pollDmActiveThread(){
   if(latestId&&latestId!==dmLastRenderedMsgId){
     await loadDmMessages(dmActiveRoomId);
     await markDmRoomRead(dmActiveRoomId);
+  }
+  // 새 메시지가 없어도(상대가 그냥 내 기존 메시지를 읽었을 수 있으니) 읽음 표시는 매번 갱신
+  await refreshDmReadReceipts();
+}
+// ── DM 읽음 표시 ──
+// 상대(그룹이면 참가자 전원)의 dm_participants.last_read_at을 내가 보낸 마지막 메시지 시각과
+// 비교해서 "읽음"(1:1) 또는 안 읽은 인원 수(그룹, 카카오톡 방식)를 표시한다.
+let dmRoomParticipantsCache=[]; // 현재 열어둔 방의 나 제외 참가자 [{student_id,last_read_at}]
+async function refreshDmReadReceipts(){
+  if(!dmActiveRoomId)return;
+  const {data}=await sb.from('dm_participants').select('student_id,last_read_at').eq('room_id',dmActiveRoomId).neq('student_id',currentStudentId);
+  dmRoomParticipantsCache=data||[];
+  renderDmReadReceipt();
+}
+function renderDmReadReceipt(){
+  document.querySelectorAll('.dm-read-receipt').forEach(el=>el.remove());
+  const myMsgs=dmCurrentMessages.filter(m=>m.sender_student_id===currentStudentId);
+  if(!myMsgs.length||!dmRoomParticipantsCache.length)return;
+  const lastMine=myMsgs[myMsgs.length-1];
+  const row=document.querySelector(`.dm-msg-row[data-msg-id="${lastMine.id}"]`);
+  const meta=row?.querySelector('.dm-msg-meta');
+  if(!meta)return;
+  const lastMineTime=new Date(lastMine.created_at).getTime();
+  const readCount=dmRoomParticipantsCache.filter(p=>p.last_read_at&&new Date(p.last_read_at).getTime()>=lastMineTime).length;
+  const unread=dmRoomParticipantsCache.length-readCount;
+  // .dm-msg-meta는 이미 display:flex라(시간 표시), 그 안쪽 맨 앞에 끼워 넣으면 같은 줄에
+  // "읽음 · 시각"처럼 나란히 보인다(형제로 넣으면 줄이 따로 떨어져 보임).
+  if(unread<=0){
+    meta.insertAdjacentHTML('afterbegin','<span class="dm-read-receipt">읽음</span>');
+  }else if(dmRoomParticipantsCache.length>1){
+    // 1:1은 "안 읽음"을 굳이 표시하지 않음(어차피 상대 한 명뿐이라 정보량이 없음) — 단톡방만
+    // 카카오톡처럼 몇 명이 아직 안 읽었는지 숫자로 보여준다.
+    meta.insertAdjacentHTML('afterbegin',`<span class="dm-read-receipt">${unread}</span>`);
   }
 }
 setInterval(()=>{
@@ -7888,10 +7967,13 @@ function addScLogRow(subject,task,seconds){
   row.className='sc-log-row';
   const h=seconds?Math.floor(seconds/3600):'';
   const m=seconds?Math.floor((seconds%3600)/60):'';
+  // data-label은 모바일 폭(834px 이하)에서 표 대신 세로 카드로 바뀔 때 각 값 위에
+  // 붙는 라벨용(요청: "모바일에서는 가로로 봐야 다 보인다는 제보" — 가로 스크롤 대신
+  // 세로로 쌓이게 함, .sc-write-table의 반응형 규칙 참고).
   row.innerHTML=`
-    <td><select class="form-select sc-log-subject">${scSubjectOptionsHtml()}</select></td>
-    <td><input class="modal-input sc-log-task" placeholder="예: 모의고사 오답노트" value="${escHtml(task||'')}"></td>
-    <td><div class="sc-log-row-time">
+    <td data-label="과목"><select class="form-select sc-log-subject">${scSubjectOptionsHtml()}</select></td>
+    <td data-label="오늘 공부한 내용"><input class="modal-input sc-log-task" placeholder="예: 모의고사 오답노트" value="${escHtml(task||'')}"></td>
+    <td data-label="공부 시간"><div class="sc-log-row-time">
       <input type="number" min="0" class="modal-input sc-log-hour" placeholder="0" value="${h}" oninput="recomputeScTotal()">
       <span class="sc-log-unit">시간</span>
       <input type="number" min="0" max="59" class="modal-input sc-log-min" placeholder="0" value="${m}" oninput="recomputeScTotal()">
@@ -8028,6 +8110,17 @@ function fmtDeadlineLabel(deadlineTime,nextDay){
   if(!deadlineTime)return'';
   return`${nextDay?'다음날':'오늘'} ${fmtTimeKorean(deadlineTime)}까지`;
 }
+// 연속 인증일수(스트릭) — 오늘은 아직 안 끝난 하루라 오늘 인증을 안 했어도 끊긴 걸로 치지
+// 않고 어제부터 거꾸로 센다(오늘 인증했으면 오늘부터). certDates: 'YYYY-MM-DD' 문자열 Set.
+function computeStudyStreak(certDates,today){
+  let cursor=certDates.has(today)?new Date(today+'T00:00:00'):new Date(new Date(today+'T00:00:00').getTime()-86400000);
+  let streak=0;
+  while(certDates.has(localDateStr(cursor))){
+    streak++;
+    cursor=new Date(cursor.getTime()-86400000);
+  }
+  return streak;
+}
 function openRoutineModal(){
   document.getElementById('routine-error').style.display='none';
   document.getElementById('routine-subject').innerHTML=scSubjectOptionsHtml();
@@ -8099,7 +8192,10 @@ async function renderStudyRoutineBoard(){
   const today=localDateStr();
   const weekStart=weekStartStr();
   const routineIds=routines.map(r=>r.id);
-  const {data:certs}=await sb.from('posts').select('routine_id,study_date').eq('category','studycert').in('routine_id',routineIds).gte('study_date',weekStart);
+  // 스트릭(연속 인증일수) 계산에는 이번 주보다 긴 기록이 필요해서 최근 90일치를 한 번에
+  // 받아, 주간 미인증 집계와 스트릭 둘 다 이 데이터 하나로 계산한다.
+  const lookbackStart=localDateStr(new Date(Date.now()-90*86400000));
+  const {data:certs}=await sb.from('posts').select('routine_id,study_date').eq('category','studycert').in('routine_id',routineIds).gte('study_date',lookbackStart);
   const certDatesByRoutine={};
   (certs||[]).forEach(c=>{(certDatesByRoutine[c.routine_id]=certDatesByRoutine[c.routine_id]||new Set()).add(c.study_date)});
   // 오늘은 아직 안 끝난 하루라 "미인증"으로 안 세고, 오늘 이전(이미 다 지난 날)만 놓친 횟수로 센다.
@@ -8107,13 +8203,16 @@ async function renderStudyRoutineBoard(){
   wrap.innerHTML=`<div class="routine-board">${routines.slice().sort((a,b)=>a.student_id.localeCompare(b.student_id)).map(r=>{
     const profile=profileMap[r.student_id];
     const name=profile?.display_name||r.student_id+'번';
-    const certDates=certDatesByRoutine[r.id]||new Set();
-    const doneToday=certDates.has(today);
-    const pastCertCount=[...certDates].filter(d=>d!==today).length;
+    const allCertDates=certDatesByRoutine[r.id]||new Set();
+    const weekCertDates=new Set([...allCertDates].filter(d=>d>=weekStart));
+    const doneToday=allCertDates.has(today);
+    const pastCertCount=[...weekCertDates].filter(d=>d!==today).length;
     const missCount=Math.max(0,daysBeforeToday-pastCertCount);
     const atRisk=missCount>=r.penalty_threshold;
     const deadlineLabel=fmtDeadlineLabel(r.deadline_time,r.deadline_next_day);
+    const streak=computeStudyStreak(allCertDates,today);
     return`<div class="routine-tile${atRisk?' at-risk':''}" title="${escHtml(r.penalty_desc||'')}">
+      ${streak>0?`<div class="routine-tile-streak">🔥 ${streak}일 연속</div>`:''}
       <div class="routine-tile-avatar">${avatarHtmlFor(name,profile?.avatar_url)}</div>
       <div class="routine-tile-name">${escHtml(name)}</div>
       <div class="routine-tile-task">${escHtml(r.subject)} · ${escHtml(r.task)}</div>

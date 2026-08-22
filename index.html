@@ -3758,7 +3758,13 @@ function navigate(page){
   // notice는 원래 여기 없어서, 다른 페이지에 있는 동안 투표 결과 등이 바뀌어도 공지 페이지로
   // 넘어올 때 새로 안 불러와 예전 상태 그대로 보였다(제보: "투표같은 수정사항이 생겼을때
   // 알람으로 들어가면 수정이 안돼있어서 다시 눌러야하는데"). 다른 게시판들과 동일하게 맞춘다.
-  if(page==='notice')loadNotices();
+  if(page==='notice'){
+    loadNotices();
+    // 알림센터를 안 거치고 사이드바로 공지 페이지에 직접 들어와도 관련 알림은 읽음 처리
+    // (요청: "공지사항을 직접 보면 걍 알람은 자동으로 읽음처리 해줘"). poll-vote는 투표마다
+    // ref_id(poll_id)가 달라서 markNotifGroupRead 하나로 못 묶으니 타입째로 지운다.
+    markNotifTypesRead(['notice','poll-vote']);
+  }
 }
 // 로그인 직후엔 항상 대시보드가 기본으로 떠 있는 상태이므로, 마지막으로 본 페이지가 그와
 // 다르고(대시보드는 굳이 다시 안 눌러도 됨) 지금 권한으로도 여전히 사이드바에 보이는
@@ -6568,21 +6574,31 @@ function closeNotifDropdown(){
   document.getElementById('notif-dropdown').style.display='none';
 }
 document.addEventListener('click',()=>{if(notifDropdownOpen)closeNotifDropdown()});
+// 같은 (type, ref_id) 그룹의 안읽은 알림을 한 번에 읽음 처리한다 — 알림센터에서 하나를
+// 눌렀을 때뿐 아니라, DM 방을 직접 열거나 공지 페이지를 직접 봤을 때도 같은 함수를 재사용한다
+// (요청: "dm을 읽거나, 공지사항을 직접 보면 걍 알람은 자동으로 읽음처리 해줘").
+async function markNotifGroupRead(type,refId){
+  if(!currentUser)return;
+  notifItems.forEach(x=>{if(!x.is_read&&x.type===type&&(x.ref_id||null)===(refId||null))x.is_read=true});
+  let q=sb.from('notifications').update({is_read:true}).eq('recipient_user_id',currentUser.id).eq('type',type).eq('is_read',false);
+  q=refId?q.eq('ref_id',refId):q.is('ref_id',null);
+  await q;
+  loadNotifCount();
+}
+// ref_id 구분 없이 타입 전체를 읽음 처리한다 — 공지 페이지처럼 "들어가면 관련된 게 다
+// 보이는" 경우용(poll-vote는 투표별로 ref_id가 다 다르게 박혀있어서 markNotifGroupRead
+// 하나로는 못 묶는다).
+async function markNotifTypesRead(types){
+  if(!currentUser)return;
+  notifItems.forEach(x=>{if(!x.is_read&&types.includes(x.type))x.is_read=true});
+  await sb.from('notifications').update({is_read:true}).eq('recipient_user_id',currentUser.id).in('type',types).eq('is_read',false);
+  loadNotifCount();
+}
 async function openNotifItem(id){
   const n=notifItems.find(x=>x.id===id);
   if(!n)return;
   closeNotifDropdown();
-  if(!n.is_read){
-    // 같은 대상(ref_id, 예: 같은 DM 방·같은 글)을 가리키는 다른 안읽은 알림도 함께 읽음
-    // 처리한다(요청: "디엠이 동일 인물에게 3개 왔을때 그 알람 클릭하면 나머지 알람도 꺼지게",
-    // "공지사항도 ... 하나만 누르면 나머지도 읽은 취급"). ref_id가 없는 타입(공지/선생님
-    // 메시지 등)은 타입 전체가 한 그룹 — 어차피 같은 페이지에서 다 함께 보이기 때문.
-    notifItems.forEach(x=>{if(!x.is_read&&x.type===n.type&&(x.ref_id||null)===(n.ref_id||null))x.is_read=true});
-    let q=sb.from('notifications').update({is_read:true}).eq('recipient_user_id',currentUser.id).eq('type',n.type).eq('is_read',false);
-    q=n.ref_id?q.eq('ref_id',n.ref_id):q.is('ref_id',null);
-    await q;
-    loadNotifCount();
-  }
+  if(!n.is_read)await markNotifGroupRead(n.type,n.ref_id);
   if(n.link)navigate(n.link);
 }
 async function markAllNotifsRead(){
@@ -6854,6 +6870,7 @@ document.addEventListener('visibilitychange',()=>{
 async function openDmThread(roomId){
   dmActiveRoomId=roomId;
   notifyDmViewing(roomId);
+  markNotifGroupRead('dm-message',roomId); // 알림센터를 안 거치고 직접 방을 열어도 그 방 알림은 읽음 처리
   document.getElementById('dm-layout').classList.add('thread-open');
   document.getElementById('dm-thread-empty').style.display='none';
   document.getElementById('dm-thread-active').classList.add('open');

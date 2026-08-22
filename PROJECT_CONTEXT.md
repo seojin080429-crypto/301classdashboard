@@ -226,6 +226,20 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-08-22 (5차): **DM을 읽거나 공지 페이지를 직접 보면 관련 알림도 자동으로 읽음 처리**
+  (요청: "dm을 읽거나,공지사항을 직접 보면 걍 알람은 자동으로 읽음처리 해줘"). `sw.js`의
+  `SW_BUILD`도 `2026-08-22-5`로 올림. 백엔드 변경 없음(프론트만).
+  - 이전 알림 그룹 읽음 처리(같은 DM방/글 알림을 하나만 눌러도 다 같이 읽음) 로직을
+    `openNotifItem()`에서 재사용 가능한 `markNotifGroupRead(type,refId)`(같은 type+ref_id만
+    묶음) / `markNotifTypesRead(types)`(ref_id 무관하게 타입째로) 두 함수로 뽑아냄.
+  - **DM**: `openDmThread(roomId)`가 방을 열 때마다 `markNotifGroupRead('dm-message',roomId)`
+    호출 — 알림센터를 안 거치고 사이드바→DM으로 직접 들어가 방을 열어도 그 방 알림이 꺼짐.
+  - **공지**: `navigate('notice')`가 `markNotifTypesRead(['notice','poll-vote'])` 호출 —
+    poll-vote는 투표마다 ref_id(poll_id)가 달라 그룹 단위로는 못 묶어서 타입째로 지움(공지
+    페이지에 들어가면 어차피 전체가 다 보이니까). **주의**: `loadNotices()` 자체(대시보드
+    미리보기용으로 로그인 직후에도 호출됨)에는 안 걸고 `navigate()`의 `page==='notice'`
+    분기에만 걸어서, 로그인만 해도 알림이 조용히 지워지는 걸 방지함 — 실제로 공지 "페이지"에
+    들어갈 때만 지워짐.
 - 2026-08-22 (4차): **DM 방을 보고 있는 동안엔 그 방 알림이 안 오게** (요청: "dm창을 a라는
   인물과 켜놓고 하고 있다면 그 사람에게 오는 메세지 알람은 오지않게 해줘야지"). `sw.js`의
   `SW_BUILD`도 `2026-08-22-4`로 올림.

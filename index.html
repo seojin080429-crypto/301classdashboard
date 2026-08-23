@@ -833,7 +833,8 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .sc-name{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sc-time-val{font-weight:700;color:var(--ig-blue)}
 .sc-thumb{width:34px;height:34px;border-radius:6px;object-fit:cover;cursor:pointer;display:block}
-.sc-content-cell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc-content-cell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.sc-content-cell.expanded{white-space:pre-wrap;overflow:visible;text-overflow:clip;word-break:break-word}
 .sc-like-btn,.sc-comment-btn{display:flex;align-items:center;gap:4px;background:none;border:none;cursor:pointer;color:var(--ink-48);font-size:12px;padding:2px;max-width:100%;overflow:hidden}
 .sc-like-btn span,.sc-comment-btn span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sc-like-btn svg,.sc-comment-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;flex-shrink:0}
@@ -881,6 +882,11 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .routine-tile-status{font-size:20px;line-height:1}
 .routine-tile-week{font-size:10px;color:var(--ink-48);margin-top:4px}
 .routine-tile-week.warn{color:#ed4956;font-weight:600}
+.routine-list-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--hairline);border-radius:var(--radius-md);margin-bottom:8px}
+.routine-list-item-info{flex:1;min-width:0}
+.routine-list-item-subject{font-size:13px;font-weight:600;color:var(--ink)}
+.routine-list-item-deadline{font-size:11px;color:var(--ink-48);margin-top:2px}
+.routine-list-item-actions{display:flex;gap:6px;flex-shrink:0}
 /* ㅇㅈ/ㄴㅇㅈ 인증 투표 버튼(공부인증 표의 "인증" 컬럼) */
 .sc-vote-group{display:flex;gap:4px;flex-wrap:wrap}
 .sc-vote-btn{display:flex;align-items:center;gap:3px;padding:3px 7px;border-radius:var(--radius-pill);border:1px solid var(--hairline);background:var(--canvas);font-size:11px;color:var(--ink-48);cursor:pointer;white-space:nowrap;transition:all var(--t)}
@@ -1861,7 +1867,10 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
             <button class="timer-preset-btn" onclick="startExamTimer('국어')">국어 8:40~10:00</button>
             <button class="timer-preset-btn" onclick="startExamTimer('수학')">수학 10:30~12:10</button>
           </div>
-          <button class="btn-danger" id="exam-cancel-btn" onclick="cancelTimer('exam')" style="display:none;margin-top:14px">취소</button>
+          <div style="display:flex;gap:8px;justify-content:center;margin-top:14px">
+            <button class="btn-ghost" id="exam-pause-btn" onclick="togglePauseTimer('exam')" style="display:none">일시정지</button>
+            <button class="btn-danger" id="exam-cancel-btn" onclick="cancelTimer('exam')" style="display:none">취소</button>
+          </div>
           <div class="card-sub timer-hint" id="exam-subject-label">실제 시험처럼 시간에 맞춰 풀어보세요.</div>
         </div>
       </div>
@@ -2783,50 +2792,65 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
   </div>
 </div>
 
-<!-- 공부 루틴 설정 모달 — 과목/과제/인증시간 + 주간 벌칙 기준. 학생당 활성 루틴은 하나만
-     유지되고(새로 저장하면 이전 루틴은 비활성화), 반 전체가 서로의 루틴/진행 상황을 볼 수 있다
-     (study_routines RLS가 SELECT 전체공개). -->
+<!-- 공부 루틴 설정 모달 — 과목/과제/인증시간 + 주간 벌칙 기준. 학생 한 명이 루틴을 여러 개 만들
+     수 있고(예: 국어 루틴 + 수학 루틴 따로), 반 전체가 서로의 루틴/진행 상황을 볼 수 있다
+     (study_routines RLS가 SELECT 전체공개). 목록 화면(내 루틴들)과 입력 폼 화면 두 개를 토글해서
+     쓴다 — openRoutineModal()이 목록으로 열고, "+ 새 루틴 추가"/"수정"이 폼으로 전환한다. -->
 <div class="modal-overlay" id="routine-modal">
   <div class="modal">
     <button class="modal-close" onclick="closeRoutineModal()">×</button>
-    <div class="modal-title">공부 루틴 설정</div>
-    <div class="card-sub" style="margin-bottom:14px">매일 지킬 공부 습관과, 못 지켰을 때의 벌칙을 정해두세요. 반 친구들 모두에게 공개돼요.</div>
-    <div class="modal-field">
-      <label class="modal-label">과목</label>
-      <select class="modal-input" id="routine-subject"></select>
-    </div>
-    <div class="modal-field">
-      <label class="modal-label">과제</label>
-      <input class="modal-input" id="routine-task" placeholder="예: 매일 단어 30개 암기">
-    </div>
-    <div class="modal-field">
-      <label class="modal-label">인증 시간 (몇 시까지 인증할지)</label>
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <select class="modal-input" id="routine-deadline-day" style="max-width:110px;flex:none">
-          <option value="same">오늘 안에</option>
-          <option value="next">다음날 새벽</option>
-        </select>
-        <input class="modal-input" type="time" id="routine-deadline" style="max-width:130px;flex:none">
-      </div>
-      <div class="card-sub" style="margin-top:4px">예: 새벽 2시까지 공부해도 괜찮다면 "다음날 새벽"을 고르고 02:00을 입력하세요</div>
-    </div>
-    <div class="modal-field">
-      <label class="modal-label">벌칙 기준</label>
-      <div style="display:flex;align-items:center;gap:8px">
-        일주일에
-        <input class="modal-input" type="number" min="1" max="7" id="routine-threshold" style="width:56px;text-align:center" value="2">
-        번 이상 못 지키면 벌칙
+
+    <!-- 목록 화면 -->
+    <div id="routine-list-view">
+      <div class="modal-title">공부 루틴 설정</div>
+      <div class="card-sub" style="margin-bottom:14px">루틴은 여러 개 만들 수 있어요. 반 친구들 모두에게 공개돼요.</div>
+      <div id="routine-list-body"></div>
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="closeRoutineModal()">닫기</button>
+        <button class="btn-primary" onclick="openRoutineForm(null)">+ 새 루틴 추가</button>
       </div>
     </div>
-    <div class="modal-field">
-      <label class="modal-label">벌칙 내용 (선택)</label>
-      <input class="modal-input" id="routine-penalty" placeholder="예: 반 친구들에게 떡볶이 쏘기">
-    </div>
-    <div class="auth-error" id="routine-error"></div>
-    <div class="modal-actions">
-      <button class="btn-ghost" id="routine-delete-btn" style="display:none;color:#ed4956" onclick="deactivateRoutine()">루틴 그만두기</button>
-      <button class="btn-ghost" onclick="closeRoutineModal()">취소</button>
-      <button class="btn-primary" id="routine-submit-btn" onclick="saveRoutine()">저장</button>
+
+    <!-- 입력/수정 폼 화면 -->
+    <div id="routine-form-view" style="display:none">
+      <div class="modal-title" id="routine-form-title">새 루틴 추가</div>
+      <div class="modal-field">
+        <label class="modal-label">과목</label>
+        <select class="modal-input" id="routine-subject"></select>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">과제</label>
+        <input class="modal-input" id="routine-task" placeholder="예: 매일 단어 30개 암기">
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">인증 시간 (몇 시까지 인증할지)</label>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <select class="modal-input" id="routine-deadline-day" style="max-width:110px;flex:none">
+            <option value="same">오늘 안에</option>
+            <option value="next">다음날 새벽</option>
+          </select>
+          <input class="modal-input" type="time" id="routine-deadline" style="max-width:130px;flex:none">
+        </div>
+        <div class="card-sub" style="margin-top:4px">예: 새벽 2시까지 공부해도 괜찮다면 "다음날 새벽"을 고르고 02:00을 입력하세요</div>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">벌칙 기준</label>
+        <div style="display:flex;align-items:center;gap:8px">
+          일주일에
+          <input class="modal-input" type="number" min="1" max="7" id="routine-threshold" style="width:56px;text-align:center" value="2">
+          번 이상 못 지키면 벌칙
+        </div>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">벌칙 내용 (선택)</label>
+        <input class="modal-input" id="routine-penalty" placeholder="예: 반 친구들에게 떡볶이 쏘기">
+      </div>
+      <div class="auth-error" id="routine-error"></div>
+      <div class="modal-actions">
+        <button class="btn-ghost" id="routine-delete-btn" style="display:none;color:#ed4956" onclick="deactivateRoutine()">루틴 그만두기</button>
+        <button class="btn-ghost" onclick="backToRoutineList()">취소</button>
+        <button class="btn-primary" id="routine-submit-btn" onclick="saveRoutine()">저장</button>
+      </div>
     </div>
   </div>
 </div>
@@ -6156,7 +6180,7 @@ function drawExamClock(virtualMin){
 function saveCountdownToStorage(type){
   const t=countdownTimers[type];
   if(!t)return;
-  try{localStorage.setItem(`bugwang_timer_${type}`,JSON.stringify({endAt:t.endAt,totalMs:t.totalMs,label:t.label||null,clockStart:t.clockStart??null}))}catch(e){}
+  try{localStorage.setItem(`bugwang_timer_${type}`,JSON.stringify({endAt:t.endAt,totalMs:t.totalMs,label:t.label||null,clockStart:t.clockStart??null,paused:!!t.paused,pausedRemainMs:t.paused?t.pausedRemainMs:null}))}catch(e){}
 }
 function clearCountdownStorage(type){
   try{localStorage.removeItem(`bugwang_timer_${type}`)}catch(e){}
@@ -6164,12 +6188,17 @@ function clearCountdownStorage(type){
 
 // 새로 시작할 때와(startCountdown) 새로고침 후 이어서 켤 때(resumeCountdownIfAny) 둘 다
 // endAt/totalMs만 정해지면 나머진 똑같아서 공용으로 뺐다.
-function beginCountdownUI(type,endAt,totalMs,label,clockStart){
-  countdownTimers[type]={endAt,totalMs,label,clockStart:clockStart??null};
+function beginCountdownUI(type,endAt,totalMs,label,clockStart,paused,pausedRemainMs){
+  countdownTimers[type]={endAt,totalMs,label,clockStart:clockStart??null,paused:!!paused,pausedRemainMs:pausedRemainMs??null};
   document.getElementById(`${type}-preset-row`).style.display='none';
   const customRow=document.getElementById(`${type}-custom-row`);
   if(customRow)customRow.style.display='none';
   document.getElementById(`${type}-cancel-btn`).style.display='inline-block';
+  const pauseBtn=document.getElementById(`${type}-pause-btn`);
+  if(pauseBtn){
+    pauseBtn.style.display='inline-block';
+    pauseBtn.textContent=paused?'재개':'일시정지';
+  }
   if(type==='exam'){
     if(label)document.getElementById('exam-subject-label').textContent=`${label} 시험 시간 · 실제 시험처럼 풀어보세요`;
     // 시작하면 숫자 카운트다운 대신 아날로그 시계가 화면 가운데를 차지한다.
@@ -6187,8 +6216,41 @@ function beginCountdownUI(type,endAt,totalMs,label,clockStart){
     }
   }
   saveCountdownToStorage(type);
-  tickCountdown(type);
-  countdownTimers[type].interval=setInterval(()=>tickCountdown(type),250);
+  if(paused){
+    // 일시정지 상태로 이어받을 땐(새로고침 등) 인터벌을 돌리지 않고 그 시점 숫자만 표시
+    const remainMs=pausedRemainMs;
+    const elapsedMs=totalMs-remainMs;
+    document.getElementById(`${type}-display`).textContent=fmtClock(remainMs/1000);
+    document.getElementById(`${type}-elapsed`).textContent=fmtClock(elapsedMs/1000);
+    document.getElementById(`${type}-remaining`).textContent=fmtClock(remainMs/1000);
+    if(clockStart!=null)drawExamClock(clockStart+Math.min(elapsedMs,totalMs)/60000);
+  }else{
+    tickCountdown(type);
+    countdownTimers[type].interval=setInterval(()=>tickCountdown(type),250);
+  }
+}
+
+// 모의고사 타이머 일시정지/재개 — 일시정지 중엔 endAt 대신 그 순간의 남은 시간(pausedRemainMs)만
+// 들고 있다가, 재개하면 그 남은 시간만큼 새로 endAt을 잡아 이어간다(일시정지해둔 만큼 시험
+// 종료 시각이 뒤로 밀리는 게 자연스러우므로).
+function togglePauseTimer(type){
+  const t=countdownTimers[type];
+  if(!t)return;
+  const pauseBtn=document.getElementById(`${type}-pause-btn`);
+  if(t.paused){
+    t.endAt=Date.now()+t.pausedRemainMs;
+    t.paused=false;
+    if(pauseBtn)pauseBtn.textContent='일시정지';
+    saveCountdownToStorage(type);
+    tickCountdown(type);
+    t.interval=setInterval(()=>tickCountdown(type),250);
+  }else{
+    t.pausedRemainMs=t.endAt-Date.now();
+    t.paused=true;
+    clearInterval(t.interval);
+    if(pauseBtn)pauseBtn.textContent='재개';
+    saveCountdownToStorage(type);
+  }
 }
 
 function startCountdown(type,minutes,label,clockStart){
@@ -6203,6 +6265,10 @@ function resumeCountdownIfAny(type){
   let saved;
   try{saved=JSON.parse(localStorage.getItem(`bugwang_timer_${type}`)||'null')}catch(e){saved=null}
   if(!saved)return;
+  if(saved.paused){
+    beginCountdownUI(type,saved.endAt,saved.totalMs,saved.label,saved.clockStart,true,saved.pausedRemainMs);
+    return;
+  }
   if(saved.endAt<=Date.now()){
     clearCountdownStorage(type);
     triggerTimerAlarm(type==='nap'?'일어날 시간이에요! ⏰':'시험 시간이 끝났어요! ✍️');
@@ -6236,6 +6302,8 @@ function resetCountdownUI(type){
   const customRow=document.getElementById(`${type}-custom-row`);
   if(customRow)customRow.style.display='flex';
   document.getElementById(`${type}-cancel-btn`).style.display='none';
+  const pauseBtn=document.getElementById(`${type}-pause-btn`);
+  if(pauseBtn){pauseBtn.style.display='none';pauseBtn.textContent='일시정지'}
   if(type==='exam'){
     const wrap=document.getElementById('exam-clock-wrap');
     if(wrap)wrap.style.display='none';
@@ -6883,15 +6951,19 @@ function renderDmRoomList(){
   }).join('');
 }
 
-// 지금 이 방을 보고 있다는 걸 서버 소켓에 알려서, 이 방에 새 메시지가 와도 나한테는
-// 알림(푸시/알림센터)이 안 가게 한다(요청: "dm창을 a라는 인물과 켜놓고 하고 있다면 그
-// 사람에게 오는 메세지 알람은 오지않게"). 소켓이 아직 없으면(SOCKET_URL 미설정 등)
-// 조용히 무시 — 이 경우 예전처럼 알림이 그냥 오는 정도로 저하될 뿐 에러는 아님.
-function notifyDmViewing(roomId){
-  if(studySocket)studySocket.emit('dm:open',{room_id:roomId});
+// 지금 이 방을 보고 있다는 걸 dm_active_viewers 테이블에 기록해서, 이 방에 새 메시지가 와도
+// 나한테는 알림(푸시/알림센터)이 안 가게 한다(요청: "dm창을 a라는 인물과 켜놓고 하고 있다면 그
+// 사람에게 오는 메세지 알람은 오지않게"). 예전엔 Socket.IO 실시간 서버로 알렸지만 Railway 무료
+// 체험 만료로 그 서버가 내려가서(2026-08-14), 지금은 DM 폴링(7초)에 맞춰 이 테이블 행을 갱신하는
+// 방식으로 대체 — 엣지 함수가 notify/dm-message에서 updated_at이 30초 이내인 행만 "보는 중"으로
+// 인정하므로, 탭을 완전히 닫아버려도(delete가 못 불려도) 오래 방치되진 않는다.
+async function notifyDmViewing(roomId){
+  if(!currentUser)return;
+  try{await sb.from('dm_active_viewers').upsert({user_id:currentUser.id,student_id:currentStudentId,room_id:roomId,updated_at:new Date().toISOString()})}catch(e){}
 }
-function notifyDmLeftView(){
-  if(studySocket)studySocket.emit('dm:close');
+async function notifyDmLeftView(){
+  if(!currentUser)return;
+  try{await sb.from('dm_active_viewers').delete().eq('user_id',currentUser.id)}catch(e){}
 }
 // 탭을 백그라운드로 보내도(다른 앱 전환, 화면 끄기 등) 소켓 자체는 최대 90초까지는 안 끊겨서
 // (pingTimeout) "보는 중" 상태가 그동안 그대로 남아 알림이 계속 안 갈 수 있었다 — 탭이
@@ -7186,6 +7258,7 @@ async function leaveDmRoom(){
 
 async function pollDmActiveThread(){
   if(!dmActiveRoomId)return;
+  notifyDmViewing(dmActiveRoomId); // 7초 폴링에 맞춰 dm_active_viewers.updated_at을 계속 갱신(하트비트)
   const {data}=await sb.from('dm_messages').select('id').eq('room_id',dmActiveRoomId).order('created_at',{ascending:false}).limit(1);
   const latestId=data?.[0]?.id||null;
   if(latestId&&latestId!==dmLastRenderedMsgId){
@@ -7475,9 +7548,10 @@ function showFirstLaunchGuide(){
 // renderPost()가 참조하는 학번→프로필 맵/좋아요 명단 — loadBoardPosts()가 게시판을 불러올
 // 때마다 최신으로 채운다.
 let boardProfileMap={}, boardLikesMap={}, boardVerifyMap={};
-// 로그인 계정의 활성 공부 루틴(있으면 하나) — 공부인증 글쓰기 페이지를 열 때마다
-// loadMyActiveRoutine()으로 최신화해서 자동 연결/힌트 표시에 쓴다.
-let myActiveRoutine=null;
+// 로그인 계정의 활성 공부 루틴들(여러 개 가능) — renderStudyRoutineBoard()가 상단 현황판을
+// 그릴 때마다 최신화해서 루틴 관리 모달/글쓰기 페이지의 연결 선택에 쓴다.
+let myRoutines=[];
+let routineEditingId=null; // 폼 화면에서 수정 중인 루틴 id — null이면 새 루틴 추가
 // createObjectURL로 만든 blob URL은 (data URL과 달리) 명시적으로 revokeObjectURL하지 않으면
 // 페이지가 떠 있는 동안 메모리에 계속 남는다. 하루 종일 켜두는 모바일 PWA에서 사진/동영상을
 // 여러 번 첨부·교체하며 게시하면 조금씩 누적되므로, 새 미리보기로 갈아끼우기 전/제출 후
@@ -8004,7 +8078,7 @@ function renderStudyCertRow(p,num,comments){
     </div>
     <div class="sc-cell"><span class="sc-time-val" style="cursor:pointer" onclick="toggleComments('${p.id}')">${fmtStudySeconds(p.study_seconds)}</span></div>
     <div class="sc-cell">${thumbHtml}</div>
-    <div class="sc-cell sc-content-cell" id="post-content-${p.id}">${escHtml(p.content)}</div>
+    <div class="sc-cell sc-content-cell" id="post-content-${p.id}" onclick="this.classList.toggle('expanded')">${escHtml(p.content)}</div>
     <div class="sc-cell">
       <div class="sc-vote-group" id="sc-vote-${p.id}">
         <button class="sc-vote-btn ojd${myVote==='ojd'?' active':''}" onclick="voteStudyCert('${p.id}','ojd')">👍 ㅇㅈ ${ojdCount||''}</button>
@@ -8088,13 +8162,17 @@ function openStudyCertWritePage(){
   document.getElementById('sc-content').value='';
   clearPhoto('sc');
   document.getElementById('sc-error').style.display='none';
-  // 활성 루틴이 있으면 이 인증이 그 루틴에 자동으로 연결된다는 걸 미리 안내
+  // 활성 루틴이 있으면 이 인증을 어느 루틴에 연결할지 고를 수 있게 한다(루틴이 여러 개일
+  // 수 있어서 자동 연결 대신 선택형으로 — 예: 국어 루틴 인증인데 수학 루틴에 잘못 잡히는 일 방지).
   const hintEl=document.getElementById('sc-routine-hint');
-  if(myActiveRoutine){
+  if(myRoutines.length){
     hintEl.style.display='block';
-    hintEl.innerHTML=`<div style="font-size:12px;color:var(--ig-blue);background:rgba(0,149,246,.08);border-radius:var(--radius-sm);padding:8px 12px">🔗 내 루틴(${escHtml(myActiveRoutine.subject)} · ${escHtml(myActiveRoutine.task)})에 대한 인증으로 기록돼요</div>`;
+    const options=myRoutines.map(r=>`<option value="${r.id}">${escHtml(r.subject)} · ${escHtml(r.task)}</option>`).join('');
+    hintEl.innerHTML=`<label class="modal-label">🔗 연결할 루틴</label><select class="modal-input" id="sc-routine-select"><option value="">연결 안 함</option>${options}</select>`;
+    document.getElementById('sc-routine-select').value=myRoutines[0].id;
   }else{
     hintEl.style.display='none';
+    hintEl.innerHTML='';
   }
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById('page-studycert-write').classList.add('active');
@@ -8152,7 +8230,7 @@ async function submitStudyCertPost(){
     author_name:currentName||currentStudentId+'번',
     category:'studycert',subject:null,content,image_url:urlData.publicUrl,
     study_seconds:studySeconds,study_date:studyDate,study_log:logRows,
-    routine_id:myActiveRoutine?myActiveRoutine.id:null
+    routine_id:document.getElementById('sc-routine-select')?.value||null
   }).select().single();
   submitBtn.textContent='인증하기';submitBtn.disabled=false;
   if(error){errEl.textContent='게시 실패: '+error.message;errEl.style.display='block';return}
@@ -8164,10 +8242,10 @@ async function submitStudyCertPost(){
 }
 
 // ── 공부 루틴(설정 + 상단 현황판) ──
-// 학생당 활성 루틴은 하나만(is_active=true) 유지하고(새로 저장하면 이전 루틴은 비활성화),
-// 반 전체가 서로의 루틴/진행 상황을 볼 수 있다(요청: "일주일이 몇번 안 했을시에 벌칙",
-// "상단에 네모박스로 아이들의 각각 인증이 보이게"). 주 경계는 이 프로젝트 기존 컨벤션과
-// 동일하게 월요일 시작(getPieRangeStart() 참고).
+// 학생 한 명이 활성 루틴(is_active=true)을 여러 개 가질 수 있고, 반 전체가 서로의 루틴/진행
+// 상황을 볼 수 있다(요청: "일주일이 몇번 안 했을시에 벌칙", "상단에 네모박스로 아이들의 각각
+// 인증이 보이게", "루틴을 여러개 설정 가능하게"). 주 경계는 이 프로젝트 기존 컨벤션과 동일하게
+// 월요일 시작(getPieRangeStart() 참고).
 function weekStartStr(){
   const d=new Date();d.setHours(0,0,0,0);
   const dow=d.getDay();
@@ -8199,16 +8277,46 @@ function computeStudyStreak(certDates,today){
   }
   return streak;
 }
+// 목록 화면 — 내 루틴들을 나열하고, 각각에 수정/그만두기 버튼을 붙인다.
+function renderRoutineListView(){
+  const body=document.getElementById('routine-list-body');
+  if(!myRoutines.length){
+    body.innerHTML='<div style="text-align:center;padding:16px;color:var(--ink-48);font-size:12px">아직 만든 루틴이 없어요. 아래 버튼으로 첫 루틴을 만들어보세요!</div>';
+    return;
+  }
+  body.innerHTML=myRoutines.map(r=>{
+    const deadlineLabel=fmtDeadlineLabel(r.deadline_time,r.deadline_next_day);
+    return`<div class="routine-list-item">
+      <div class="routine-list-item-info">
+        <div class="routine-list-item-subject">${escHtml(r.subject)} · ${escHtml(r.task)}</div>
+        <div class="routine-list-item-deadline">${deadlineLabel} · 주 ${r.penalty_threshold}회 이상 미인증 시 벌칙</div>
+      </div>
+      <div class="routine-list-item-actions">
+        <button class="btn-ghost" style="font-size:12px;padding:6px 10px" onclick="openRoutineForm('${r.id}')">수정</button>
+      </div>
+    </div>`;
+  }).join('');
+}
 function openRoutineModal(){
+  document.getElementById('routine-list-view').style.display='block';
+  document.getElementById('routine-form-view').style.display='none';
+  renderRoutineListView();
+  document.getElementById('routine-modal').classList.add('open');
+}
+// routineId가 null이면 새 루틴 추가 폼, 아니면 해당 루틴을 불러와 수정 폼으로 연다.
+function openRoutineForm(routineId){
+  routineEditingId=routineId;
   document.getElementById('routine-error').style.display='none';
   document.getElementById('routine-subject').innerHTML=scSubjectOptionsHtml();
-  if(myActiveRoutine){
-    document.getElementById('routine-subject').value=myActiveRoutine.subject;
-    document.getElementById('routine-task').value=myActiveRoutine.task;
-    document.getElementById('routine-deadline').value=(myActiveRoutine.deadline_time||'').slice(0,5);
-    document.getElementById('routine-deadline-day').value=myActiveRoutine.deadline_next_day?'next':'same';
-    document.getElementById('routine-threshold').value=myActiveRoutine.penalty_threshold;
-    document.getElementById('routine-penalty').value=myActiveRoutine.penalty_desc||'';
+  const editing=routineId?myRoutines.find(r=>r.id===routineId):null;
+  document.getElementById('routine-form-title').textContent=editing?'루틴 수정':'새 루틴 추가';
+  if(editing){
+    document.getElementById('routine-subject').value=editing.subject;
+    document.getElementById('routine-task').value=editing.task;
+    document.getElementById('routine-deadline').value=(editing.deadline_time||'').slice(0,5);
+    document.getElementById('routine-deadline-day').value=editing.deadline_next_day?'next':'same';
+    document.getElementById('routine-threshold').value=editing.penalty_threshold;
+    document.getElementById('routine-penalty').value=editing.penalty_desc||'';
     document.getElementById('routine-delete-btn').style.display='block';
   }else{
     document.getElementById('routine-task').value='';
@@ -8218,7 +8326,13 @@ function openRoutineModal(){
     document.getElementById('routine-penalty').value='';
     document.getElementById('routine-delete-btn').style.display='none';
   }
-  document.getElementById('routine-modal').classList.add('open');
+  document.getElementById('routine-list-view').style.display='none';
+  document.getElementById('routine-form-view').style.display='block';
+}
+function backToRoutineList(){
+  document.getElementById('routine-form-view').style.display='none';
+  document.getElementById('routine-list-view').style.display='block';
+  renderRoutineListView();
 }
 function closeRoutineModal(){
   document.getElementById('routine-modal').classList.remove('open');
@@ -8236,35 +8350,34 @@ async function saveRoutine(){
   if(!deadline){errEl.textContent='인증 시간을 정해주세요';errEl.style.display='block';return}
   const submitBtn=document.getElementById('routine-submit-btn');
   submitBtn.textContent='저장 중...';submitBtn.disabled=true;
-  if(myActiveRoutine){
-    await sb.from('study_routines').update({is_active:false}).eq('id',myActiveRoutine.id);
-  }
-  const {error}=await sb.from('study_routines').insert({
-    student_id:currentStudentId,user_id:currentUser.id,
+  const payload={
     subject,task,deadline_time:deadline,deadline_next_day:deadlineNextDay,
     penalty_threshold:threshold,penalty_desc:penaltyDesc
-  });
+  };
+  const {error}=routineEditingId
+    ? await sb.from('study_routines').update(payload).eq('id',routineEditingId)
+    : await sb.from('study_routines').insert({...payload,student_id:currentStudentId,user_id:currentUser.id});
   submitBtn.textContent='저장';submitBtn.disabled=false;
   if(error){errEl.textContent='저장 실패: '+error.message;errEl.style.display='block';return}
-  closeRoutineModal();
   toast('공부 루틴이 저장되었습니다 ✓');
   await renderStudyRoutineBoard();
+  backToRoutineList();
 }
 async function deactivateRoutine(){
-  if(!myActiveRoutine)return;
+  if(!routineEditingId)return;
   if(!confirm('루틴을 그만둘까요? 이번 주 인증 기록은 그대로 남아요.'))return;
-  await sb.from('study_routines').update({is_active:false}).eq('id',myActiveRoutine.id);
-  closeRoutineModal();
+  await sb.from('study_routines').update({is_active:false}).eq('id',routineEditingId);
   toast('루틴을 그만뒀어요');
   await renderStudyRoutineBoard();
+  backToRoutineList();
 }
 // 상단 현황판 — 활성 루틴이 있는 학생들의 오늘 인증 여부 + 이번 주 미인증 횟수를 네모박스로
-// 보여준다. myActiveRoutine 캐시도 여기서 함께 최신화한다(글쓰기 페이지의 자동 연결/힌트용).
+// 보여준다. myRoutines 캐시도 여기서 함께 최신화한다(루틴 관리 모달/글쓰기 페이지의 연결 선택용).
 async function renderStudyRoutineBoard(){
   const wrap=document.getElementById('study-routine-board');
   if(!wrap)return;
   const {data:routines}=await sb.from('study_routines').select('*').eq('is_active',true);
-  myActiveRoutine=(routines||[]).find(r=>r.student_id===currentStudentId)||null;
+  myRoutines=(routines||[]).filter(r=>r.student_id===currentStudentId);
   if(!routines||!routines.length){wrap.innerHTML='<div style="text-align:center;padding:16px;color:var(--ink-48);font-size:12px">아직 설정된 공부 루틴이 없어요. "⏰ 루틴 설정"으로 먼저 만들어보세요!</div>';return}
   const profileMap=await loadProfileMap();
   const today=localDateStr();

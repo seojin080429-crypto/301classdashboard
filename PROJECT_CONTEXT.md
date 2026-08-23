@@ -23,44 +23,57 @@
 - `.gitignore` — `bugwang-server/`, `server.js` 제외 (백엔드는 이 저장소에 포함되지 않음)
 
 ## 백엔드
-- 이 저장소에는 **프론트엔드만** 있습니다. 백엔드는 별도로 관리되며 Railway에 배포되어 있습니다.
-- `SERVER_URL = 'https://bugwang-server-production.up.railway.app'` (index.html 상단 근처에 정의)
-- 백엔드가 제공하는 API 예시: `/api/users`, `/api/fetch-news`, `/api/fetch-meal`, `/api/study/join`,
-  `/api/create-user`, `/api/delete-user`, `/api/reset-password`, `/api/change-student-id`
-  (2026-07-15 추가 — 학생 본인이 마이페이지에서 아이디를 바꿀 때 사용, `requireAdmin`이 아니라
-  `requireAuth`로 게이팅해서 관리자 권한 없이 본인 access_token만으로 호출 가능),
-  `/api/push-subscribe`/`/api/push-unsubscribe`(구독 등록/해지, `requireAuth`),
-  `/api/notify/notice`·`/api/notify/teacher-message`(스태프 전용, `requireStaffAuth`)·
-  `/api/notify/comment`·`/api/notify/poll-vote`(로그인만 하면 호출 가능, 서버가 자기 소유
-  행인지 다시 확인) — 전부 2026-07-15 푸시 알림 기능 추가 때 신설. 아래 "푸시 알림" 섹션 참고.
-- **환경변수 필요**: `web-push`용 `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`를 Railway의
-  `bugwang-server` 서비스에 반드시 추가해야 푸시 발송이 동작함(코드에 하드코딩 안 하고
-  `process.env`로 읽음 — 없으면 `sendPushNotification()`이 조용히 아무것도 안 함, 서버는 정상
-  기동). 값은 이 저장소 커밋 히스토리/대화 기록에 없으므로 분실하면 `web-push`의
-  `generateVAPIDKeys()`로 새로 만들고 프론트 `index.html`의 `VAPID_PUBLIC_KEY` 상수도 반드시
-  같이 갱신해야 함(둘이 반드시 같은 키 쌍이어야 구독이 유효함).
-- 백엔드 코드 수정이 필요하면 이 저장소가 아닌 별도 위치(로컬의 `bugwang-server/` 또는 `server.js`,
-  gitignore되어 있음)에서 작업해야 함 — 실수로 이 저장소에 커밋되지 않도록 주의 (과거에 실수로
-  올렸다가 제거한 이력 있음: `b940993`, `0e90005` 커밋 참고)
-- `bugwang-server/`는 이 폴더 하위에 **별도의 git 저장소**로 실제로 존재함 (`git remote`:
-  `seojin080429-crypto/bugwang-server`, 로컬 `.git` 있음). 백엔드 작업 시 반드시
-  `cd bugwang-server`로 이동해서 그 저장소 기준으로 커밋/push할 것 — 301대시보드 저장소와
-  혼동하지 말 것. push하면 Railway에 자동 배포되는 것으로 보임.
-- 이 저장소와 마찬가지로 `bugwang-server` 로컬 저장소도 Windows에서 push 시
-  `SEC_E_UNTRUSTED_ROOT` 오류가 나서 `http.sslbackend`를 로컬 설정으로 `openssl`로 바꿔둠.
-- 인증 관련 role 체계 (2026-07-14 개편): `user_roles.role`은 `student`/`admin`/`owner` 3단계만
+- ⚠️ **2026-08-24 정정**: 아래 Railway/`bugwang-server` 관련 서술은 전부 **더 이상 사실이 아님**.
+  Railway 무료 체험이 2026-08-14에 만료되면서 그 Express+Socket.IO 서버는 실제로 배포되어
+  있지 않게 됐고, 백엔드는 **Supabase Edge Function** (`api`라는 이름 하나, project
+  `pvrgwvfjnebsxnlxaxhc`, Deno 런타임)으로 옮겨졌음. 과거 세션이 이 사실을 모른 채
+  `bugwang-server/server.js`를 계속 수정·커밋한 이력이 있는데(3개 커밋이 로컬에만 남아있고
+  push도 안 됐음) 전부 **죽은 코드**임 — Railway 자체가 없으니 그 저장소에 뭘 push해도 아무
+  효과가 없다. 아래 문단들은 과거(Railway 시절) 기록으로 남겨두되, **실제 동작 중인 구조는
+  이 문단 바로 다음 항목들을 볼 것**.
+- **현재 구조**: `index.html`의 `SERVER_URL = 'https://pvrgwvfjnebsxnlxaxhc.supabase.co/functions/v1'`
+  가 실제 백엔드. 엣지 함수 하나(`api`)가 URL 경로(`/api/{나머지}`)를 자체 `switch(path)`로
+  라우팅함 — Express 라우터가 아니라 이 파일 하나에 모든 엔드포인트가 들어있음(`users`,
+  `create-user`, `delete-user`, `reset-password`, `change-student-id`, `push-subscribe`,
+  `push-unsubscribe`, `notify/notice`, `notify/comment`, `notify/poll-vote`,
+  `notify/teacher-message`, `notify/dm-message`, `notify/camstudy-join`, `notify/study-cert`,
+  `notify/study-vote`, `fetch-news`, `fetch-meal`, `health`). `verify_jwt:false`로 배포되어
+  있고 함수 자체가 `checkAuth`/`checkAdmin`/`checkStaff`로 자체 인증/인가함.
+  - 배포는 `mcp__supabase__deploy_edge_function`(또는 claude.ai Supabase 커넥터의 동명
+    MCP 도구)로 함 — `name:'api'`, `entrypoint_path:'index.ts'`, `verify_jwt:false`. 로컬에
+    이 함수의 정본 소스 파일이 따로 없으므로, 수정할 때는 `get_edge_function`으로 현재
+    배포본을 먼저 받아온 뒤 고쳐서 다시 `deploy_edge_function`으로 올리는 식으로 작업함(2026-08-24
+    세션에서 이렇게 진행 — 스크래치패드에 임시로 받아뒀다가 검증 후 배포).
+  - `SOCKET_URL = ''`로 **Socket.IO는 현재 완전히 비활성화**돼 있음 — `connectStudySocket()`이
+    `if(!SOCKET_URL)return`으로 즉시 no-op. 과거 Railway 시절엔 캠스터디 실시간 채팅/참가자수와
+    DM "보는 중" 상태 추적에 소켓을 썼는데, 지금은 그 인프라 자체가 없음.
+  - **DM "지금 이 방을 보고 있음" 상태**(어떤 방을 열어둔 사람에게는 그 방 새 메시지 알림을
+    안 보내는 기능)는 예전엔 Socket.IO 이벤트(`dm:open`/`dm:close`)로 했었는데, 소켓이 죽으면서
+    2026-08-24에 `dm_active_viewers` 테이블(user_id PK/student_id/room_id/updated_at) +
+    DM 폴링(7초)에 맞춘 하트비트 upsert 방식으로 재구현함. 엣지 함수의 `notify/dm-message`가
+    `updated_at`이 30초 이내인 행만 "보는 중"으로 인정(탭을 그냥 닫아서 delete가 못 불려도
+    오래 방치되지 않게 하는 안전장치).
+- **환경변수**: `web-push`용 `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`는 이제 Supabase 프로젝트의
+  엣지 함수 시크릿으로 관리함(과거 Railway 환경변수 대신). 값을 분실하면 새로 만들고 프론트
+  `index.html`의 `VAPID_PUBLIC_KEY` 상수도 반드시 같이 갱신해야 함(둘이 같은 키 쌍이어야
+  구독이 유효함) — 이 부분은 Railway 시절과 동일.
+- `bugwang-server/`(Express+Socket.IO, 별도 git 저장소, gitignore됨)는 **더 이상 배포되지
+  않는 죽은 코드**로 취급할 것 — 여기 뭘 고쳐도 실제 서비스에는 반영되지 않는다. 계속 유지할지
+  아예 정리(레포 삭제 등)할지는 사용자와 상의 후 결정.
+- 인증 관련 role 체계 (2026-07-14 개편, 지금도 유효 — Railway/Edge Function 어느 쪽이든 이
+  스키마·프론트 로직은 그대로): `user_roles.role`은 `student`/`admin`/`owner` 3단계만
   남았고, "선생님" 권한은 `is_teacher` boolean 플래그로 완전히 분리되어 role과 **동시에** 가질 수
   있음(예: role=owner + is_teacher=true). 과거에는 `role='teacher'`라는 4번째 값으로 처리해서
   owner와 teacher를 동시에 가질 수 없었는데, 이 한계를 없앤 것. 프론트에서 권한 체크는 반드시
   `isStaffRole()`(admin/owner/is_teacher 중 하나라도) / `isOwnerTier()`(owner 또는 is_teacher)
-  헬퍼로 통일해서 쓸 것 — `currentRole==='teacher'` 같은 예전 패턴은 더 이상 없음. 백엔드
-  `requireAdmin`도 `role`과 `is_teacher`를 함께 조회해서 판단하고, `req.callerIsOwnerTier`로
-  owner 전용 액션(계정 삭제 등)을 구분함. 또한 `can_appoint_teacher` 플래그가 있어서 "선생님
-  지정" 액션 자체를 아무 owner나 할 수 있는 게 아니라 이 플래그를 가진 owner만 가능 — 기본으로는
-  30122(제작자) 계정에만 부여되어 있고, 다른 owner에게 위임(관리자 탭에서 부여/회수) 가능.
-  관리자/선생님 탭은 `navigate()`가 admin/teacher 페이지로 이동할 때마다 `loadMyRole()`을 다시
-  호출해서 새로고침하므로, 방금 권한이 바뀌어도 재로그인 없이 반영됨(예전에는 로그인 시점에만
-  로드돼서 재로그인이 필요했음).
+  헬퍼로 통일해서 쓸 것 — `currentRole==='teacher'` 같은 예전 패턴은 더 이상 없음. 백엔드(엣지
+  함수의 `checkAdmin`/`checkStaff`)도 `role`과 `is_teacher`를 함께 조회해서 판단하고,
+  `callerIsOwnerTier`로 owner 전용 액션(계정 삭제 등)을 구분함. 또한 `can_appoint_teacher`
+  플래그가 있어서 "선생님 지정" 액션 자체를 아무 owner나 할 수 있는 게 아니라 이 플래그를 가진
+  owner만 가능 — 기본으로는 30122(제작자) 계정에만 부여되어 있고, 다른 owner에게 위임(관리자
+  탭에서 부여/회수) 가능. 관리자/선생님 탭은 `navigate()`가 admin/teacher 페이지로 이동할
+  때마다 `loadMyRole()`을 다시 호출해서 새로고침하므로, 방금 권한이 바뀌어도 재로그인 없이
+  반영됨(예전에는 로그인 시점에만 로드돼서 재로그인이 필요했음).
 
 ## Supabase 스키마 (주요 테이블, 2026-07-14 기준)
 - `study_sessions` — 공부 타이머 기록. `started_at`/`ended_at`/`duration_seconds` +
@@ -226,6 +239,40 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-08-24: **백엔드 아키텍처 전환 반영 + 여러 편의 기능**. `sw.js`의 `SW_BUILD`도
+  `2026-08-24-1`로 올림.
+  - **⚠️ 백엔드가 Railway→Supabase Edge Function으로 이미 바뀌어 있었음을 뒤늦게 발견·반영**
+    — Railway 무료 체험이 2026-08-14 만료되어 `bugwang-server`(Express+Socket.IO)가 더 이상
+    배포되어 있지 않음. 실제 백엔드는 Supabase Edge Function `api`(project
+    `pvrgwvfjnebsxnlxaxhc`) 하나로, `SERVER_URL`이 이미 그쪽을 가리키고 있었는데도 이전
+    세션들이 이 사실을 모른 채 `bugwang-server`를 계속 고쳐온 상태였음(전부 죽은 코드). 이번
+    세션에서 `get_edge_function`으로 실제 배포본을 받아 `notifications.ref_id` 채우기,
+    `notify/study-cert`·`notify/study-vote`, DM 활성-열람자 필터링 로직을 반영해 다시
+    배포함(version 10). 자세한 내용은 이 파일의 "백엔드" 섹션 참고.
+  - **DM "지금 이 방을 보는 중" 상태를 Socket.IO 대신 `dm_active_viewers` 테이블로 재구현**
+    — Socket.IO 인프라 자체가 없어졌으므로, `notifyDmViewing()`/`notifyDmLeftView()`가 이제
+    이 테이블에 upsert/delete하고, DM 7초 폴링(`pollDmActiveThread()`)마다 하트비트로
+    `updated_at`을 갱신. 엣지 함수는 30초 이내 갱신된 행만 "보는 중"으로 인정.
+  - **공부 루틴을 여러 개 만들 수 있게** (요청: "루틴을 여러개 설정 가능하게 해줘") — 예전엔
+    학생당 활성 루틴이 1개로 제한(새로 저장하면 이전 루틴 자동 비활성화)이었는데, 이제 여러 개
+    동시에 유지 가능. "⏰ 루틴 설정" 모달이 목록 화면(내 루틴들 + "+ 새 루틴 추가")과 입력/수정
+    폼 화면 두 단계로 나뉨(`openRoutineModal`/`openRoutineForm`/`backToRoutineList`). 전역
+    상태를 `myActiveRoutine`(단수) 대신 `myRoutines`(배열)로 교체. 공부인증 글쓰기 페이지의
+    루틴 연결도 자동 연결 대신 드롭다운 선택형(`#sc-routine-select`, "연결 안 함" 옵션 포함)
+    으로 바뀜 — 루틴이 여러 개면 어느 루틴에 대한 인증인지 골라야 하므로. DB 스키마/RLS 변경
+    없음(원래도 student_id당 여러 행이 허용됐고, 프론트가 "활성 1개만" 규칙을 자체적으로
+    강제하고 있었을 뿐).
+  - **공부인증 글 내용이 길면 잘려서 안 보이던 문제 수정**(제보: "인증글이 길 경우에 글이 안
+    보여") — `.sc-content-cell`이 `white-space:nowrap`+`text-overflow:ellipsis`로 항상
+    한 줄만 보여줬는데, 클릭하면 `.expanded` 클래스가 토글되며 줄바꿈 허용(`white-space:pre-wrap`)
+    상태로 펼쳐지게 함.
+  - **모의고사용 타이머에 일시정지 기능 추가**(요청: "모고 타이머에 정지 기능 만들어줘") —
+    시작 후 "일시정지" 버튼(`togglePauseTimer('exam')`)을 누르면 카운트다운/아날로그 시계가
+    멈추고, "재개"를 누르면 멈춘 시점부터 이어서 흐른다(멈춰있던 시간만큼 시험 종료 시각이
+    뒤로 밀림 — 실제 시험처럼 일시정지 자체가 없는 게 아니라 자습용 실전 연습 도구이므로 이
+    편이 자연스럽다고 판단). 새로고침해도 일시정지 상태 그대로 이어받음(`localStorage`에
+    `paused`/`pausedRemainMs` 함께 저장). 쪽잠 타이머 쪽 UI에는 버튼을 추가하지 않아 그쪽
+    동작은 그대로(요청이 "모고 타이머"로 한정됐으므로).
 - 2026-08-22 (6차): **열품타(학습 플래너) 페이지 상단에 사용법 안내 카드 추가** (요청: "열품타
   기능 상단에 열품타 사용법 좀 제시해"). `sw.js`의 `SW_BUILD`도 `2026-08-22-6`으로 올림.
   과목 추가→타이머 시작→전체화면 랭킹→날짜 넘겨보기→과목 색상 변경까지 5단계로 요약.

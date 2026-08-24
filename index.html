@@ -729,6 +729,16 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .dm-participant-sid{font-size:11px;color:var(--ink-48);margin-left:4px}
 
 /* TIMER */
+/* 타이머 페이지 상단 "타이머 중 화면 켜두기" 토글 — 오른쪽 알약에 실제 상태를 그대로 적는다
+   (설정만 켜놓고 기기가 거부하는 경우를 사용자가 구분할 수 있어야 하므로). */
+.wake-toggle{display:flex;align-items:center;gap:8px;width:100%;padding:11px 14px;margin-bottom:12px;border:1px solid var(--hairline);border-radius:var(--radius-lg);background:var(--parchment);color:var(--ink);font-size:13px;text-align:left;cursor:pointer;transition:border-color var(--t),background var(--t)}
+.wake-toggle:hover{border-color:var(--blue)}
+.wake-toggle svg{flex-shrink:0;color:var(--ink-48)}
+.wake-toggle.on svg{color:#e0a800}
+.wake-toggle-label{flex:1;min-width:0}
+.wake-toggle-pill{flex-shrink:0;padding:3px 10px;border-radius:var(--radius-pill);background:rgba(128,128,128,.18);color:var(--ink-48);font-size:12px;font-weight:600}
+.wake-toggle.on .wake-toggle-pill{background:rgba(0,102,204,.12);color:var(--blue)}
+.wake-toggle.warn .wake-toggle-pill{background:rgba(255,59,48,.12);color:#d93025}
 .timer-card{text-align:center;padding:40px 24px}
 .timer-display{font-size:56px;font-weight:600;letter-spacing:-.02em;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1}
 .timer-subrow{display:flex;justify-content:center;gap:28px;margin:16px 0 24px;font-size:13px;color:var(--ink-48)}
@@ -1820,6 +1830,11 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
     <div class="page" id="page-timer">
       <div class="page-title">타이머</div>
       <div class="page-sub">쪽잠, 모의고사, 자유 학습에 맞는 타이머예요</div>
+      <button class="wake-toggle" id="page-wake-btn" onclick="toggleWakeLockPref()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/></svg>
+        <span class="wake-toggle-label" id="page-wake-label">타이머 중 화면 켜두기</span>
+        <span class="wake-toggle-pill" id="page-wake-state">켜짐</span>
+      </button>
       <div class="view-toggle" style="margin-bottom:16px">
         <button class="view-btn active" id="timer-tab-nap" onclick="switchTimerTab('nap')">쪽잠 알림</button>
         <button class="view-btn" id="timer-tab-exam" onclick="switchTimerTab('exam')">모의고사용 알림</button>
@@ -5084,12 +5099,20 @@ let wakeLockBusy=false;       // request() 진행 중(중복 요청 방지)
 let wakeLockNextTry=0;        // 실패 후 재시도 가능 시각(epoch ms)
 let wakeLockUnsupportedNotified=false;
 
-// "지금 화면이 켜져 있어야 하는 상태인가" — 타이머 실행 중이거나 전체화면 타이머를 열어둔 동안.
+// "지금 화면이 켜져 있어야 하는 상태인가" — 열품타 타이머 실행 중/전체화면 타이머를 열어둔
+// 동안 + 타이머 페이지(쪽잠·모의고사·스톱워치)가 도는 동안 + 알람이 울리는 동안.
+// 타이머 페이지 쪽은 화면이 꺼지면 브라우저가 탭을 재워버려서 setInterval 기반 알람이 제때
+// 안 울리는 문제까지 같이 걸려 있어서, 화면을 잡아두는 게 표시뿐 아니라 동작에도 필요하다.
 function screenShouldStayAwake(){
   if(!wakeLockPref)return false;
   if(activeTimer&&activeTimer.startTimestamp!=null)return true;
   const fs=document.getElementById('timer-fullscreen');
-  return !!(fs&&fs.classList.contains('open'));
+  if(fs&&fs.classList.contains('open'))return true;
+  const alarm=document.getElementById('timer-alarm-overlay');
+  if(alarm&&alarm.classList.contains('open'))return true;
+  // 아래 상태값들은 이 함수보다 뒤에 선언돼 있다 — 실행 시점엔 항상 초기화가 끝나 있지만,
+  // 혹시 모를 순서 문제로 타이머 자체가 죽는 일이 없도록 감싸둔다.
+  try{return miscTimerRunning()}catch(e){return false}
 }
 
 async function acquireScreenWakeLock(){
@@ -5110,12 +5133,16 @@ async function acquireScreenWakeLock(){
     if(!screenShouldStayAwake()){try{await sentinel.release()}catch(e){}}
     else{
       screenWakeLock=sentinel;
-      sentinel.addEventListener('release',()=>{if(screenWakeLock===sentinel)screenWakeLock=null});
+      // 브라우저가 조용히 회수해가면 표시도 같이 되돌린다.
+      sentinel.addEventListener('release',()=>{if(screenWakeLock===sentinel){screenWakeLock=null;updateWakeLockBtn()}});
     }
   }catch(e){
     screenWakeLock=null;
-    wakeLockNextTry=Date.now()+30000;
-  }finally{wakeLockBusy=false}
+    wakeLockNextTry=Date.now()+30000; // 거부당한 직후 30초는 재시도 안 함(= 실패 표시 근거)
+  }finally{
+    wakeLockBusy=false;
+    updateWakeLockBtn(); // request()는 비동기라, 끝난 뒤 실제 결과로 한 번 더 갱신해야 한다
+  }
 }
 
 async function releaseScreenWakeLock(){
@@ -5131,18 +5158,56 @@ function syncScreenWakeLock(){
 }
 
 function updateWakeLockBtn(){
+  // (1) 전체화면 타이머 상단바 버튼
   const btn=document.getElementById('tf-wake-btn');
-  if(!btn)return;
-  const label=btn.querySelector('.tf-wake-label');
+  if(btn){
+    const label=btn.querySelector('.tf-wake-label');
+    if(!WAKE_LOCK_SUPPORTED){
+      btn.classList.add('off');
+      if(label)label.textContent='화면 켜둠 미지원';
+      btn.title='이 기기(브라우저)는 화면 꺼짐 방지를 지원하지 않아요. 설정 → 화면 자동 잠금 시간을 늘려주세요.';
+    }else{
+      btn.classList.toggle('off',!wakeLockPref);
+      if(label)label.textContent=wakeLockPref?'화면 켜둠':'화면 꺼짐 허용';
+      btn.title=wakeLockPref?'타이머 중에는 화면이 자동으로 꺼지지 않아요. 누르면 끕니다.':'화면이 기기 설정대로 자동으로 꺼져요. 누르면 켜둡니다.';
+    }
+  }
+  // (2) 타이머 페이지 상단 토글 — 설정값이 아니라 "지금 실제로 어떤 상태인지"를 적는다.
+  //     설정은 켜져 있는데 기기가 거부하는 경우(저전력 모드 등)를 사용자가 구분할 수 있어야 함.
+  const pb=document.getElementById('page-wake-btn');
+  if(!pb)return;
+  const pl=document.getElementById('page-wake-label');
+  const ps=document.getElementById('page-wake-state');
+  pb.classList.remove('on','warn');
   if(!WAKE_LOCK_SUPPORTED){
-    btn.classList.add('off');
-    if(label)label.textContent='화면 켜둠 미지원';
-    btn.title='이 기기(브라우저)는 화면 꺼짐 방지를 지원하지 않아요. 설정 → 화면 자동 잠금 시간을 늘려주세요.';
+    pb.classList.add('warn');
+    if(pl)pl.textContent='이 기기는 화면 켜두기를 지원하지 않아요';
+    if(ps)ps.textContent='미지원';
+    pb.title='기기 설정 → 화면 자동 잠금 시간을 늘려서 쓰셔야 해요.';
     return;
   }
-  btn.classList.toggle('off',!wakeLockPref);
-  if(label)label.textContent=wakeLockPref?'화면 켜둠':'화면 꺼짐 허용';
-  btn.title=wakeLockPref?'타이머 중에는 화면이 자동으로 꺼지지 않아요. 누르면 끕니다.':'화면이 기기 설정대로 자동으로 꺼져요. 누르면 켜둡니다.';
+  if(!wakeLockPref){
+    if(pl)pl.textContent='타이머 중 화면 켜두기';
+    if(ps)ps.textContent='꺼짐';
+    pb.title='지금은 화면이 기기 설정대로 자동으로 꺼져요. 누르면 켜둡니다.';
+    return;
+  }
+  pb.classList.add('on');
+  if(screenWakeLock){
+    if(pl)pl.textContent='화면을 켜두는 중이에요';
+    if(ps)ps.textContent='작동 중';
+  }else if(screenShouldStayAwake()&&Date.now()<wakeLockNextTry){
+    // 잡아야 하는 상황인데 request()가 실제로 거부당한 뒤(쿨다운 중) — 저전력 모드에서 이렇게 된다.
+    // 요청이 아직 진행 중인 순간까지 "실패"로 적으면 시작할 때마다 빨간 글씨가 번쩍이므로,
+    // 반드시 "거부당한 근거(쿨다운)"가 있을 때만 실패로 표시한다.
+    pb.classList.remove('on');pb.classList.add('warn');
+    if(pl)pl.textContent='기기가 거부했어요 (저전력 모드 확인)';
+    if(ps)ps.textContent='실패';
+  }else{
+    if(pl)pl.textContent='타이머 중 화면 켜두기';
+    if(ps)ps.textContent='켜짐';
+  }
+  pb.title='타이머가 도는 동안 화면이 자동으로 꺼지지 않아요. 누르면 끕니다.';
 }
 
 function toggleWakeLockPref(){
@@ -5161,6 +5226,10 @@ function toggleWakeLockPref(){
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible')syncScreenWakeLock();
 });
+// 어떤 타이머가 돌든(열품타/쪽잠/모의고사/스톱워치) 공통으로 도는 감시 인터벌. 상태가 바뀌는
+// 모든 지점에서 sync를 부르고 있지만, 브라우저가 조용히 lock을 회수해가는 경우까지 잡으려면
+// 주기적인 재확인이 필요하다. 잡을 필요가 없으면 즉시 no-op이라 비용은 사실상 없다.
+setInterval(syncScreenWakeLock,5000);
 
 // ── FULLSCREEN TIMER ──
 let tfInterval=null;let tfPaused=false;let tfCurrentSi=-1;let tfCurrentTi=-1;
@@ -6244,6 +6313,13 @@ function fmtClock(sec){
 // 쪽잠/모의고사 카운트다운 공용 상태 — type('nap'|'exam')별로 하나씩만 동시에 돈다
 const countdownTimers={nap:null,exam:null};
 
+// 이 페이지의 타이머(쪽잠/모의고사/스톱워치) 중 지금 실제로 돌고 있는 게 하나라도 있는지 —
+// 화면 꺼짐 방지(screenShouldStayAwake)가 이 값을 보고 판단한다. 일시정지는 "도는 중"이 아님.
+function miscTimerRunning(){
+  if(typeof swState!=='undefined'&&swState&&swState.running)return true;
+  return ['nap','exam'].some(t=>countdownTimers[t]&&!countdownTimers[t].paused);
+}
+
 // 실전 모의고사 시간표 — 수능 당일 시간표를 그대로 따른다. clockStart는 "시험장 벽시계가
 // 가리키는 시각"(자정 기준 분)이고, 실제 지금 시각과는 무관하다: 저녁 9시에 눌러도 시계는
 // 8:40에서 출발해 10:00에서 끝나서 실전 감각을 그대로 재현한다.
@@ -6363,6 +6439,7 @@ function beginCountdownUI(type,endAt,totalMs,label,clockStart,paused,pausedRemai
     tickCountdown(type);
     countdownTimers[type].interval=setInterval(()=>tickCountdown(type),250);
   }
+  syncScreenWakeLock();
 }
 
 // 모의고사 타이머 일시정지/재개 — 일시정지 중엔 endAt 대신 그 순간의 남은 시간(pausedRemainMs)만
@@ -6386,6 +6463,7 @@ function togglePauseTimer(type){
     if(pauseBtn)pauseBtn.textContent='재개';
     saveCountdownToStorage(type);
   }
+  syncScreenWakeLock();
 }
 
 function startCountdown(type,minutes,label,clockStart){
@@ -6457,6 +6535,7 @@ function cancelTimer(type){
   if(t){clearInterval(t.interval);countdownTimers[type]=null}
   clearCountdownStorage(type);
   resetCountdownUI(type);
+  syncScreenWakeLock();
 }
 
 function startNapTimer(minutes){startCountdown('nap',minutes)}
@@ -6488,6 +6567,7 @@ function playBeep(){
 function triggerTimerAlarm(title){
   document.getElementById('timer-alarm-title').textContent=title;
   document.getElementById('timer-alarm-overlay').classList.add('open');
+  syncScreenWakeLock(); // 알람을 끄기 전까진 화면이 꺼지지 않게(끄는 걸 놓치지 않도록)
   playBeep();
   if(navigator.vibrate)navigator.vibrate([300,150,300]);
   clearInterval(alarmInterval);
@@ -6499,6 +6579,7 @@ function triggerTimerAlarm(title){
 function dismissTimerAlarm(){
   clearInterval(alarmInterval);alarmInterval=null;
   document.getElementById('timer-alarm-overlay').classList.remove('open');
+  syncScreenWakeLock();
 }
 
 // 스톱워치 — 목표 없이 그냥 흐른 시간만 누적(남은 시간 개념이 없어서 카운트다운과 분리)
@@ -6530,6 +6611,7 @@ function toggleStopwatch(){
     btn.textContent='시작';
   }
   saveStopwatchToStorage();
+  syncScreenWakeLock();
 }
 function resetStopwatch(){
   clearInterval(swState.interval);
@@ -6537,6 +6619,7 @@ function resetStopwatch(){
   document.getElementById('sw-start-btn').textContent='시작';
   document.getElementById('sw-display').textContent='00:00:00';
   clearStopwatchStorage();
+  syncScreenWakeLock();
 }
 // 새로고침해도 스톱워치가 이어지도록, 저장된 상태가 있으면 화면/인터벌을 그대로 복원한다.
 function resumeStopwatchIfAny(){
@@ -6563,6 +6646,7 @@ function resumeMiscTimersOnLoad(){
   resumeCountdownIfAny('nap');
   resumeCountdownIfAny('exam');
   resumeStopwatchIfAny();
+  syncScreenWakeLock(); // 이어받은 타이머가 있으면 화면 켜둠도 같이 이어간다
 }
 
 // ── 푸시 알림 ──

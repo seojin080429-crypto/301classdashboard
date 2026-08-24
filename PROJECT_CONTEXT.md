@@ -239,6 +239,36 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-08-24 (8차): **화면 꺼짐 방지를 "타이머" 페이지(쪽잠/모의고사/스톱워치)까지 확대**.
+  7차에서 열품타(학습 플래너) 타이머에만 적용했는데, 사용자가 말한 "타이머"는 사이드바의
+  **타이머 페이지**였음 — 같은 wake lock 로직을 그쪽 타이머 전부에 연결했다.
+  `sw.js`의 `SW_BUILD`도 `2026-08-24-8`로 올림.
+  - `screenShouldStayAwake()`가 이제 다음 중 하나라도 참이면 화면을 잡는다: 열품타 타이머
+    실행 중 / 전체화면 타이머 열림 / **쪽잠·모의고사 카운트다운이 도는 중(일시정지는 제외)** /
+    **스톱워치 실행 중** / **알람 오버레이(`#timer-alarm-overlay.open`)가 울리는 중**.
+    뒤 세 가지 판정은 `miscTimerRunning()` 헬퍼(타이머 섹션에 선언)로 뺐고, 선언 순서 때문에
+    타이머가 죽는 일이 없게 호출부를 try/catch로 감쌌다.
+  - **알람까지 포함시킨 이유**: 이 페이지의 알람은 `setInterval`(tickCountdown 250ms) 기반이라
+    화면이 꺼져 브라우저가 탭을 재우면 제때 안 울린다 — 화면을 잡아두는 게 표시뿐 아니라
+    알람 동작 자체의 신뢰성 문제였음. 알람이 울리는 동안에도 (확인 누르기 전까지) 화면 유지.
+  - `syncScreenWakeLock()` 호출 지점 추가: `beginCountdownUI()`(시작·새로고침 이어받기 공통),
+    `togglePauseTimer()`, `cancelTimer()`, `toggleStopwatch()`, `resetStopwatch()`,
+    `triggerTimerAlarm()`, `dismissTimerAlarm()`, `resumeMiscTimersOnLoad()`.
+    추가로 **5초 감시 인터벌**(`setInterval(syncScreenWakeLock,5000)`)을 하나 둬서, 브라우저가
+    조용히 lock을 회수해간 경우를 어떤 타이머에서든 공통으로 되잡는다.
+  - 타이머 페이지 상단에 토글(`#page-wake-btn`) 추가 — 전체화면 타이머의 ☀ 버튼과 **같은 설정**
+    (`localStorage['bugwang_keep_screen_on']`)을 공유한다. 라벨/알약은 설정값이 아니라 **실제
+    상태**를 적는다: `작동 중`(lock 잡음) / `켜짐`(설정만 켜짐, 아직 잡을 상황 아님) / `꺼짐` /
+    `실패`(기기가 거부 — 저전력 모드) / `미지원`. 이렇게 한 이유는 "설정은 켜져 있는데 기기가
+    거부해서 안 되는" 상황을 사용자가 구분할 방법이 없었기 때문.
+  - ⚠️ `navigator.wakeLock.request()`는 **비동기**라, `syncScreenWakeLock()`이 동기적으로 부르는
+    `updateWakeLockBtn()` 시점엔 아직 lock이 안 잡혀 있다. 처음엔 그 상태를 "실패"로 그려서
+    타이머를 켤 때마다 빨간 "기기가 거부했어요"가 몇 초씩 번쩍였음 — `finally`에서 결과를 갖고
+    한 번 더 갱신하고, 실패 표시는 **실제로 거부당한 근거(`wakeLockNextTry` 쿨다운)가 있을 때만**
+    나오게 고침. 비슷한 UI를 또 만들 일이 있으면 이 순서 문제를 먼저 떠올릴 것.
+  - 참고: 이 앱은 **GitHub Pages**로 배포된다(`pages build and deployment` 워크플로가 main
+    push마다 자동 실행). Netlify 프로젝트(`bg301dashboard`)도 계정에 남아있지만 2026-07-15
+    수동 드롭 배포가 마지막이고 GitHub와 연결돼 있지 않은 **죽은 사이트**다 — 헷갈리지 말 것.
 - 2026-08-24 (7차): **폰/패드에서 타이머를 켜두면 화면이 자동으로 꺼지던 문제 해결 —
   Screen Wake Lock 적용**. 타이머가 도는 동안(또는 전체화면 타이머를 열어둔 동안)
   `navigator.wakeLock.request('screen')`으로 화면 꺼짐(기기 자동 잠금)을 막는다.

@@ -239,6 +239,29 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-08-24 (7차): **폰/패드에서 타이머를 켜두면 화면이 자동으로 꺼지던 문제 해결 —
+  Screen Wake Lock 적용**. 타이머가 도는 동안(또는 전체화면 타이머를 열어둔 동안)
+  `navigator.wakeLock.request('screen')`으로 화면 꺼짐(기기 자동 잠금)을 막는다.
+  `sw.js`의 `SW_BUILD`도 `2026-08-24-7`로 올림.
+  - 관련 함수는 전부 `// ── 화면 꺼짐 방지 (Screen Wake Lock) ──` 블록에 모여 있음:
+    `screenShouldStayAwake()`(지금 화면을 켜둬야 하는 상태인지 판정) / `acquireScreenWakeLock()` /
+    `releaseScreenWakeLock()` / `syncScreenWakeLock()`(상태 보고 알아서 잡거나 놓음) /
+    `toggleWakeLockPref()` / `updateWakeLockBtn()`.
+  - **wake lock은 한 번 잡으면 끝이 아니다** — 탭이 백그라운드로 가거나 화면이 한 번이라도
+    꺼지면 브라우저가 회수해간다. 그래서 (1) `visibilitychange`에서 화면이 다시 보일 때마다
+    `syncScreenWakeLock()`으로 다시 잡고, (2) 타이머 인터벌 tick과 전체화면 타이머 tick에서도
+    매초 `screenWakeLock`이 비어있으면 다시 요청한다. 요청 실패(배터리 절약 모드 등) 시엔
+    30초 쿨다운(`wakeLockNextTry`)을 둬서 매초 재시도로 배터리를 갉아먹지 않게 함.
+  - `syncScreenWakeLock()` 호출 지점: `attachTimerInterval()`(시작·재개·이어받기 공통 경로),
+    `pauseCurrentTimer()`, `stopCurrentTimer()`, `handleRemoteTimerSync()`의 stopped 분기,
+    `openTimerView()`, `closeTimerView()`. 전체화면을 닫아도 타이머가 계속 돌면 lock은 유지됨.
+  - 전체화면 타이머 상단바에 토글 버튼(`#tf-wake-btn`, `toggleWakeLockPref()`) 추가 —
+    기본값 켜짐, 설정은 `localStorage['bugwang_keep_screen_on']`(`'0'`이면 끔)에 저장.
+    좁은 화면(≤520px)에선 라벨을 숨기고 아이콘만 남기며, 상단바가 두 줄로 깨지지 않게
+    날짜 폰트/좌우 패딩/간격도 함께 줄였음.
+  - 지원 범위: 안드로이드 크롬 84+, iOS 사파리 16.4+. 미지원 기기에선 버튼이 "화면 켜둠 미지원"
+    으로 흐리게 표시되고, 타이머 시작 시 1회만 "설정에서 화면 자동 잠금 시간을 늘려주세요"
+    토스트를 띄운다(미지원 기기에 쓸 수 있는 다른 우회 수단은 없음).
 - 2026-08-24 (6차): **대학별 환산점수 계산기 — 사용자 제공 검증 보고서 기반 6개 대학 배점표
   수정 + 한국공학대 신규 추가 (49→50개 대학)**. 사용자가 각 대학 입학처 공식 2027학년도
   수시모집요강 원본 PDF와 대조 검증한 보고서(PDF)를 근거로 제공. `sw.js`의 `SW_BUILD`도

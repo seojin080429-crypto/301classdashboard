@@ -875,9 +875,15 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .er-type-btn.active{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
 .er-grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .er-optional{font-weight:400;color:var(--ink-48);font-size:11px;margin-left:4px}
-.er-area-row{display:flex;gap:6px;align-items:center;margin-bottom:6px}
-.er-area-row .er-area-name{flex:1;min-width:0}
-.er-area-row .er-area-count{width:82px;flex:none;text-align:center}
+/* [대분류][소분류][개수][×] — 폰에서는 대분류가 한 줄을 다 쓰고 나머지가 아랫줄로 내려간다 */
+.er-area-row{display:grid;grid-template-columns:1fr 1fr 78px 30px;gap:6px;align-items:center;margin-bottom:6px}
+.er-area-row select,.er-area-row input{min-width:0}
+.er-area-count{text-align:center}
+@media(max-width:520px){
+  /* 두 줄로 접히므로 어디까지가 한 영역인지 보이게 옅은 카드로 묶는다 */
+  .er-area-row{grid-template-columns:1fr 78px 30px;padding:8px;border:1px solid var(--hairline);border-radius:10px;background:var(--parchment)}
+  .er-area-row .er-area-main{grid-column:1/-1}
+}
 .er-area-del{width:30px;height:30px;flex:none;border:none;background:none;color:var(--ink-48);font-size:17px;line-height:1;border-radius:50%}
 .er-area-del:hover{background:rgba(255,59,48,.1);color:#d93025}
 /* 목록 카드 */
@@ -2131,7 +2137,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
             <button class="er-type-btn" id="er-type-english" onclick="setExamType('english')">영어</button>
             <button class="er-type-btn" id="er-type-science" onclick="setExamType('science')">탐구</button>
           </div>
-          <input class="modal-input" id="er-subject-detail" placeholder="탐구 과목명 (예: 생명과학Ⅰ)" style="display:none;margin-top:8px">
+          <input class="modal-input" id="er-subject-detail" placeholder="탐구 과목명 (예: 생명과학Ⅰ)" style="display:none;margin-top:8px" oninput="onExamSubjectDetailInput()">
         </div>
         <div class="modal-field er-grid2">
           <div>
@@ -2149,8 +2155,8 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
           </div>
         </div>
 
-        <!-- 국어·탐구 공통: 시간 / 못 푼 개수 / 영역별 틀린 개수(선택) -->
-        <div id="er-sec-common" style="display:none">
+        <!-- 국어·탐구: 시간 / 못 푼 개수 -->
+        <div id="er-sec-timing" style="display:none">
           <div class="modal-field">
             <label class="modal-label">시간이 부족했나요?</label>
             <div class="er-type-row">
@@ -2162,11 +2168,15 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
             <label class="modal-label" id="er-unsolved-label">못 푼 지문·문제 개수</label>
             <input class="modal-input" type="number" id="er-unsolved" min="0" max="200" placeholder="예: 3" style="max-width:130px">
           </div>
+        </div>
+
+        <!-- 영역별 틀린 개수 — 과목마다 고를 수 있는 영역이 다르다(examAreaTree 참고) -->
+        <div id="er-sec-areas" style="display:none">
           <div class="modal-field">
             <label class="modal-label">영역별 틀린 개수 <span class="er-optional">선택</span></label>
-            <datalist id="er-area-suggest"></datalist>
             <div id="er-area-rows"></div>
             <button class="add-subject-btn" style="margin-top:8px;padding:9px" onclick="addExamAreaRow()">+ 영역 추가</button>
+            <div class="er-optional" id="er-area-hint" style="margin-top:6px;display:block"></div>
           </div>
         </div>
 
@@ -8880,12 +8890,71 @@ async function submitStudyCertPost(){
 // 발상, 영어는 논리·단어) 한 폼 안에서 섹션을 갈아끼운다. 저장은 posts.exam_review(jsonb) 하나.
 // 탐구는 국어와 같은 구성 + "까먹었던 개념" 칸이 추가된다.
 const EXAM_TYPES={
-  korean :{label:'국어',  secs:['common','reflect'], unsolvedLabel:'못 푼 지문·문제 개수', areas:['화법과작문','언어와매체','독서','문학']},
-  math   :{label:'수학',  secs:['math'],             unsolvedLabel:'못 푼 문제 개수',      areas:[]},
-  english:{label:'영어',  secs:['english'],          unsolvedLabel:'못 푼 문제 개수',      areas:[]},
-  science:{label:'탐구',  secs:['common','science','reflect'], unsolvedLabel:'못 푼 문제 개수', areas:['개념','자료해석','계산','킬러']},
+  korean :{label:'국어',  secs:['timing','areas','reflect'],           unsolvedLabel:'못 푼 지문·문제 개수'},
+  math   :{label:'수학',  secs:['areas','math'],                       unsolvedLabel:'못 푼 문제 개수'},
+  english:{label:'영어',  secs:['areas','english'],                    unsolvedLabel:'못 푼 문제 개수'},
+  science:{label:'탐구',  secs:['timing','areas','science','reflect'], unsolvedLabel:'못 푼 문제 개수'},
 };
-const EXAM_SECTIONS=['common','math','english','science','reflect'];
+const EXAM_SECTIONS=['timing','areas','math','english','science','reflect'];
+
+// ── 영역별 틀린 개수: 과목별 [대분류 → 소분류] 목록 ──
+// 국어·수학의 "선택과목"은 계정 설정(user_metadata.suneung_kor/suneung_math)에서 고른 과목을
+// 그대로 대분류로 쓴다. 설정이 없는 계정(선생님 등)이면 후보를 전부 보여준다.
+const KOR_ELECTIVE_SUB={'화법과작문':['화법','작문','화법+작문 융합'],'언어와매체':['언어(문법)','매체']};
+const MATH_ELECTIVE_SUB={'확률과통계':['경우의 수','확률','통계'],'미적분':['수열의 극한','미분법','적분법'],'기하':['이차곡선','평면벡터','공간도형과 공간좌표']};
+// 탐구는 과목이 사람마다 달라서, 아는 과목이면 대단원 목록을 제시하고 모르면 오답 유형으로
+// 대신한다. 어느 쪽이든 "직접 입력"으로 원하는 이름을 쓸 수 있다.
+const SCIENCE_UNITS={
+  '생명과학':['생명 과학의 이해','사람의 물질대사','항상성과 몸의 조절','유전','생태계와 상호 작용'],
+  '지구과학':['고체 지구','대기와 해양','우주'],
+  '화학':['화학의 첫걸음','원자의 세계','화학 결합과 분자의 세계','역동적인 화학 반응'],
+  '물리학':['역학과 에너지','물질과 전자기장','파동과 정보통신'],
+  '생활과윤리':['현대의 삶과 실천 윤리','생명과 윤리','사회와 윤리','과학과 윤리','문화와 윤리','평화와 공존의 윤리'],
+  '윤리와사상':['인간과 윤리 사상','동양과 한국 윤리 사상','서양 윤리 사상','사회사상'],
+  '사회문화':['사회·문화 현상의 탐구','개인과 사회 구조','문화와 일상생활','사회 계층과 불평등','현대의 사회 변동'],
+  '정치와법':['민주주의와 헌법','정치과정과 참여','헌법과 기본권','개인 생활과 법','사회생활과 법','국제 관계'],
+  '경제':['경제생활과 경제 문제','시장과 경제활동','국가와 경제활동','세계 시장과 교역','경제생활과 금융'],
+  '한국지리':['국토 인식과 지리 정보','지형 환경과 인간 생활','기후 환경과 인간 생활','거주 공간의 변화와 지역 개발','생산과 소비의 공간','인구 변화와 다문화 공간','우리나라의 지역 이해'],
+  '세계지리':['세계화와 지역 이해','세계의 자연환경과 인간 생활','세계의 인문환경과 인문경관','몬순아시아와 오세아니아','건조아시아와 북아프리카','유럽과 북부아메리카','사하라 이남 아프리카와 중·남부 아메리카','공존과 평화'],
+  '동아시아사':['동아시아 역사의 시작','동아시아 세계의 성립과 변화','동아시아의 사회 변동과 문화 교류','동아시아의 근대화 운동','오늘날의 동아시아'],
+  '세계사':['인류의 출현과 문명의 발생','동아시아 지역의 역사','서아시아·인도지역의 역사','유럽·아메리카 지역의 역사','제국주의와 두 차례 세계 대전','현대 세계의 변화'],
+};
+const SCIENCE_FALLBACK={'개념 부족':[],'자료 해석':[],'계산 실수':[],'시간 부족':[],'킬러 문항':[]};
+
+// 지금 고른 과목에 맞는 {대분류:[소분류...]} 를 만든다.
+function examAreaTree(){
+  const meta=(typeof currentUser!=='undefined'&&currentUser?.user_metadata)||{};
+  if(erType==='korean'){
+    const t={
+      '독서':['인문','사회','경제','법','과학','기술','예술','주제 통합(융합)'],
+      '문학':['고전시가','고전소설','현대시','현대소설','극·수필'],
+    };
+    const picked=meta.suneung_kor&&KOR_ELECTIVE_SUB[meta.suneung_kor]?[meta.suneung_kor]:Object.keys(KOR_ELECTIVE_SUB);
+    picked.forEach(k=>{t[k]=KOR_ELECTIVE_SUB[k]});
+    return t;
+  }
+  if(erType==='math'){
+    const t={'공통':['수학Ⅰ','수학Ⅱ']};
+    const picked=meta.suneung_math&&MATH_ELECTIVE_SUB[meta.suneung_math]?[meta.suneung_math]:Object.keys(MATH_ELECTIVE_SUB);
+    picked.forEach(k=>{t[k]=MATH_ELECTIVE_SUB[k]});
+    return t;
+  }
+  if(erType==='english')return {
+    '듣기':['짧은 대화·담화','긴 대화','세트 문항'],
+    '대의 파악':['목적','심경·분위기','주장','함의','요지','주제','제목'],
+    '세부 내용':['도표','내용 일치·불일치','실용문·안내문'],
+    '어법·어휘':['어법','어휘'],
+    '빈칸 추론':[],
+    '간접 쓰기':['글의 순서','문장 삽입','요약문','무관한 문장'],
+    '장문':['1지문 2문항','1지문 3문항'],
+  };
+  // 탐구: 입력한 과목명에서 공백/·/로마숫자·아라비아숫자를 떼어 대단원 표를 찾는다.
+  const raw=(document.getElementById('er-subject-detail')?.value||'');
+  const key=raw.replace(/[\s·]/g,'').replace(/[ⅠⅡIV12]+$/,'');
+  const units=SCIENCE_UNITS[key];
+  if(!units)return {...SCIENCE_FALLBACK};
+  return Object.fromEntries(units.map(u=>[u,[]]));
+}
 let erType='korean';      // 현재 고른 과목 유형
 let erTimeShort=null;     // 'short' | 'ok' | null
 
@@ -8904,31 +8973,109 @@ function setExamType(type){
   if(detail)detail.style.display=type==='science'?'block':'none';
   const unsolvedLabel=document.getElementById('er-unsolved-label');
   if(unsolvedLabel)unsolvedLabel.textContent=cfg.unsolvedLabel;
-  // 영역 이름 자동완성 목록도 과목에 맞춰 바꿔준다(직접 입력도 가능).
-  const dl=document.getElementById('er-area-suggest');
-  if(dl)dl.innerHTML=cfg.areas.map(a=>`<option value="${escHtml(a)}">`).join('');
+  // 과목이 바뀌면 이전 과목의 영역 행은 의미가 없으므로 비운다.
+  const rows=document.getElementById('er-area-rows');
+  if(rows)rows.innerHTML='';
+  refreshExamAreaHint();
+}
+// 탐구는 과목명을 알아야 대단원을 제시할 수 있어서, 과목명이 바뀌면 안내와 열려있는 행의
+// 선택지를 다시 만든다.
+function refreshExamAreaHint(){
+  const hint=document.getElementById('er-area-hint');
+  if(!hint)return;
+  if(erType!=='science'){hint.textContent='';return}
+  const raw=(document.getElementById('er-subject-detail')?.value||'').trim();
+  const known=Object.keys(examAreaTree()).some(k=>!(k in SCIENCE_FALLBACK));
+  hint.textContent=!raw?'과목명을 입력하면 그 과목의 대단원이 목록에 나와요.'
+    :known?`${raw}의 대단원 목록을 불러왔어요.`
+    :'이 과목의 대단원 목록은 아직 없어서 오답 유형으로 보여드려요("직접 입력"으로 단원명을 쓸 수 있어요).';
+}
+// 탐구 과목명을 바꾸면 대단원 목록이 달라지므로, 이미 추가해둔 행의 선택지도 다시 만든다.
+function onExamSubjectDetailInput(){
+  if(erType!=='science')return;
+  document.querySelectorAll('#er-area-rows .er-area-row').forEach(row=>{
+    const cur=row.querySelector('.er-area-main').value;
+    const tree=examAreaTree();
+    const mains=Object.keys(tree);
+    const sel=row.querySelector('.er-area-main');
+    sel.innerHTML=`<option value="">영역 선택</option>`
+      +mains.map(m=>`<option value="${escHtml(m)}"${m===cur?' selected':''}>${escHtml(m)}</option>`).join('')
+      +`<option value="${ER_CUSTOM}"${cur===ER_CUSTOM?' selected':''}>직접 입력</option>`;
+    syncExamAreaRow(row);
+  });
+  refreshExamAreaHint();
 }
 function setExamTime(v){
   erTimeShort=erTimeShort===v?null:v; // 같은 걸 다시 누르면 선택 해제
   document.getElementById('er-time-short')?.classList.toggle('active',erTimeShort==='short');
   document.getElementById('er-time-ok')?.classList.toggle('active',erTimeShort==='ok');
 }
-function addExamAreaRow(name,count){
+const ER_CUSTOM='__custom'; // 드롭다운의 "직접 입력" 항목 값
+function addExamAreaRow(main,sub,count){
   const wrap=document.getElementById('er-area-rows');
   if(!wrap)return;
+  const tree=examAreaTree();
+  const mains=Object.keys(tree);
   const row=document.createElement('div');
   row.className='er-area-row';
   row.innerHTML=`
-    <input class="modal-input er-area-name" list="er-area-suggest" placeholder="영역 (예: 독서)" value="${escHtml(name||'')}">
+    <select class="modal-input er-area-main" onchange="onExamAreaMainChange(this)">
+      <option value="">영역 선택</option>
+      ${mains.map(m=>`<option value="${escHtml(m)}"${m===main?' selected':''}>${escHtml(m)}</option>`).join('')}
+      <option value="${ER_CUSTOM}"${main&&!mains.includes(main)?' selected':''}>직접 입력</option>
+    </select>
+    <select class="modal-input er-area-sub" onchange="onExamAreaSubChange(this)" style="display:none"></select>
+    <input class="modal-input er-area-custom" placeholder="직접 입력" style="display:none">
     <input class="modal-input er-area-count" type="number" min="0" max="100" placeholder="개수" value="${count!=null?count:''}">
     <button class="er-area-del" onclick="this.parentElement.remove()" title="이 줄 지우기">×</button>`;
   wrap.appendChild(row);
+  syncExamAreaRow(row,main,sub);
+}
+// 대분류에 딸린 소분류 목록을 채우고, "직접 입력"일 때만 텍스트 칸을 보여준다.
+function syncExamAreaRow(row,main,sub){
+  const tree=examAreaTree();
+  const mainSel=row.querySelector('.er-area-main');
+  const subSel=row.querySelector('.er-area-sub');
+  const custom=row.querySelector('.er-area-custom');
+  const chosen=mainSel.value;
+  const mainIsCustom=chosen===ER_CUSTOM;
+  const subs=(!mainIsCustom&&tree[chosen])||[];
+  if(mainIsCustom){
+    // 대분류를 직접 쓰는 경우엔 소분류 자리를 그 입력칸이 차지한다.
+    subSel.style.display='none';
+    custom.style.display='';
+    custom.placeholder='영역 직접 입력';
+    if(main&&!Object.keys(tree).includes(main))custom.value=main;
+    return;
+  }
+  if(!subs.length){subSel.style.display='none';custom.style.display='none';custom.value='';return}
+  const subIsCustom=!!sub&&!subs.includes(sub);
+  subSel.innerHTML=`<option value="">세부 선택</option>`
+    +subs.map(x=>`<option value="${escHtml(x)}"${x===sub?' selected':''}>${escHtml(x)}</option>`).join('')
+    +`<option value="${ER_CUSTOM}"${subIsCustom?' selected':''}>직접 입력</option>`;
+  subSel.style.display='';
+  if(subIsCustom){custom.style.display='';custom.placeholder='세부 직접 입력';custom.value=sub}
+  else{custom.style.display='none';custom.value=''}
+}
+function onExamAreaMainChange(sel){syncExamAreaRow(sel.closest('.er-area-row'))}
+function onExamAreaSubChange(sel){
+  const row=sel.closest('.er-area-row');
+  const custom=row.querySelector('.er-area-custom');
+  if(sel.value===ER_CUSTOM){custom.style.display='';custom.placeholder='세부 직접 입력';custom.focus()}
+  else{custom.style.display='none';custom.value=''}
 }
 function erAreaRowsData(){
-  return Array.from(document.querySelectorAll('#er-area-rows .er-area-row')).map(r=>({
-    name:r.querySelector('.er-area-name').value.trim(),
-    count:parseInt(r.querySelector('.er-area-count').value,10),
-  })).filter(a=>a.name&&Number.isFinite(a.count));
+  return Array.from(document.querySelectorAll('#er-area-rows .er-area-row')).map(r=>{
+    const mainSel=r.querySelector('.er-area-main');
+    const subSel=r.querySelector('.er-area-sub');
+    const custom=r.querySelector('.er-area-custom').value.trim();
+    const mainIsCustom=mainSel.value===ER_CUSTOM;
+    return {
+      main:mainIsCustom?custom:mainSel.value,
+      sub:mainIsCustom?'':(subSel.value===ER_CUSTOM?custom:(subSel.style.display==='none'?'':subSel.value)),
+      count:parseInt(r.querySelector('.er-area-count').value,10),
+    };
+  }).filter(a=>a.main&&Number.isFinite(a.count));
 }
 
 function openExamReviewWritePage(){
@@ -8981,7 +9128,8 @@ async function submitExamReviewPost(){
   };
   // 이 과목에서 쓰지 않는 섹션의 값은 저장하지 않는다(폼을 왔다갔다 하다 남은 값이 딸려가지 않게).
   const secs=EXAM_TYPES[erType].secs;
-  if(!secs.includes('common')){review.timeShort=null;review.unsolved=null;review.areas=[]}
+  if(!secs.includes('timing')){review.timeShort=null;review.unsolved=null}
+  if(!secs.includes('areas'))review.areas=[];
   if(!secs.includes('reflect')){review.mistakes='';review.improvements=''}
   if(!secs.includes('math')){review.mathUnsolved=review.mathInefficient=review.mathIdea=review.mathImprove=''}
   if(!secs.includes('english')){review.engLogic=review.engWords=''}
@@ -9040,7 +9188,11 @@ function renderExamReviewCard(p,comments=[]){
   ].join('');
   const fieldsHtml=examReviewFields(r).map(f=>{
     const body=f.areas
-      ?`<div class="er-areas">${f.areas.map(a=>`<span class="er-area-chip">${escHtml(a.name)}<strong>${a.count}</strong></span>`).join('')}</div>`
+      ?`<div class="er-areas">${f.areas.map(a=>{
+          // 옛 글은 {name,count}, 새 글은 {main,sub,count}
+          const label=a.main?(a.sub?`${a.main} · ${a.sub}`:a.main):(a.name||'');
+          return`<span class="er-area-chip">${escHtml(label)}<strong>${a.count}</strong></span>`;
+        }).join('')}</div>`
       :`<div class="er-field-value">${escHtml(f.value)}</div>`;
     return`<div><div class="er-field-label">${f.label}</div>${body}</div>`;
   }).join('');

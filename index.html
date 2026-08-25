@@ -2137,7 +2137,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
             <button class="er-type-btn" id="er-type-english" onclick="setExamType('english')">영어</button>
             <button class="er-type-btn" id="er-type-science" onclick="setExamType('science')">탐구</button>
           </div>
-          <input class="modal-input" id="er-subject-detail" placeholder="탐구 과목명 (예: 생명과학Ⅰ)" style="display:none;margin-top:8px" oninput="onExamSubjectDetailInput()">
+          <input class="modal-input" id="er-subject-detail" placeholder="탐구 과목명 (예: 생명과학Ⅰ)" style="display:none;margin-top:8px">
         </div>
         <div class="modal-field er-grid2">
           <div>
@@ -2176,7 +2176,6 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
             <label class="modal-label">영역별 틀린 개수 <span class="er-optional">선택</span></label>
             <div id="er-area-rows"></div>
             <button class="add-subject-btn" style="margin-top:8px;padding:9px" onclick="addExamAreaRow()">+ 영역 추가</button>
-            <div class="er-optional" id="er-area-hint" style="margin-top:6px;display:block"></div>
           </div>
         </div>
 
@@ -8902,24 +8901,9 @@ const EXAM_SECTIONS=['timing','areas','math','english','science','reflect'];
 // 그대로 대분류로 쓴다. 설정이 없는 계정(선생님 등)이면 후보를 전부 보여준다.
 const KOR_ELECTIVE_SUB={'화법과작문':['화법','작문','화법+작문 융합'],'언어와매체':['언어(문법)','매체']};
 const MATH_ELECTIVE_SUB={'확률과통계':['경우의 수','확률','통계'],'미적분':['수열의 극한','미분법','적분법'],'기하':['이차곡선','평면벡터','공간도형과 공간좌표']};
-// 탐구는 과목이 사람마다 달라서, 아는 과목이면 대단원 목록을 제시하고 모르면 오답 유형으로
-// 대신한다. 어느 쪽이든 "직접 입력"으로 원하는 이름을 쓸 수 있다.
-const SCIENCE_UNITS={
-  '생명과학':['생명 과학의 이해','사람의 물질대사','항상성과 몸의 조절','유전','생태계와 상호 작용'],
-  '지구과학':['고체 지구','대기와 해양','우주'],
-  '화학':['화학의 첫걸음','원자의 세계','화학 결합과 분자의 세계','역동적인 화학 반응'],
-  '물리학':['역학과 에너지','물질과 전자기장','파동과 정보통신'],
-  '생활과윤리':['현대의 삶과 실천 윤리','생명과 윤리','사회와 윤리','과학과 윤리','문화와 윤리','평화와 공존의 윤리'],
-  '윤리와사상':['인간과 윤리 사상','동양과 한국 윤리 사상','서양 윤리 사상','사회사상'],
-  '사회문화':['사회·문화 현상의 탐구','개인과 사회 구조','문화와 일상생활','사회 계층과 불평등','현대의 사회 변동'],
-  '정치와법':['민주주의와 헌법','정치과정과 참여','헌법과 기본권','개인 생활과 법','사회생활과 법','국제 관계'],
-  '경제':['경제생활과 경제 문제','시장과 경제활동','국가와 경제활동','세계 시장과 교역','경제생활과 금융'],
-  '한국지리':['국토 인식과 지리 정보','지형 환경과 인간 생활','기후 환경과 인간 생활','거주 공간의 변화와 지역 개발','생산과 소비의 공간','인구 변화와 다문화 공간','우리나라의 지역 이해'],
-  '세계지리':['세계화와 지역 이해','세계의 자연환경과 인간 생활','세계의 인문환경과 인문경관','몬순아시아와 오세아니아','건조아시아와 북아프리카','유럽과 북부아메리카','사하라 이남 아프리카와 중·남부 아메리카','공존과 평화'],
-  '동아시아사':['동아시아 역사의 시작','동아시아 세계의 성립과 변화','동아시아의 사회 변동과 문화 교류','동아시아의 근대화 운동','오늘날의 동아시아'],
-  '세계사':['인류의 출현과 문명의 발생','동아시아 지역의 역사','서아시아·인도지역의 역사','유럽·아메리카 지역의 역사','제국주의와 두 차례 세계 대전','현대 세계의 변화'],
-};
-const SCIENCE_FALLBACK={'개념 부족':[],'자료 해석':[],'계산 실수':[],'시간 부족':[],'킬러 문항':[]};
+// 탐구는 과목이 사람마다 달라 대단원까지 나열하면 너무 잘게 쪼개져서(사용자 피드백),
+// 어느 과목에나 통하는 오답 유형 4개만 둔다. 단원명을 쓰고 싶으면 "직접 입력"을 쓰면 된다.
+const SCIENCE_AREAS={'개념':[],'자료 해석':[],'계산':[],'킬러':[]};
 
 // 지금 고른 과목에 맞는 {대분류:[소분류...]} 를 만든다.
 function examAreaTree(){
@@ -8939,21 +8923,9 @@ function examAreaTree(){
     picked.forEach(k=>{t[k]=MATH_ELECTIVE_SUB[k]});
     return t;
   }
-  if(erType==='english')return {
-    '듣기':['짧은 대화·담화','긴 대화','세트 문항'],
-    '대의 파악':['목적','심경·분위기','주장','함의','요지','주제','제목'],
-    '세부 내용':['도표','내용 일치·불일치','실용문·안내문'],
-    '어법·어휘':['어법','어휘'],
-    '빈칸 추론':[],
-    '간접 쓰기':['글의 순서','문장 삽입','요약문','무관한 문장'],
-    '장문':['1지문 2문항','1지문 3문항'],
-  };
-  // 탐구: 입력한 과목명에서 공백/·/로마숫자·아라비아숫자를 떼어 대단원 표를 찾는다.
-  const raw=(document.getElementById('er-subject-detail')?.value||'');
-  const key=raw.replace(/[\s·]/g,'').replace(/[ⅠⅡIV12]+$/,'');
-  const units=SCIENCE_UNITS[key];
-  if(!units)return {...SCIENCE_FALLBACK};
-  return Object.fromEntries(units.map(u=>[u,[]]));
+  // 영어·탐구는 세부 단계 없이 큰 갈래만 고른다(더 잘게 나누면 오히려 쓰기 번거롭다는 피드백).
+  if(erType==='english')return {'듣기':[],'독해':[]};
+  return {...SCIENCE_AREAS};
 }
 let erType='korean';      // 현재 고른 과목 유형
 let erTimeShort=null;     // 'short' | 'ok' | null
@@ -8976,34 +8948,6 @@ function setExamType(type){
   // 과목이 바뀌면 이전 과목의 영역 행은 의미가 없으므로 비운다.
   const rows=document.getElementById('er-area-rows');
   if(rows)rows.innerHTML='';
-  refreshExamAreaHint();
-}
-// 탐구는 과목명을 알아야 대단원을 제시할 수 있어서, 과목명이 바뀌면 안내와 열려있는 행의
-// 선택지를 다시 만든다.
-function refreshExamAreaHint(){
-  const hint=document.getElementById('er-area-hint');
-  if(!hint)return;
-  if(erType!=='science'){hint.textContent='';return}
-  const raw=(document.getElementById('er-subject-detail')?.value||'').trim();
-  const known=Object.keys(examAreaTree()).some(k=>!(k in SCIENCE_FALLBACK));
-  hint.textContent=!raw?'과목명을 입력하면 그 과목의 대단원이 목록에 나와요.'
-    :known?`${raw}의 대단원 목록을 불러왔어요.`
-    :'이 과목의 대단원 목록은 아직 없어서 오답 유형으로 보여드려요("직접 입력"으로 단원명을 쓸 수 있어요).';
-}
-// 탐구 과목명을 바꾸면 대단원 목록이 달라지므로, 이미 추가해둔 행의 선택지도 다시 만든다.
-function onExamSubjectDetailInput(){
-  if(erType!=='science')return;
-  document.querySelectorAll('#er-area-rows .er-area-row').forEach(row=>{
-    const cur=row.querySelector('.er-area-main').value;
-    const tree=examAreaTree();
-    const mains=Object.keys(tree);
-    const sel=row.querySelector('.er-area-main');
-    sel.innerHTML=`<option value="">영역 선택</option>`
-      +mains.map(m=>`<option value="${escHtml(m)}"${m===cur?' selected':''}>${escHtml(m)}</option>`).join('')
-      +`<option value="${ER_CUSTOM}"${cur===ER_CUSTOM?' selected':''}>직접 입력</option>`;
-    syncExamAreaRow(row);
-  });
-  refreshExamAreaHint();
 }
 function setExamTime(v){
   erTimeShort=erTimeShort===v?null:v; // 같은 걸 다시 누르면 선택 해제

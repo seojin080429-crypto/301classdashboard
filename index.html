@@ -379,7 +379,10 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .section-hd-link:hover{text-decoration:underline}
 
 /* TOAST */
-#toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:#1d1d1f;color:#fff;font-size:13px;padding:10px 20px;border-radius:var(--radius-pill);box-shadow:0 4px 24px rgba(0,0,0,.4);z-index:999;transition:transform .3s ease,opacity .3s ease;opacity:0;pointer-events:none;white-space:nowrap}
+/* 긴 안내 문구가 폰에서 양옆으로 잘리던 문제 때문에 nowrap을 버리고 줄바꿈 + 화면 폭 제한을
+   둔다. 한글은 word-break:keep-all이라야 단어 중간에서 안 끊긴다. 한 줄짜리 짧은 토스트는
+   내용만큼만 차지하므로(inline-block 성격의 fit-content 폭) 기존 모양 그대로 보인다. */
+#toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:#1d1d1f;color:#fff;font-size:13px;line-height:1.55;padding:11px 18px;border-radius:18px;box-shadow:0 4px 24px rgba(0,0,0,.4);z-index:999;transition:transform .3s ease,opacity .3s ease;opacity:0;pointer-events:none;max-width:min(420px,calc(100vw - 32px));width:max-content;text-align:center;white-space:pre-line;word-break:keep-all;overflow-wrap:break-word}
 #toast.show{transform:translateX(-50%) translateY(0);opacity:1}
 
 /* 새 버전 배포 알림 배너 */
@@ -3529,7 +3532,15 @@ function readableTextColor(hex){
 }
 
 // ── HELPERS ──
-function toast(msg,dur=2500){const e=document.getElementById('toast');e.textContent=msg;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),dur)}
+// dur을 안 주면 문구 길이에 맞춰 노출 시간을 늘린다(짧은 건 기존과 동일한 2.5초).
+function toast(msg,dur){
+  const text=String(msg??'');
+  const ms=dur||Math.min(6000,2500+Math.max(0,text.length-24)*70);
+  const e=document.getElementById('toast');
+  e.textContent=text;e.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t=setTimeout(()=>e.classList.remove('show'),ms);
+}
 function fmtSec(s){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60;return`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sc).padStart(2,'0')}`}
 function fmtHM(s){return`${Math.floor(s/3600)}h ${Math.floor((s%3600)/60)}m`}
 // "오늘" 날짜 문자열(YYYY-MM-DD)은 반드시 기기의 로컬 시간 기준으로 계산해야 한다.
@@ -6783,11 +6794,11 @@ async function requestEarphoneDetection(){
     const stream=await navigator.mediaDevices.getUserMedia({audio:true});
     stream.getTracks().forEach(t=>t.stop());
   }catch(e){
-    toast('권한이 거부돼서 자동 확인을 켤 수 없어요. "항상 소리"를 고르시면 확실히 울려요.');
+    toast('권한이 없어 자동 확인을 못 켰어요.\n"항상 소리"를 고르면 확실히 울려요.');
     return;
   }
   const st=await refreshEarphoneState();
-  toast(st==='yes'?'이어폰이 감지됐어요. 알람은 이어폰으로 울려요.':st==='no'?'지금은 이어폰이 연결돼 있지 않아요.':'이 기기에선 이어폰 연결을 확인할 수 없어요.');
+  toast(st==='yes'?'이어폰이 감지됐어요. 알람은 이어폰으로 울려요.':st==='no'?'지금은 이어폰이 연결돼 있지 않아요.':'이 기기에선 이어폰 연결을 확인할 수 없어요.\n"항상 소리"를 고르면 확실히 울려요.');
 }
 function setNapAlarmMode(mode){
   napAlarmMode=mode;

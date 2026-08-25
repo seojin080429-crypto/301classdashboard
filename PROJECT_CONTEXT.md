@@ -239,6 +239,29 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-08-25 (3차): **게시판 글이 하나도 안 보이던 계정들 수정(RLS 함수 NULL 버그)** +
+  주간 미인증 벌칙 기준 1~4회 제한. `sw.js`의 `SW_BUILD`도 `2026-08-25-3`으로 올림.
+  - **증상**: ssp2 계정으로 로그인하면 공부인증 탭이 "아직 공부 인증이 없어요!"로 비어 보임
+    (실제로는 글이 있음). 루틴 현황판은 정상이라 게시판 데이터만 안 오는 상황이었음.
+  - **원인**: `posts`/`comments`의 SELECT 정책이 `NOT is_external(auth.uid())`인데, 이
+    SECURITY DEFINER 함수가 `select coalesce(ur.is_external,false) from user_profiles up
+    join user_roles ur ...` 형태라 **행 자체가 없으면(=user_roles에 그 학번 행이 없으면)
+    NULL을 반환**했다. `NOT NULL = NULL`이라 정책이 통과되지 않아 글/댓글이 전부 필터링됨.
+    coalesce가 컬럼에만 걸려 있고 서브쿼리 전체에는 안 걸려 있던 것 — 마이그레이션
+    `fix_is_external_null_hides_all_posts`로 서브쿼리 전체를 감싸 "행 없으면 false"로 고쳤다.
+    **프론트 배포와 무관한 DB 함수 수정이라 새로고침만 하면 즉시 반영된다.**
+  - **영향 범위가 넓었음**: `user_roles` 행이 없는 계정이 16개(30103·30104·30105·30106·30108·
+    30109·30111·30116·30118·30119·30121·30124·30128·ssp2·Teacher·Test) — 이 계정들은 전부
+    자유/질문/버그 게시판과 공부인증, 댓글이 통째로 안 보이는 상태였다. `user_roles` 행은
+    관리자 탭에서 권한을 한 번이라도 만졌을 때만 생기는 구조라 대부분의 학생에게 행이 없다.
+    ⚠️ **앞으로 RLS 정책에 SQL 함수를 쓸 땐 "행이 없을 때 NULL이 되는지"를 항상 확인할 것.**
+  - **벌칙 기준 상한 4**: number input의 `min/max`는 직접 타이핑한 값을 막지 못해서
+    `penalty_threshold=67676767`이 저장돼 현황판이 "이번주 미인증 1/67676767"로 깨져 있었다.
+    입력칸 max를 7→4로 낮추고, `saveRoutine()`에서 `clampPenaltyThreshold()`로 1~4로 강제하며
+    (범위를 벗어나면 토스트로 알림), 표시(현황판 타일/루틴 목록/수정 폼)에서도 clamp해서 옛
+    데이터가 남아 있어도 깨져 보이지 않게 했다. DB에도 마이그레이션
+    `clamp_routine_penalty_threshold_to_4`로 기존 값 보정(67676767→4, 8→4) + `check
+    (penalty_threshold between 1 and 4)` 제약을 추가.
 - 2026-08-25 (2차): **공부인증 사진 여러 장(최대 5장) 첨부**. `sw.js`의 `SW_BUILD`도
   `2026-08-25-2`로 올림.
   - **스키마**: `posts.image_urls`(text[], nullable) 컬럼 추가(마이그레이션

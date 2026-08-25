@@ -2916,7 +2916,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         <label class="modal-label">벌칙 기준</label>
         <div style="display:flex;align-items:center;gap:8px">
           일주일에
-          <input class="modal-input" type="number" min="1" max="7" id="routine-threshold" style="width:56px;text-align:center" value="2">
+          <input class="modal-input" type="number" min="1" max="4" id="routine-threshold" style="width:56px;text-align:center" value="2">
           번 이상 못 지키면 벌칙
         </div>
       </div>
@@ -8754,7 +8754,7 @@ function renderRoutineListView(){
     return`<div class="routine-list-item">
       <div class="routine-list-item-info">
         <div class="routine-list-item-subject">${escHtml(r.subject)} · ${escHtml(r.task)}</div>
-        <div class="routine-list-item-deadline">${deadlineLabel} · 주 ${r.penalty_threshold}회 이상 미인증 시 벌칙</div>
+        <div class="routine-list-item-deadline">${deadlineLabel} · 주 ${clampPenaltyThreshold(r.penalty_threshold)}회 이상 미인증 시 벌칙</div>
       </div>
       <div class="routine-list-item-actions">
         <button class="btn-ghost" style="font-size:12px;padding:6px 10px" onclick="openRoutineForm('${r.id}')">수정</button>
@@ -8780,7 +8780,7 @@ function openRoutineForm(routineId){
     document.getElementById('routine-task').value=editing.task;
     document.getElementById('routine-deadline').value=(editing.deadline_time||'').slice(0,5);
     document.getElementById('routine-deadline-day').value=editing.deadline_next_day?'next':'same';
-    document.getElementById('routine-threshold').value=editing.penalty_threshold;
+    document.getElementById('routine-threshold').value=clampPenaltyThreshold(editing.penalty_threshold);
     document.getElementById('routine-penalty').value=editing.penalty_desc||'';
     document.getElementById('routine-delete-btn').style.display='block';
   }else{
@@ -8809,7 +8809,12 @@ async function saveRoutine(){
   const task=document.getElementById('routine-task').value.trim();
   const deadline=document.getElementById('routine-deadline').value;
   const deadlineNextDay=document.getElementById('routine-deadline-day').value==='next';
-  const threshold=parseInt(document.getElementById('routine-threshold').value,10)||1;
+  // ⚠️ number input의 min/max는 "직접 타이핑한 값"을 막아주지 않는다 — 예전에 이 경로로
+  // 67676767이 저장돼 현황판이 "이번주 미인증 1/67676767"로 깨졌다. 여기서 반드시 clamp한다
+  // (DB에도 1~4 CHECK 제약을 걸어뒀다).
+  const thresholdRaw=parseInt(document.getElementById('routine-threshold').value,10)||1;
+  const threshold=clampPenaltyThreshold(thresholdRaw);
+  if(thresholdRaw!==threshold)toast(`벌칙 기준은 1~${ROUTINE_THRESHOLD_MAX}회 사이로 맞췄어요`);
   const penaltyDesc=document.getElementById('routine-penalty').value.trim()||null;
   if(!task){errEl.textContent='과제를 입력해주세요';errEl.style.display='block';return}
   if(!deadline){errEl.textContent='인증 시간을 정해주세요';errEl.style.display='block';return}
@@ -8835,6 +8840,14 @@ async function deactivateRoutine(){
   toast('루틴을 그만뒀어요');
   await renderStudyRoutineBoard();
   backToRoutineList();
+}
+// 주간 미인증 벌칙 기준 상한(요청: "미인증 개수는 최대 4개로 제한"). 옛 데이터에 이보다 큰
+// 값이 남아있어도 화면에는 항상 이 범위로 보이게 표시할 때도 clamp한다.
+const ROUTINE_THRESHOLD_MAX=4;
+function clampPenaltyThreshold(n){
+  const v=parseInt(n,10);
+  if(!Number.isFinite(v))return 1;
+  return Math.min(ROUTINE_THRESHOLD_MAX,Math.max(1,v));
 }
 // 상단 현황판 — 활성 루틴이 있는 학생들의 오늘 인증 여부 + 이번 주 미인증 횟수를 네모박스로
 // 보여준다. myRoutines 캐시도 여기서 함께 최신화한다(루틴 관리 모달/글쓰기 페이지의 연결 선택용).
@@ -8864,7 +8877,7 @@ async function renderStudyRoutineBoard(){
     const doneToday=allCertDates.has(today);
     const pastCertCount=[...weekCertDates].filter(d=>d!==today).length;
     const missCount=Math.max(0,daysBeforeToday-pastCertCount);
-    const atRisk=missCount>=r.penalty_threshold;
+    const atRisk=missCount>=clampPenaltyThreshold(r.penalty_threshold);
     const deadlineLabel=fmtDeadlineLabel(r.deadline_time,r.deadline_next_day);
     const streak=computeStudyStreak(allCertDates,today);
     return`<div class="routine-tile${atRisk?' at-risk':''}" title="${escHtml(r.penalty_desc||'')}">
@@ -8874,7 +8887,7 @@ async function renderStudyRoutineBoard(){
       <div class="routine-tile-task">${escHtml(r.subject)} · ${escHtml(r.task)}</div>
       <div class="routine-tile-task">${deadlineLabel}</div>
       <div class="routine-tile-status">${doneToday?'✅':'❌'}</div>
-      <div class="routine-tile-week${atRisk?' warn':''}">이번주 미인증 ${missCount}/${r.penalty_threshold}</div>
+      <div class="routine-tile-week${atRisk?' warn':''}">이번주 미인증 ${missCount}/${clampPenaltyThreshold(r.penalty_threshold)}</div>
     </div>`;
   }).join('')}</div>`;
 }

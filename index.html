@@ -2247,7 +2247,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
     <div class="page" id="page-qna-board">
       <div class="page-title">질문게시판</div>
       <div class="page-sub">공부하다 막히는 부분을 올려 함께 해결해요</div>
-      <div class="write-form">
+      <div class="write-form" id="qna-write-form">
         <div class="write-form-title">질문 올리기</div>
         <div class="form-row">
           <select class="form-select" id="qna-subject">
@@ -2280,7 +2280,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
     <div class="page" id="page-bug-report">
       <div class="page-title">버그 제보</div>
       <div class="page-sub">어플에서 이상하거나 잘못된 부분을 발견하면 알려주세요</div>
-      <div class="write-form">
+      <div class="write-form" id="bug-write-form">
         <div class="write-form-title">제보하기</div>
         <textarea class="form-textarea" id="bug-content" placeholder="어떤 화면에서, 어떤 버튼을 눌렀을 때, 무슨 문제가 있었는지 자세히 적어주세요..."></textarea>
         <!-- 사진/동영상 업로드 -->
@@ -4069,9 +4069,9 @@ function navigate(page){
   if(page==='mypage'){updatePushToggleUI();loadMyMessageThread()}
   if(page==='dm')loadDmRooms();
   // 게시판은 부팅 때 미리 받지 않으므로 들어갈 때마다 최신으로 불러온다
-  if(page==='free-board')loadFreeBoard();
-  if(page==='qna-board')loadQnaBoard();
-  if(page==='bug-report')loadBugBoard();
+  if(page==='free-board'){loadFreeBoard();offerFreeDraftIfFormVisible()}
+  if(page==='qna-board'){loadQnaBoard();offerDraftRestore('qna')}
+  if(page==='bug-report'){loadBugBoard();offerDraftRestore('bug')}
   // notice는 원래 여기 없어서, 다른 페이지에 있는 동안 투표 결과 등이 바뀌어도 공지 페이지로
   // 넘어올 때 새로 안 불러와 예전 상태 그대로 보였다(제보: "투표같은 수정사항이 생겼을때
   // 알람으로 들어가면 수정이 안돼있어서 다시 눌러야하는데"). 다른 게시판들과 동일하게 맞춘다.
@@ -4616,6 +4616,7 @@ function openNoticeWritePage(){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById('page-notice-write').classList.add('active');
   window.scrollTo(0,0);
+  offerDraftRestore('notice');
 }
 // 공지 수정 — 투표가 달린 공지는 투표 결과와 응답이 이미 쌓여있어 "수정"의 의미가 애매해지므로
 // (질문/선택지를 바꾸면 기존 투표 기록과 안 맞게 됨) 범위를 제목/내용만으로 제한하고, 수정
@@ -4713,6 +4714,7 @@ async function submitNotice(){
   }
 
   submitBtn.disabled=false;
+  finishDraft('notice');
   closeNoticeWritePage();
   toast(`${audience==='simo'?'실모반 ':''}공지가 게시되었습니다 ✓`);
   await loadNotices();
@@ -8187,13 +8189,154 @@ function renderFreeCategoryTabs(){
   if(routineBoard)routineBoard.style.display=isStudyCert?'block':'none';
   if(isStudyCert)renderStudyRoutineBoard();
 }
+function offerFreeDraftIfFormVisible(){
+  const form=document.getElementById('free-write-form');
+  if(form&&form.style.display!=='none')offerDraftRestore('free');
+}
 function switchFreeCategory(cat){
   currentFreeCategory=cat;
   document.querySelectorAll('#free-category-tabs .view-btn').forEach(b=>b.classList.toggle('active',b.dataset.cat===cat));
   const selectEl=document.getElementById('free-post-category');
   if(selectEl)selectEl.value=cat; // 글쓰기 폼 기본 선택도 지금 보는 탭에 맞춰준다
   loadFreeBoard();
+  offerFreeDraftIfFormVisible();
 }
+
+// ── 글 자동저장(초안) ──
+// 글을 쓰다가 새로고침하거나 실수로 나가도 내용이 날아가지 않게, 입력할 때마다 localStorage에
+// 초안을 남기고 그 폼을 다시 열면 복구할지 물어본다. 사진(File 객체)은 저장할 수 없어서
+// 글자만 저장한다 — 복구해도 사진은 다시 골라야 한다.
+// 초안 키에 학번을 넣는 이유: 공용 기기에서 다음 사람이 남의 초안을 보게 되면 안 되기 때문.
+const DRAFT_TTL_MS=7*24*60*60*1000; // 일주일 지난 초안은 조용히 버린다
+const DRAFT_FORMS={
+  free:      {label:'자유게시판 글',container:'free-write-form',     ids:['free-post-category','free-content']},
+  qna:       {label:'질문',        container:'qna-write-form',       ids:['qna-subject','qna-content']},
+  bug:       {label:'버그 제보',    container:'bug-write-form',       ids:['bug-content']},
+  // 공지 "수정"은 원본이 서버에 있으므로 초안을 만들지 않는다(복구가 오히려 헷갈림).
+  notice:    {label:'공지',        container:'page-notice-write',    ids:['notice-title-input','notice-content-input','notice-audience-input','notice-poll-question-input'],
+              skip:()=>!!editingNoticeId},
+  studycert: {label:'공부 인증',    container:'page-studycert-write', ids:['sc-date','sc-content'],
+              get:()=>({rows:scLogRowsData()}),
+              set:d=>{
+                const wrap=document.getElementById('sc-log-rows');
+                if(!wrap)return;
+                wrap.innerHTML='';
+                (d.rows||[]).forEach(r=>addScLogRow(r.subject,r.task,r.seconds));
+                if(!wrap.children.length)addScLogRow();
+                recomputeScTotal();
+              }},
+  examreview:{label:'시험 회고',    container:'page-examreview-write',
+              ids:['er-name','er-subject-detail','er-score','er-grade','er-unsolved',
+                   'er-math-unsolved','er-math-inefficient','er-math-idea','er-math-improve',
+                   'er-eng-logic','er-eng-words','er-forgot','er-mistakes','er-improve','er-content'],
+              get:()=>({type:erType,time:erTimeShort,areas:erAreaRowsData()}),
+              set:d=>{
+                if(d.type)setExamType(d.type); // 이게 영역 행을 비우므로 반드시 행 복구보다 먼저
+                setExamTime(null);
+                if(d.time)setExamTime(d.time);
+                const wrap=document.getElementById('er-area-rows');
+                if(wrap){wrap.innerHTML='';(d.areas||[]).forEach(a=>addExamAreaRow(a.main,a.sub,a.count))}
+              }},
+};
+const draftOffered=new Set();   // 한 세션에서 같은 폼을 반복해서 묻지 않도록
+let draftSaveTimer=null,lastDraftForm=null;
+
+function draftKey(form){return `bugwang_draft_${form}_${currentStudentId||'anon'}`}
+function draftSnapshot(form){
+  const cfg=DRAFT_FORMS[form];
+  const values={};
+  cfg.ids.forEach(id=>{const el=document.getElementById(id);if(el)values[id]=el.value});
+  return {values,extra:cfg.get?cfg.get():null};
+}
+// select/date는 열자마자 기본값이 차 있어서 "쓰다 만 글"의 근거가 못 된다 — 실제로 타이핑한
+// 내용이나 추가한 줄이 하나라도 있을 때만 초안으로 인정한다(빈 초안을 물어보면 성가심).
+function draftHasContent(snap){
+  const typed=Object.entries(snap.values||{}).some(([id,v])=>{
+    const el=document.getElementById(id);
+    if(!el||el.tagName==='SELECT'||el.type==='date')return false;
+    return String(v??'').trim()!=='';
+  });
+  const ex=snap.extra||{};
+  return typed||(ex.rows||[]).length>0||(ex.areas||[]).length>0;
+}
+function saveDraft(form){
+  const cfg=DRAFT_FORMS[form];
+  if(!cfg||(cfg.skip&&cfg.skip()))return;
+  const snap=draftSnapshot(form);
+  if(!draftHasContent(snap)){clearDraft(form);return}
+  try{localStorage.setItem(draftKey(form),JSON.stringify({savedAt:Date.now(),...snap}))}catch(e){}
+}
+function loadDraft(form){
+  try{
+    const raw=localStorage.getItem(draftKey(form));
+    if(!raw)return null;
+    const d=JSON.parse(raw);
+    if(!d||!d.savedAt||Date.now()-d.savedAt>DRAFT_TTL_MS){clearDraft(form);return null}
+    return d;
+  }catch(e){return null}
+}
+function clearDraft(form){try{localStorage.removeItem(draftKey(form))}catch(e){}}
+function fmtDraftTime(ts){
+  const d=new Date(ts),h=d.getHours();
+  return`${d.getMonth()+1}월 ${d.getDate()}일 ${h<12?'오전':'오후'} ${h%12===0?12:h%12}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+function scheduleDraftSave(form){
+  lastDraftForm=form;
+  clearTimeout(draftSaveTimer);
+  draftSaveTimer=setTimeout(()=>saveDraft(form),700);
+}
+// 폼 컨테이너 하나에만 붙여두면 그 안의 입력칸이 나중에 생겨도(과목 줄/영역 줄 추가) 이벤트가
+// 올라오므로 그대로 잡힌다.
+function attachDraftAutosave(form){
+  const cfg=DRAFT_FORMS[form];
+  const box=cfg&&document.getElementById(cfg.container);
+  if(!box||box.dataset.draftBound)return;
+  box.dataset.draftBound='1';
+  const handler=()=>scheduleDraftSave(form);
+  box.addEventListener('input',handler);
+  box.addEventListener('change',handler);
+}
+function restoreDraft(form,d){
+  Object.entries(d.values||{}).forEach(([id,v])=>{
+    const el=document.getElementById(id);
+    if(el&&v!=null)el.value=v;
+  });
+  const cfg=DRAFT_FORMS[form];
+  if(cfg.set&&d.extra)cfg.set(d.extra);
+  // 복구한 뒤에도 초안은 남겨둔다 — 복구한 상태로 또 새로고침할 수 있으므로, 실제로 글이
+  // 등록됐을 때만 지운다.
+}
+// 폼을 열 때 호출 — 저장된 초안이 있으면 복구할지 물어본다.
+function offerDraftRestore(form){
+  const cfg=DRAFT_FORMS[form];
+  if(!cfg)return;
+  attachDraftAutosave(form);
+  if(cfg.skip&&cfg.skip())return;
+  if(draftOffered.has(form))return; // 한 세션에 한 번만
+  const d=loadDraft(form);
+  if(!d)return;
+  draftOffered.add(form);
+  if(confirm(`${fmtDraftTime(d.savedAt)}에 자동저장된 데이터가 있습니다.\n복구하시겠습니까?`)){
+    restoreDraft(form,d);
+    toast('자동저장된 내용을 불러왔어요');
+  }else{
+    clearDraft(form);
+    toast('자동저장된 내용을 지웠어요');
+  }
+}
+// 글이 실제로 등록되면 초안은 필요 없다(다음에 열 때 또 묻지 않게 세션 표시도 지운다).
+function finishDraft(form){clearDraft(form);draftOffered.delete(form)}
+// 어느 경로로 들어오든(사이드바 이동/탭 전환/새로고침 복원) 타이핑이 항상 저장되도록,
+// 앱이 뜨면 모든 글쓰기 폼에 리스너를 한 번씩 붙여둔다. 붙이기는 컨테이너당 1회만 실행된다.
+document.addEventListener('DOMContentLoaded',()=>Object.keys(DRAFT_FORMS).forEach(attachDraftAutosave));
+
+// 탭을 닫거나 뒤로 갈 땐 디바운스를 기다릴 수 없으므로 즉시 저장한다.
+['visibilitychange','pagehide'].forEach(ev=>document.addEventListener(ev,()=>{
+  if(!lastDraftForm)return;
+  if(ev==='visibilitychange'&&!document.hidden)return;
+  clearTimeout(draftSaveTimer);
+  saveDraft(lastDraftForm);
+}));
 
 const BOARD_SUBMIT_LABEL={free:'게시하기',qna:'질문 올리기',bug:'제보하기'};
 function boardLoader(type){
@@ -8233,6 +8376,7 @@ async function submitPost(type){
   });
   if(error){toast('게시 실패: '+error.message);submitBtn.textContent=label;submitBtn.disabled=false;return}
   contentEl.value='';clearPhoto(type);
+  finishDraft(type);
   submitBtn.textContent=label;submitBtn.disabled=false;
   toast(type==='bug'?'제보됐어요, 확인할게요 ✓':'게시되었습니다 ✓');
   if(type==='free'&&category!==currentFreeCategory)switchFreeCategory(category); // 방금 글쓴 탭으로 바로 이동해서 보여줌
@@ -8743,6 +8887,7 @@ function openStudyCertWritePage(){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById('page-studycert-write').classList.add('active');
   window.scrollTo(0,0);
+  offerDraftRestore('studycert');
 }
 function closeStudyCertWritePage(){
   navigate('free-board'); // page-notice-write의 closeNoticeWritePage()와 동일한 패턴
@@ -8879,6 +9024,7 @@ async function submitStudyCertPost(){
   if(error){await bail('게시 실패: '+error.message);return}
   // 이 글쓰기 페이지는 공부인증 탭의 버튼으로만 들어올 수 있어 currentFreeCategory는 항상
   // 'studycert' — closeStudyCertWritePage()의 navigate('free-board')가 알아서 새로고침해준다.
+  finishDraft('studycert');
   closeStudyCertWritePage();
   toast('공부 인증이 등록되었습니다 ✓');
   triggerNotify('study-cert',{post_id:newPost.id});
@@ -9038,6 +9184,7 @@ function openExamReviewWritePage(){
   document.querySelectorAll('.page').forEach(pg=>pg.classList.remove('active'));
   document.getElementById('page-examreview-write').classList.add('active');
   window.scrollTo(0,0);
+  offerDraftRestore('examreview');
 }
 function closeExamReviewWritePage(){
   currentFreeCategory='examreview'; // 돌아갔을 때 회고 탭이 열려 있도록
@@ -9089,6 +9236,7 @@ async function submitExamReviewPost(){
   });
   btn.textContent='회고 올리기';btn.disabled=false;
   if(error)return fail('게시 실패: '+error.message);
+  finishDraft('examreview');
   closeExamReviewWritePage();
   toast('시험 회고가 등록되었습니다 ✓');
 }

@@ -773,6 +773,21 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .timer-custom-row .modal-input{max-width:150px}
 .timer-hint{margin-top:18px}
 .timer-actions{display:flex;justify-content:center;gap:10px;margin-top:20px}
+/* 쪽잠 알람 소리 정책 박스 — "꼬끼오 알람"처럼 수업 중엔 이어폰으로만 울리게 하기 위한 것 */
+.nap-alarm-box{margin-top:18px;padding:14px;border:1px solid var(--hairline);border-radius:var(--radius-lg);background:var(--parchment);text-align:left}
+.nap-alarm-hd{font-size:12px;font-weight:600;color:var(--ink-48);margin-bottom:9px}
+.nap-alarm-modes{display:flex;gap:6px}
+.nap-mode-btn{flex:1;padding:9px 6px;border:1px solid var(--hairline);border-radius:var(--radius-pill);background:var(--canvas);color:var(--ink-80);font-size:12.5px;transition:all var(--t)}
+.nap-mode-btn.active{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
+.nap-alarm-status{margin-top:10px;font-size:12.5px;line-height:1.5;color:var(--ink-48)}
+.nap-alarm-status.ok{color:var(--blue)}
+.nap-alarm-status.warn{color:#b26a00}
+.nap-alarm-detect{margin-top:9px;width:100%;padding:9px;border:1px dashed var(--hairline);border-radius:var(--radius-pill);background:none;color:var(--ink-48);font-size:12.5px}
+.nap-alarm-detect:hover{border-color:var(--blue);color:var(--blue)}
+/* 소리 없이 화면으로만 알릴 때는 배경이 번쩍여서 눈에 띄게 한다(소리가 못 하는 일을 대신) */
+.timer-alarm-overlay.silent{animation:timer-alarm-flash 1s ease-in-out infinite}
+@keyframes timer-alarm-flash{0%,100%{background:#0b1020}50%{background:#0a66cc}}
+.timer-alarm-note{font-size:13px;color:rgba(255,255,255,.65);max-width:300px;line-height:1.55}
 .timer-alarm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:600;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:#fff;text-align:center;padding:20px}
 .timer-alarm-overlay.open{display:flex}
 .timer-alarm-icon{font-size:64px;animation:timer-alarm-shake .6s ease-in-out infinite}
@@ -1860,7 +1875,16 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
             <button class="btn-primary" onclick="startNapCustom()">시작</button>
           </div>
           <button class="btn-danger" id="nap-cancel-btn" onclick="cancelTimer('nap')" style="display:none;margin-top:14px">취소</button>
-          <div class="card-sub timer-hint">🎧 알림음이 주변에 방해되지 않도록 이어폰을 착용한 상태에서 사용해주세요.</div>
+          <div class="nap-alarm-box">
+            <div class="nap-alarm-hd">🎧 알람 소리</div>
+            <div class="nap-alarm-modes">
+              <button class="nap-mode-btn" id="nap-mode-earphone" onclick="setNapAlarmMode('earphone')">이어폰만</button>
+              <button class="nap-mode-btn" id="nap-mode-always" onclick="setNapAlarmMode('always')">항상 소리</button>
+              <button class="nap-mode-btn" id="nap-mode-silent" onclick="setNapAlarmMode('silent')">화면만</button>
+            </div>
+            <div class="nap-alarm-status" id="nap-alarm-status"></div>
+            <button class="nap-alarm-detect" id="nap-alarm-detect" onclick="requestEarphoneDetection()" style="display:none">이어폰 연결 자동 확인 켜기</button>
+          </div>
         </div>
       </div>
 
@@ -3105,6 +3129,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 <div class="timer-alarm-overlay" id="timer-alarm-overlay">
   <div class="timer-alarm-icon">⏰</div>
   <div class="timer-alarm-title" id="timer-alarm-title">시간이 다 됐어요!</div>
+  <div class="timer-alarm-note" id="timer-alarm-note" style="display:none"></div>
   <button class="btn-primary" onclick="dismissTimerAlarm()">확인</button>
 </div>
 
@@ -3431,7 +3456,8 @@ async function doLogout(){
     localStorage.removeItem('bugwang_last_page');
     clearCountdownStorage('nap');clearCountdownStorage('exam');clearStopwatchStorage();
   }catch(e){}
-  if(alarmInterval){clearInterval(alarmInterval);alarmInterval=null;document.getElementById('timer-alarm-overlay').classList.remove('open')}
+  if(alarmInterval){clearInterval(alarmInterval);alarmInterval=null}
+  document.getElementById('timer-alarm-overlay').classList.remove('open','silent');
   // 다음 로그인한 사람(공용 기기 등)이 이 세션의 타이머 동기화 소켓을 이어받지 않도록 끊는다.
   if(studySocket){try{studySocket.disconnect()}catch(e){} studySocket=null}
   document.getElementById('app-shell').classList.remove('visible');
@@ -6298,6 +6324,7 @@ function renderReport(weekMins = [], rankByStudent = {}){
 // 사람이 봐도 큰 문제가 없는 정보라 학습 타이머처럼 소유자 확인까지는 하지 않는다(그래도
 // 깔끔하게 로그아웃 시엔 지움).
 function switchTimerTab(tab){
+  if(tab==='nap')refreshEarphoneState();
   ['nap','exam','stopwatch'].forEach(t=>{
     document.getElementById(`timer-view-${t}`).style.display=t===tab?'block':'none';
     document.getElementById(`timer-tab-${t}`).classList.toggle('active',t===tab);
@@ -6467,6 +6494,8 @@ function togglePauseTimer(type){
 }
 
 function startCountdown(type,minutes,label,clockStart){
+  unlockAudio(); // 이 호출은 시작 버튼 onclick 안이라 "사용자 제스처" — 여기서 열어둬야 나중에 소리가 난다
+  if(type==='nap')refreshEarphoneState(); // 자는 사이 상태가 바뀔 수 있으니 시작 시점에 한 번 더
   cancelTimer(type); // 이미 돌고 있으면 먼저 정리
   const totalMs=minutes*60*1000;
   beginCountdownUI(type,Date.now()+totalMs,totalMs,label,clockStart);
@@ -6484,15 +6513,18 @@ function resumeCountdownIfAny(type){
   }
   if(saved.endAt<=Date.now()){
     clearCountdownStorage(type);
-    triggerTimerAlarm(type==='nap'?'일어날 시간이에요! ⏰':'시험 시간이 끝났어요! ✍️');
+    triggerTimerAlarm(type==='nap'?'일어날 시간이에요! ⏰':'시험 시간이 끝났어요! ✍️',type);
     return;
   }
   beginCountdownUI(type,saved.endAt,saved.totalMs,saved.label,saved.clockStart);
 }
 
+let napDetectTick=0;
 function tickCountdown(type){
   const t=countdownTimers[type];
   if(!t)return;
+  // 자는 동안 이어폰을 뽑는 경우가 있으므로 쪽잠이 도는 동안엔 15초마다 다시 확인한다.
+  if(type==='nap'&&++napDetectTick%60===0)refreshEarphoneState();
   const remainMs=t.endAt-Date.now();
   const elapsedMs=t.totalMs-remainMs;
   document.getElementById(`${type}-display`).textContent=fmtClock(remainMs/1000);
@@ -6506,7 +6538,7 @@ function tickCountdown(type){
     countdownTimers[type]=null;
     clearCountdownStorage(type);
     resetCountdownUI(type);
-    triggerTimerAlarm(type==='nap'?'일어날 시간이에요! ⏰':'시험 시간이 끝났어요! ✍️');
+    triggerTimerAlarm(type==='nap'?'일어날 시간이에요! ⏰':'시험 시간이 끝났어요! ✍️',type);
   }
 }
 
@@ -6549,12 +6581,108 @@ function startExamTimer(subject,minutes){
   startCountdown('exam',cfg?cfg.minutes:minutes,subject,cfg?cfg.clockStart:null);
 }
 
+// ── 쪽잠 알람 소리 정책 ("꼬끼오 알람" 참고) ──
+// 수업 중에 쪽잠을 자다 깨는 용도라, 알람이 교실 전체에 울리면 안 된다. 그래서 기본값은
+// "이어폰이 꽂혀 있을 때만 소리, 아니면 화면으로만" 이다.
+// ⚠️ 웹에는 "이어폰이 꽂혔는지"를 바로 알려주는 API가 없다. enumerateDevices()로 오디오 장치
+// 목록을 받아 라벨(예: "AirPods", "헤드셋")로 추정하는 게 최선인데, 라벨은 마이크 권한을 한 번
+// 허용해야만 채워진다. 그래서 상태는 yes/no가 아니라 'yes'|'no'|'unknown' 세 가지이고,
+// unknown일 때 무엇이 일어날지를 화면에 그대로 적어준다(모르는 채로 조용히 안 울리는 게 최악).
+let napAlarmMode=(localStorage.getItem('bugwang_nap_alarm_mode')||'earphone');
+let earphoneState='unknown'; // 'yes'|'no'|'unknown'
+
+async function detectEarphones(){
+  try{
+    if(!navigator.mediaDevices||!navigator.mediaDevices.enumerateDevices)return 'unknown';
+    const devs=await navigator.mediaDevices.enumerateDevices();
+    const audio=devs.filter(d=>d.kind==='audiooutput'||d.kind==='audioinput');
+    const labeled=audio.filter(d=>d.label);
+    if(!labeled.length)return 'unknown'; // 권한이 없으면 라벨이 빈 문자열로 온다
+    const re=/headphone|headset|earphone|earbud|airpod|buds|bluetooth|이어폰|헤드폰|헤드셋|에어팟|버즈/i;
+    return labeled.some(d=>re.test(d.label))?'yes':'no';
+  }catch(e){return 'unknown'}
+}
+async function refreshEarphoneState(){
+  earphoneState=await detectEarphones();
+  updateNapAlarmUI();
+  return earphoneState;
+}
+// unknown인 기기(특히 아이폰)에서 사용자가 직접 켜는 옵션 — 마이크 권한을 한 번 허용하면
+// 장치 라벨이 채워져서 이어폰 연결 여부를 알 수 있게 된다. 녹음은 하지 않고 즉시 끈다.
+async function requestEarphoneDetection(){
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    stream.getTracks().forEach(t=>t.stop());
+  }catch(e){
+    toast('권한이 거부돼서 자동 확인을 켤 수 없어요. "항상 소리"를 고르시면 확실히 울려요.');
+    return;
+  }
+  const st=await refreshEarphoneState();
+  toast(st==='yes'?'이어폰이 감지됐어요. 알람은 이어폰으로 울려요.':st==='no'?'지금은 이어폰이 연결돼 있지 않아요.':'이 기기에선 이어폰 연결을 확인할 수 없어요.');
+}
+function setNapAlarmMode(mode){
+  napAlarmMode=mode;
+  try{localStorage.setItem('bugwang_nap_alarm_mode',mode)}catch(e){}
+  unlockAudio(); // 버튼을 누른 지금이 오디오를 열어둘 수 있는 "사용자 제스처" 순간이다
+  refreshEarphoneState();
+}
+// 알람이 울릴 때 실제로 소리를 낼지 — 화면 표시는 어떤 경우에도 항상 한다.
+function napAlarmShouldSound(){
+  if(napAlarmMode==='always')return true;
+  if(napAlarmMode==='silent')return false;
+  return earphoneState==='yes'; // 확실히 이어폰일 때만. 모르면 안 울린다(교실 사고 방지)
+}
+function updateNapAlarmUI(){
+  const box=document.getElementById('nap-alarm-status');
+  if(!box)return;
+  ['earphone','always','silent'].forEach(m=>{
+    document.getElementById('nap-mode-'+m)?.classList.toggle('active',napAlarmMode===m);
+  });
+  const detectBtn=document.getElementById('nap-alarm-detect');
+  let cls='',msg='';
+  if(napAlarmMode==='always'){
+    msg='시간이 되면 스피커로 소리가 나요. 교실에서는 이어폰을 꽂아주세요.';
+  }else if(napAlarmMode==='silent'){
+    msg='소리 없이 화면이 번쩍이면서 알려줘요.';
+  }else if(earphoneState==='yes'){
+    cls='ok';msg='이어폰이 연결돼 있어요 → 이어폰으로 소리가 나요.';
+  }else if(earphoneState==='no'){
+    msg='이어폰이 연결돼 있지 않아요 → 소리 없이 화면으로만 알려줘요.';
+  }else{
+    cls='warn';
+    msg='이 기기에선 이어폰 연결을 자동으로 확인할 수 없어요. 지금 이대로면 소리 없이 화면으로만 알려줘요 — 소리로 깨려면 "항상 소리"를 골라주세요.';
+  }
+  box.className='nap-alarm-status'+(cls?' '+cls:'');
+  box.textContent=msg;
+  if(detectBtn)detectBtn.style.display=(napAlarmMode==='earphone'&&earphoneState==='unknown')?'block':'none';
+}
+// 이어폰을 꽂거나 뽑으면 바로 반영(지원하는 브라우저에 한함)
+if(navigator.mediaDevices&&navigator.mediaDevices.addEventListener){
+  try{navigator.mediaDevices.addEventListener('devicechange',()=>refreshEarphoneState())}catch(e){}
+}
+
 // 알람 — 별도 음원 파일 없이 Web Audio API로 비프음을 직접 생성. 한 번만 울리면 자는 사람은
 // 못 들을 수 있으니, "확인"을 누르기 전까지 짧은 간격으로 반복한다.
 let alarmInterval=null;
+
+// ⚠️ 알람이 아예 안 울리던 진짜 원인이 여기였다. 브라우저 자동재생 정책상 AudioContext는
+// "사용자가 화면을 직접 누른 순간"에 만들거나 resume()해야 소리를 낼 수 있는데, 예전 코드는
+// AudioContext를 알람이 울리는 시점(setInterval 콜백 = 제스처 아님)에 처음 만들었다. 그래서
+// suspended 상태로 태어나 osc.start()를 해도 아무 소리가 나지 않았다. 타이머 시작 버튼을
+// 누를 때 미리 열어두고, 무음 버퍼를 한 번 재생해 확실히 활성화한다.
+function unlockAudio(){
+  try{
+    const ctx=playBeep._ctx||(playBeep._ctx=new (window.AudioContext||window.webkitAudioContext)());
+    if(ctx.state==='suspended')ctx.resume();
+    const buf=ctx.createBuffer(1,1,22050);
+    const src=ctx.createBufferSource();
+    src.buffer=buf;src.connect(ctx.destination);src.start(0);
+  }catch(e){}
+}
 function playBeep(){
   try{
     const ctx=playBeep._ctx||(playBeep._ctx=new (window.AudioContext||window.webkitAudioContext)());
+    if(ctx.state==='suspended')ctx.resume(); // 잠깐 백그라운드에 다녀오면 다시 멈춰 있을 수 있다
     const osc=ctx.createOscillator();const gain=ctx.createGain();
     osc.type='sine';osc.frequency.value=880;
     gain.gain.setValueAtTime(0.0001,ctx.currentTime);
@@ -6564,10 +6692,24 @@ function playBeep(){
     osc.start();osc.stop(ctx.currentTime+0.5);
   }catch(e){}
 }
-function triggerTimerAlarm(title){
+// type: 'nap'이면 위의 소리 정책을 따르고, 그 외(모의고사)는 예전처럼 항상 소리를 낸다.
+function triggerTimerAlarm(title,type){
+  const sound=type==='nap'?napAlarmShouldSound():true;
+  const overlay=document.getElementById('timer-alarm-overlay');
   document.getElementById('timer-alarm-title').textContent=title;
-  document.getElementById('timer-alarm-overlay').classList.add('open');
+  overlay.classList.add('open');
+  overlay.classList.toggle('silent',!sound);
+  const note=document.getElementById('timer-alarm-note');
+  if(note){
+    if(sound){note.style.display='none';note.textContent=''}
+    else{
+      note.style.display='';
+      note.textContent=napAlarmMode==='silent'?'설정에 따라 소리 없이 알려드렸어요.'
+        :'이어폰이 확인되지 않아 소리 없이 알려드렸어요.';
+    }
+  }
   syncScreenWakeLock(); // 알람을 끄기 전까진 화면이 꺼지지 않게(끄는 걸 놓치지 않도록)
+  if(!sound)return; // 화면(번쩍임)만으로 알림 — 소리도 진동도 내지 않는다
   playBeep();
   if(navigator.vibrate)navigator.vibrate([300,150,300]);
   clearInterval(alarmInterval);
@@ -6578,7 +6720,8 @@ function triggerTimerAlarm(title){
 }
 function dismissTimerAlarm(){
   clearInterval(alarmInterval);alarmInterval=null;
-  document.getElementById('timer-alarm-overlay').classList.remove('open');
+  const overlay=document.getElementById('timer-alarm-overlay');
+  overlay.classList.remove('open');overlay.classList.remove('silent');
   syncScreenWakeLock();
 }
 
@@ -6647,6 +6790,7 @@ function resumeMiscTimersOnLoad(){
   resumeCountdownIfAny('exam');
   resumeStopwatchIfAny();
   syncScreenWakeLock(); // 이어받은 타이머가 있으면 화면 켜둠도 같이 이어간다
+  refreshEarphoneState();
 }
 
 // ── 푸시 알림 ──

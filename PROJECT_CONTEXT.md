@@ -239,6 +239,30 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-08-25 (5차): **시험 회고 기능 신설** (자유게시판의 5번째 탭 `examreview`).
+  `sw.js`의 `SW_BUILD`도 `2026-08-25-5`로 올림.
+  - **스키마**: `posts.exam_review`(jsonb) 컬럼 추가(마이그레이션 `add_exam_review_to_posts`).
+    과목마다 항목이 완전히 달라서 컬럼을 따로 파지 않고 `study_log`처럼 jsonb 하나에 담는다.
+    공통: `name`(시험 이름)/`type`(korean|math|english|science)/`subject`/`score`/`grade`.
+  - **과목별 항목**(`EXAM_TYPES` 테이블이 어떤 섹션을 보여줄지 결정 — 과목을 추가하려면 여기
+    한 줄만 더하면 됨):
+    - 국어: 시간 부족 여부(`timeShort`) / 못 푼 지문·문제 개수(`unsolved`) /
+      영역별 틀린 개수(`areas[]`, 선택) / 실수한 포인트 / 앞으로 개선할 점
+    - 수학: 못 푼 문제 / 비효율적으로 푼 문제 / 놓친 발상 / 개선 방안
+    - 영어: 핵심 논리 / 핵심 영단어
+    - 탐구: **국어와 같은 구성** + 까먹었던 개념(`forgot`) + 세부 과목명 입력 필수
+      (요청의 "탐구는 똑같이 구성"을 국어 구성으로 해석함 — 다르게 원하면 EXAM_TYPES의
+      `secs`만 바꾸면 된다)
+  - **글쓰기**: 공부인증과 같은 전용 페이지 패턴(`#page-examreview-write`,
+    `openExamReviewWritePage()`/`closeExamReviewWritePage()`). 자유게시판 인라인 폼의 카테고리
+    선택지에서는 studycert와 함께 제외(`FORM_EXCLUDED`)해서 필수 항목 빠진 글이 생기지 않게 함.
+    저장 시 **현재 과목에서 안 쓰는 섹션의 값은 비워서 저장**한다(폼에서 과목을 왔다갔다 하다
+    남은 값이 딸려가는 걸 막음 — 테스트로 확인).
+  - **표시**: `renderExamReviewCard()` — 시험 이름 + 과목/점수/등급 알약, 값이 **있는 항목만**
+    라벨과 함께 그린다(빈 항목이 많아서 전부 그리면 지저분해짐). 영역별 오답은 칩으로.
+    좋아요/댓글/DM 공유·수정·삭제는 기존 게시판 함수를 그대로 재사용(`examreview`를
+    FREE_BOARD_CATEGORIES에 넣었으므로 `boardLoader`/`deletePost`/`submitComment` 등이 그대로 동작).
+  - 필수 입력은 **시험 이름**과 (탐구일 때) **과목명**뿐 — 점수/등급은 아직 모를 수 있어 선택.
 - 2026-08-25 (4차): **공부인증 사진을 선택 항목으로** (요청: "사진 없어도 가능하게").
   `submitStudyCertPost()`의 사진 필수 검증을 없애고 라벨도 "인증 사진 (필수 …)" →
   "(선택 …)"으로 바꿨다. 사진이 없으면 `image_url`/`image_urls`에 `null`을 넣는다

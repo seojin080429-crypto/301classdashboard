@@ -866,6 +866,29 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .sc-avatar img{width:100%;height:100%;object-fit:cover}
 .sc-name{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sc-time-val{font-weight:700;color:var(--ig-blue)}
+/* ── 시험 회고(examreview) ── */
+.er-type-row{display:flex;gap:6px;flex-wrap:wrap}
+.er-type-btn{flex:1;min-width:64px;padding:9px 6px;border:1px solid var(--hairline);border-radius:var(--radius-pill);background:var(--canvas);color:var(--ink-80);font-size:13px;transition:all var(--t)}
+.er-type-btn.active{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
+.er-grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.er-optional{font-weight:400;color:var(--ink-48);font-size:11px;margin-left:4px}
+.er-area-row{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.er-area-row .er-area-name{flex:1;min-width:0}
+.er-area-row .er-area-count{width:82px;flex:none;text-align:center}
+.er-area-del{width:30px;height:30px;flex:none;border:none;background:none;color:var(--ink-48);font-size:17px;line-height:1;border-radius:50%}
+.er-area-del:hover{background:rgba(255,59,48,.1);color:#d93025}
+/* 목록 카드 */
+.er-card-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:0 16px 10px}
+.er-exam-name{font-size:16px;font-weight:700;color:var(--ink);letter-spacing:-.02em}
+.er-pill{padding:3px 9px;border-radius:var(--radius-pill);font-size:11.5px;font-weight:600;background:rgba(0,102,204,.12);color:var(--blue)}
+.er-pill.score{background:rgba(52,199,89,.14);color:#1a7f37}
+.er-pill.grade{background:rgba(255,149,0,.16);color:#b26a00}
+.er-fields{padding:0 16px 4px;display:flex;flex-direction:column;gap:10px}
+.er-field-label{font-size:11px;font-weight:700;letter-spacing:.02em;color:var(--ink-48);margin-bottom:3px}
+.er-field-value{font-size:13.5px;line-height:1.6;color:var(--ink);white-space:pre-wrap;word-break:break-word}
+.er-areas{display:flex;flex-wrap:wrap;gap:6px}
+.er-area-chip{padding:3px 9px;border-radius:var(--radius-pill);background:var(--parchment);border:1px solid var(--hairline);font-size:12px;color:var(--ink-80)}
+.er-area-chip strong{color:#d93025;margin-left:3px}
 .sc-thumb{width:34px;height:34px;border-radius:6px;object-fit:cover;cursor:pointer;display:block}
 /* 사진 여러 장 — 목록 썸네일은 첫 장만 보여주고 나머지는 "+N"으로 표시한다(표가 넓어지면
    모바일에서 깨지므로). 전부 보려면 썸네일이나 상세 패널의 사진들을 누르면 된다. */
@@ -1997,6 +2020,10 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
           <button class="btn-ghost" onclick="openRoutineModal()">⏰ 루틴 설정</button>
           <button class="btn-primary" onclick="openStudyCertWritePage()">+ 글쓰기</button>
         </div>
+        <!-- 시험 회고 탭도 공부인증과 같은 전용 페이지 방식 -->
+        <div id="examreview-write-btn" style="display:none;flex-shrink:0">
+          <button class="btn-primary" onclick="openExamReviewWritePage()">+ 회고 쓰기</button>
+        </div>
       </div>
       <!-- 공부인증 탭 상단 — 반 친구들의 오늘 인증 현황을 한눈에(네모박스, 가로 스크롤) -->
       <div id="study-routine-board" style="display:none"></div>
@@ -2077,6 +2104,129 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         <div class="modal-actions">
           <button class="btn-ghost" onclick="closeStudyCertWritePage()">취소</button>
           <button class="btn-primary" id="sc-submit-btn" onclick="submitStudyCertPost()">인증하기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 시험 회고 글쓰기 전용 페이지. 과목(국어/수학/영어/탐구)마다 물어보는 항목이 완전히
+         달라서, 자유게시판의 인라인 글쓰기 폼 대신 공부인증과 같은 전용 페이지 패턴을 쓴다.
+         입력값은 posts.exam_review(jsonb) 하나에 담고, 화면에는 값이 있는 항목만 그린다. -->
+    <div class="page" id="page-examreview-write">
+      <span class="section-hd-link" onclick="closeExamReviewWritePage()">← 시험 회고로</span>
+      <div class="page-title" style="margin-top:10px">시험 회고 쓰기</div>
+      <div class="page-sub">시험을 돌아보고 다음 시험에서 뭘 바꿀지 남겨보세요</div>
+      <div class="card spacer">
+        <div class="modal-field">
+          <label class="modal-label">시험 이름</label>
+          <input class="modal-input" id="er-name" placeholder="예: 9월 모의고사, 2학기 중간고사">
+        </div>
+        <div class="modal-field">
+          <label class="modal-label">과목</label>
+          <div class="er-type-row">
+            <button class="er-type-btn" id="er-type-korean" onclick="setExamType('korean')">국어</button>
+            <button class="er-type-btn" id="er-type-math" onclick="setExamType('math')">수학</button>
+            <button class="er-type-btn" id="er-type-english" onclick="setExamType('english')">영어</button>
+            <button class="er-type-btn" id="er-type-science" onclick="setExamType('science')">탐구</button>
+          </div>
+          <input class="modal-input" id="er-subject-detail" placeholder="탐구 과목명 (예: 생명과학Ⅰ)" style="display:none;margin-top:8px">
+        </div>
+        <div class="modal-field er-grid2">
+          <div>
+            <label class="modal-label">점수 <span class="er-optional">선택</span></label>
+            <input class="modal-input" type="number" id="er-score" min="0" max="200" placeholder="예: 88">
+          </div>
+          <div>
+            <label class="modal-label">등급 <span class="er-optional">선택</span></label>
+            <select class="modal-input" id="er-grade">
+              <option value="">아직 몰라요</option>
+              <option value="1">1등급</option><option value="2">2등급</option><option value="3">3등급</option>
+              <option value="4">4등급</option><option value="5">5등급</option><option value="6">6등급</option>
+              <option value="7">7등급</option><option value="8">8등급</option><option value="9">9등급</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 국어·탐구 공통: 시간 / 못 푼 개수 / 영역별 틀린 개수(선택) -->
+        <div id="er-sec-common" style="display:none">
+          <div class="modal-field">
+            <label class="modal-label">시간이 부족했나요?</label>
+            <div class="er-type-row">
+              <button class="er-type-btn" id="er-time-short" onclick="setExamTime('short')">부족했어요</button>
+              <button class="er-type-btn" id="er-time-ok" onclick="setExamTime('ok')">충분했어요</button>
+            </div>
+          </div>
+          <div class="modal-field">
+            <label class="modal-label" id="er-unsolved-label">못 푼 지문·문제 개수</label>
+            <input class="modal-input" type="number" id="er-unsolved" min="0" max="200" placeholder="예: 3" style="max-width:130px">
+          </div>
+          <div class="modal-field">
+            <label class="modal-label">영역별 틀린 개수 <span class="er-optional">선택</span></label>
+            <datalist id="er-area-suggest"></datalist>
+            <div id="er-area-rows"></div>
+            <button class="add-subject-btn" style="margin-top:8px;padding:9px" onclick="addExamAreaRow()">+ 영역 추가</button>
+          </div>
+        </div>
+
+        <!-- 수학 -->
+        <div id="er-sec-math" style="display:none">
+          <div class="modal-field">
+            <label class="modal-label">못 푼 문제</label>
+            <textarea class="form-textarea" id="er-math-unsolved" placeholder="예: 21번, 28번, 30번" style="min-height:56px"></textarea>
+          </div>
+          <div class="modal-field">
+            <label class="modal-label">풀었지만 비효율적으로 푼 문제</label>
+            <textarea class="form-textarea" id="er-math-inefficient" placeholder="예: 15번 — 노가다로 풀어서 5분 넘게 씀" style="min-height:56px"></textarea>
+          </div>
+          <div class="modal-field">
+            <label class="modal-label">놓친 발상</label>
+            <textarea class="form-textarea" id="er-math-idea" placeholder="예: 21번 — 그래프 개형 먼저 그렸어야 했다" style="min-height:56px"></textarea>
+          </div>
+          <div class="modal-field">
+            <label class="modal-label">앞으로 개선 방안</label>
+            <textarea class="form-textarea" id="er-math-improve" placeholder="예: 4점 문제 3분 넘으면 넘기고 나중에 돌아오기" style="min-height:56px"></textarea>
+          </div>
+        </div>
+
+        <!-- 영어 -->
+        <div id="er-sec-english" style="display:none">
+          <div class="modal-field">
+            <label class="modal-label">핵심 논리</label>
+            <textarea class="form-textarea" id="er-eng-logic" placeholder="예: 34번 — 빈칸 앞뒤 대조 구조를 놓침" style="min-height:70px"></textarea>
+          </div>
+          <div class="modal-field">
+            <label class="modal-label">핵심 영단어</label>
+            <textarea class="form-textarea" id="er-eng-words" placeholder="예: inevitable(불가피한), scrutiny(정밀 조사)" style="min-height:70px"></textarea>
+          </div>
+        </div>
+
+        <!-- 탐구 전용 -->
+        <div id="er-sec-science" style="display:none">
+          <div class="modal-field">
+            <label class="modal-label">까먹었던 개념</label>
+            <textarea class="form-textarea" id="er-forgot" placeholder="예: 감수분열 2기 염색체 수, 하디-바인베르크 조건" style="min-height:70px"></textarea>
+          </div>
+        </div>
+
+        <!-- 국어·탐구 마무리 -->
+        <div id="er-sec-reflect" style="display:none">
+          <div class="modal-field">
+            <label class="modal-label">실수한 포인트</label>
+            <textarea class="form-textarea" id="er-mistakes" placeholder="예: 선지 '모두'를 놓치고 골랐다" style="min-height:56px"></textarea>
+          </div>
+          <div class="modal-field">
+            <label class="modal-label">앞으로 개선할 점</label>
+            <textarea class="form-textarea" id="er-improve" placeholder="예: 독서 지문은 문단마다 한 줄 요약하며 읽기" style="min-height:56px"></textarea>
+          </div>
+        </div>
+
+        <div class="modal-field">
+          <label class="modal-label">한마디 <span class="er-optional">선택</span></label>
+          <textarea class="form-textarea" id="er-content" placeholder="시험 전체에 대한 한마디" style="min-height:48px"></textarea>
+        </div>
+        <div class="auth-error" id="er-error"></div>
+        <div class="modal-actions">
+          <button class="btn-ghost" onclick="closeExamReviewWritePage()">취소</button>
+          <button class="btn-primary" id="er-submit-btn" onclick="submitExamReviewPost()">회고 올리기</button>
         </div>
       </div>
     </div>
@@ -7987,6 +8137,7 @@ function clearPhoto(type){
 const FREE_BOARD_CATEGORIES=[
   {key:'brag',label:'자랑',empty:'아직 자랑거리가 없어요. 첫 글을 남겨보세요!'},
   {key:'studycert',label:'공부인증',empty:'아직 공부 인증이 없어요!'},
+  {key:'examreview',label:'시험 회고',empty:'아직 시험 회고가 없어요. 시험을 봤다면 남겨보세요!'},
   {key:'misc',label:'잡동사니',empty:'아직 글이 없어요.'},
   {key:'tips',label:'정보·팁',empty:'아직 등록된 정보/팁이 없어요.'}
 ];
@@ -8000,14 +8151,19 @@ function renderFreeCategoryTabs(){
   ).join('');
   // 공부인증은 전용 페이지로만 작성하므로(공부 시간 필수 등 구조가 달라서) 일반 글쓰기 폼의
   // 카테고리 선택지에서는 빼서, 이 폼으로 study_seconds 없는 공부인증 글이 만들어지는 걸 막는다.
-  if(selectEl)selectEl.innerHTML=FREE_BOARD_CATEGORIES.filter(c=>c.key!=='studycert').map(c=>`<option value="${c.key}">${c.label}</option>`).join('');
-  // 공부인증 탭은 아래 인라인 글쓰기 폼 대신 전용 버튼들(루틴 설정/글쓰기)과 상단 현황판을 씀
+  // 공부인증/시험 회고는 전용 페이지로만 작성하므로(구조가 완전히 달라서) 일반 글쓰기 폼의
+  // 카테고리 선택지에서는 뺀다 — 이 폼으로 필수 항목이 빠진 글이 만들어지는 걸 막기 위함.
+  const FORM_EXCLUDED=['studycert','examreview'];
+  if(selectEl)selectEl.innerHTML=FREE_BOARD_CATEGORIES.filter(c=>!FORM_EXCLUDED.includes(c.key)).map(c=>`<option value="${c.key}">${c.label}</option>`).join('');
   const isStudyCert=currentFreeCategory==='studycert';
+  const isExamReview=currentFreeCategory==='examreview';
   const writeForm=document.getElementById('free-write-form');
   const scWriteBtn=document.getElementById('studycert-write-btn');
+  const erWriteBtn=document.getElementById('examreview-write-btn');
   const routineBoard=document.getElementById('study-routine-board');
-  if(writeForm)writeForm.style.display=isStudyCert?'none':'';
+  if(writeForm)writeForm.style.display=(isStudyCert||isExamReview)?'none':'';
   if(scWriteBtn)scWriteBtn.style.display=isStudyCert?'flex':'none';
+  if(erWriteBtn)erWriteBtn.style.display=isExamReview?'flex':'none';
   if(routineBoard)routineBoard.style.display=isStudyCert?'block':'none';
   if(isStudyCert)renderStudyRoutineBoard();
 }
@@ -8708,6 +8864,232 @@ async function submitStudyCertPost(){
   triggerNotify('study-cert',{post_id:newPost.id});
 }
 
+// ── 시험 회고 (examreview) ──
+// 과목별로 물어보는 항목이 달라서(국어/탐구는 시간·못 푼 개수·영역별 오답, 수학은 못 푼 문제와
+// 발상, 영어는 논리·단어) 한 폼 안에서 섹션을 갈아끼운다. 저장은 posts.exam_review(jsonb) 하나.
+// 탐구는 국어와 같은 구성 + "까먹었던 개념" 칸이 추가된다.
+const EXAM_TYPES={
+  korean :{label:'국어',  secs:['common','reflect'], unsolvedLabel:'못 푼 지문·문제 개수', areas:['화법과작문','언어와매체','독서','문학']},
+  math   :{label:'수학',  secs:['math'],             unsolvedLabel:'못 푼 문제 개수',      areas:[]},
+  english:{label:'영어',  secs:['english'],          unsolvedLabel:'못 푼 문제 개수',      areas:[]},
+  science:{label:'탐구',  secs:['common','science','reflect'], unsolvedLabel:'못 푼 문제 개수', areas:['개념','자료해석','계산','킬러']},
+};
+const EXAM_SECTIONS=['common','math','english','science','reflect'];
+let erType='korean';      // 현재 고른 과목 유형
+let erTimeShort=null;     // 'short' | 'ok' | null
+
+function setExamType(type){
+  if(!EXAM_TYPES[type])return;
+  erType=type;
+  const cfg=EXAM_TYPES[type];
+  Object.keys(EXAM_TYPES).forEach(t=>{
+    document.getElementById('er-type-'+t)?.classList.toggle('active',t===type);
+  });
+  EXAM_SECTIONS.forEach(sec=>{
+    const el=document.getElementById('er-sec-'+sec);
+    if(el)el.style.display=cfg.secs.includes(sec)?'block':'none';
+  });
+  const detail=document.getElementById('er-subject-detail');
+  if(detail)detail.style.display=type==='science'?'block':'none';
+  const unsolvedLabel=document.getElementById('er-unsolved-label');
+  if(unsolvedLabel)unsolvedLabel.textContent=cfg.unsolvedLabel;
+  // 영역 이름 자동완성 목록도 과목에 맞춰 바꿔준다(직접 입력도 가능).
+  const dl=document.getElementById('er-area-suggest');
+  if(dl)dl.innerHTML=cfg.areas.map(a=>`<option value="${escHtml(a)}">`).join('');
+}
+function setExamTime(v){
+  erTimeShort=erTimeShort===v?null:v; // 같은 걸 다시 누르면 선택 해제
+  document.getElementById('er-time-short')?.classList.toggle('active',erTimeShort==='short');
+  document.getElementById('er-time-ok')?.classList.toggle('active',erTimeShort==='ok');
+}
+function addExamAreaRow(name,count){
+  const wrap=document.getElementById('er-area-rows');
+  if(!wrap)return;
+  const row=document.createElement('div');
+  row.className='er-area-row';
+  row.innerHTML=`
+    <input class="modal-input er-area-name" list="er-area-suggest" placeholder="영역 (예: 독서)" value="${escHtml(name||'')}">
+    <input class="modal-input er-area-count" type="number" min="0" max="100" placeholder="개수" value="${count!=null?count:''}">
+    <button class="er-area-del" onclick="this.parentElement.remove()" title="이 줄 지우기">×</button>`;
+  wrap.appendChild(row);
+}
+function erAreaRowsData(){
+  return Array.from(document.querySelectorAll('#er-area-rows .er-area-row')).map(r=>({
+    name:r.querySelector('.er-area-name').value.trim(),
+    count:parseInt(r.querySelector('.er-area-count').value,10),
+  })).filter(a=>a.name&&Number.isFinite(a.count));
+}
+
+function openExamReviewWritePage(){
+  document.getElementById('er-name').value='';
+  document.getElementById('er-subject-detail').value='';
+  document.getElementById('er-score').value='';
+  document.getElementById('er-grade').value='';
+  document.getElementById('er-unsolved').value='';
+  document.getElementById('er-area-rows').innerHTML='';
+  ['er-math-unsolved','er-math-inefficient','er-math-idea','er-math-improve',
+   'er-eng-logic','er-eng-words','er-forgot','er-mistakes','er-improve','er-content']
+    .forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
+  erTimeShort=null;setExamTime(null);
+  setExamType('korean');
+  document.getElementById('er-error').style.display='none';
+  document.querySelectorAll('.page').forEach(pg=>pg.classList.remove('active'));
+  document.getElementById('page-examreview-write').classList.add('active');
+  window.scrollTo(0,0);
+}
+function closeExamReviewWritePage(){
+  currentFreeCategory='examreview'; // 돌아갔을 때 회고 탭이 열려 있도록
+  navigate('free-board');
+}
+
+// 이 페이지 입력칸 값을 읽는 짧은 헬퍼(빈 값은 '')
+const erVal=id=>(document.getElementById(id)?.value||'').trim();
+async function submitExamReviewPost(){
+  const errEl=document.getElementById('er-error');
+  errEl.style.display='none';
+  const fail=m=>{errEl.textContent=m;errEl.style.display='block'};
+  const name=erVal('er-name');
+  if(!name)return fail('시험 이름을 입력해주세요');
+  const detail=erVal('er-subject-detail');
+  if(erType==='science'&&!detail)return fail('탐구 과목명을 입력해주세요 (예: 생명과학Ⅰ)');
+  const subject=erType==='science'?detail:EXAM_TYPES[erType].label;
+  const scoreRaw=erVal('er-score'),gradeRaw=erVal('er-grade');
+  const score=scoreRaw===''?null:Number(scoreRaw);
+  const grade=gradeRaw===''?null:Number(gradeRaw);
+  const unsolvedRaw=erVal('er-unsolved');
+  const review={
+    name,type:erType,subject,score,grade,
+    timeShort:erTimeShort,
+    unsolved:unsolvedRaw===''?null:Number(unsolvedRaw),
+    areas:erAreaRowsData(),
+    mistakes:erVal('er-mistakes'),improvements:erVal('er-improve'),
+    mathUnsolved:erVal('er-math-unsolved'),mathInefficient:erVal('er-math-inefficient'),
+    mathIdea:erVal('er-math-idea'),mathImprove:erVal('er-math-improve'),
+    engLogic:erVal('er-eng-logic'),engWords:erVal('er-eng-words'),
+    forgot:erVal('er-forgot'),
+  };
+  // 이 과목에서 쓰지 않는 섹션의 값은 저장하지 않는다(폼을 왔다갔다 하다 남은 값이 딸려가지 않게).
+  const secs=EXAM_TYPES[erType].secs;
+  if(!secs.includes('common')){review.timeShort=null;review.unsolved=null;review.areas=[]}
+  if(!secs.includes('reflect')){review.mistakes='';review.improvements=''}
+  if(!secs.includes('math')){review.mathUnsolved=review.mathInefficient=review.mathIdea=review.mathImprove=''}
+  if(!secs.includes('english')){review.engLogic=review.engWords=''}
+  if(!secs.includes('science'))review.forgot='';
+
+  const btn=document.getElementById('er-submit-btn');
+  btn.textContent='올리는 중...';btn.disabled=true;
+  const content=erVal('er-content')||`${name} ${subject} 회고`;
+  const {error}=await sb.from('posts').insert({
+    user_id:currentUser.id,student_id:currentStudentId,
+    author_name:currentName||currentStudentId+'번',
+    category:'examreview',subject,content,exam_review:review
+  });
+  btn.textContent='회고 올리기';btn.disabled=false;
+  if(error)return fail('게시 실패: '+error.message);
+  closeExamReviewWritePage();
+  toast('시험 회고가 등록되었습니다 ✓');
+}
+
+// 값이 있는 항목만 골라서 카드에 그린다 — 과목마다 빈 항목이 많아서 전부 그리면 지저분해진다.
+function examReviewFields(r){
+  const out=[];
+  const push=(label,value)=>{if(value&&String(value).trim())out.push({label,value:String(value)})};
+  if(r.timeShort)push('시간',r.timeShort==='short'?'⏳ 시간이 부족했어요':'✅ 시간은 충분했어요');
+  if(Number.isFinite(r.unsolved)&&r.unsolved!==null)push(EXAM_TYPES[r.type]?.unsolvedLabel||'못 푼 개수',`${r.unsolved}개`);
+  if(r.areas&&r.areas.length)out.push({label:'영역별 틀린 개수',areas:r.areas});
+  push('못 푼 문제',r.mathUnsolved);
+  push('비효율적으로 푼 문제',r.mathInefficient);
+  push('놓친 발상',r.mathIdea);
+  push('개선 방안',r.mathImprove);
+  push('핵심 논리',r.engLogic);
+  push('핵심 영단어',r.engWords);
+  push('까먹었던 개념',r.forgot);
+  push('실수한 포인트',r.mistakes);
+  push('앞으로 개선할 점',r.improvements);
+  return out;
+}
+function renderExamReviewCard(p,comments=[]){
+  const r=p.exam_review||{};
+  const canManagePost=p.student_id===currentStudentId||isBoardModerator();
+  const authorProfile=boardProfileMap[p.student_id];
+  const authorName=authorProfile?.display_name||p.author_name;
+  const likerIds=boardLikesMap[p.id]||[];
+  const isLiked=likerIds.includes(currentStudentId);
+  const moreMenuHtml=canManagePost?`<div class="post-more-wrap">
+      <button class="post-more-btn" onclick="togglePostMenu(event,'${p.id}')">⋯</button>
+      <div class="post-more-menu" id="post-menu-${p.id}">
+        <button class="post-edit-btn" onclick="closeAllPostMenus();startEditPost('${p.id}','examreview')">수정</button>
+        <button class="post-delete-btn" onclick="closeAllPostMenus();deletePost('${p.id}','','examreview')">삭제</button>
+      </div>
+    </div>`:'';
+  const pills=[
+    `<span class="er-pill">${escHtml(r.subject||p.subject||'')}</span>`,
+    Number.isFinite(r.score)&&r.score!==null?`<span class="er-pill score">${r.score}점</span>`:'',
+    Number.isFinite(r.grade)&&r.grade!==null?`<span class="er-pill grade">${r.grade}등급</span>`:'',
+  ].join('');
+  const fieldsHtml=examReviewFields(r).map(f=>{
+    const body=f.areas
+      ?`<div class="er-areas">${f.areas.map(a=>`<span class="er-area-chip">${escHtml(a.name)}<strong>${a.count}</strong></span>`).join('')}</div>`
+      :`<div class="er-field-value">${escHtml(f.value)}</div>`;
+    return`<div><div class="er-field-label">${f.label}</div>${body}</div>`;
+  }).join('');
+  const commentsHtml=comments.map(c=>{
+    const canManageComment=c.student_id===currentStudentId||isBoardModerator();
+    const commentProfile=boardProfileMap[c.student_id];
+    const commentAuthorName=commentProfile?.display_name||c.author_name;
+    return`<div class="comment-item">
+      <div class="comment-avatar">${avatarHtmlFor(commentAuthorName,commentProfile?.avatar_url)}</div>
+      <div class="comment-body">
+        <div class="comment-meta">
+          <span class="comment-author">${escHtml(commentAuthorName)}</span>
+          <span class="comment-time">${formatRelativeTime(c.created_at)}</span>
+          ${canManageComment?`<button class="comment-edit" onclick="startEditComment('${c.id}','${p.id}','examreview')">수정</button><button class="comment-del" onclick="deleteComment('${c.id}','${p.id}','examreview')">삭제</button>`:''}
+        </div>
+        <div class="comment-text" id="comment-text-${c.id}">${escHtml(c.content)}</div>
+      </div>
+    </div>`;
+  }).join('');
+  return`<div class="qna-card" id="post-${p.id}">
+    <div class="qna-header">
+      <div class="qna-avatar">${avatarHtmlFor(authorName,authorProfile?.avatar_url)}</div>
+      <span class="qna-author">${escHtml(authorName)}</span>
+      <div class="qna-header-spacer"></div>
+      ${moreMenuHtml}
+    </div>
+    <div class="er-card-head">
+      <span class="er-exam-name">${escHtml(r.name||'시험 회고')}</span>
+      ${pills}
+    </div>
+    <div class="er-fields">
+      ${fieldsHtml}
+      <div><div class="er-field-label">한마디</div><div class="er-field-value" id="post-content-${p.id}">${escHtml(p.content)}</div></div>
+    </div>
+    <div class="post-actions">
+      <button class="post-action-btn board-like-btn${isLiked?' liked':''}" id="board-like-btn-${p.id}" onclick="toggleLike('${p.id}')" title="좋아요">
+        <svg viewBox="0 0 24 24"><path d="M12 21s-6.716-4.443-9.192-8.143C.115 9.521 2.044 4 6.731 4c2.126 0 3.215 1.095 4.03 2.258C11.576 5.095 12.664 4 14.79 4 19.476 4 21.405 9.521 21.192 12.857 18.716 16.557 12 21 12 21z"></path></svg>
+      </button>
+      <button class="post-action-btn" onclick="toggleComments('${p.id}')" title="댓글">
+        <svg viewBox="0 0 24 24"><path d="M20.656 17.008a9.993 9.993 0 1 0-3.59 3.615L21 21l-1.192-3.415z"></path></svg>
+      </button>
+      <button class="post-action-btn" onclick="openSharePostModal('${p.id}')" title="DM으로 공유">
+        <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+      </button>
+    </div>
+    <div class="post-body">
+      <span class="board-like-count" id="board-like-count-${p.id}" onclick="viewLikers('${p.id}')">${likerIds.length>0?`좋아요 ${likerIds.length}개`:''}</span>
+      <button class="comment-toggle-btn" onclick="toggleComments('${p.id}')">${comments.length?`댓글 ${comments.length}개 모두 보기`:''}</button>
+      <span class="post-timestamp">${formatRelativeTime(p.created_at)}</span>
+    </div>
+    <div class="comment-section" id="comments-${p.id}" style="display:none">
+      <div class="comment-list" id="comment-list-${p.id}">${commentsHtml}</div>
+      <div class="comment-input-row">
+        <input class="comment-input" id="comment-input-${p.id}" placeholder="댓글을 입력하세요..." onkeydown="if(event.key==='Enter'&&!event.isComposing)submitComment('${p.id}','examreview')">
+        <button class="comment-submit" onclick="submitComment('${p.id}','examreview')">등록</button>
+      </div>
+    </div>
+  </div>`;
+}
+
 // ── 공부 루틴(설정 + 상단 현황판) ──
 // 학생 한 명이 활성 루틴(is_active=true)을 여러 개 가질 수 있고, 반 전체가 서로의 루틴/진행
 // 상황을 볼 수 있다(요청: "일주일이 몇번 안 했을시에 벌칙", "상단에 네모박스로 아이들의 각각
@@ -8943,7 +9325,9 @@ async function loadBoardPosts(category,listElId,emptyMsg,type){
   const commentMap={};(comments||[]).forEach(c=>{if(!commentMap[c.post_id])commentMap[c.post_id]=[];commentMap[c.post_id].push(c)});
   el.innerHTML=type==='studycert'
     ?renderStudyCertTable(posts,commentMap)
-    :posts.map(p=>renderPost(p,type,commentMap[p.id]||[])).join('');
+    :type==='examreview'
+      ?posts.map(p=>renderExamReviewCard(p,commentMap[p.id]||[])).join('')
+      :posts.map(p=>renderPost(p,type,commentMap[p.id]||[])).join('');
 }
 async function loadFreeBoard(){
   renderFreeCategoryTabs();

@@ -867,6 +867,19 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .sc-name{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sc-time-val{font-weight:700;color:var(--ig-blue)}
 .sc-thumb{width:34px;height:34px;border-radius:6px;object-fit:cover;cursor:pointer;display:block}
+/* 사진 여러 장 — 목록 썸네일은 첫 장만 보여주고 나머지는 "+N"으로 표시한다(표가 넓어지면
+   모바일에서 깨지므로). 전부 보려면 썸네일이나 상세 패널의 사진들을 누르면 된다. */
+.sc-thumb-wrap{position:relative;display:inline-block;line-height:0}
+.sc-thumb-more{position:absolute;right:-2px;bottom:-2px;background:rgba(0,0,0,.7);color:#fff;font-size:9px;font-weight:700;line-height:1;padding:2px 4px;border-radius:7px;pointer-events:none}
+.sc-detail-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;margin-bottom:12px}
+.sc-detail-photos img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;border:1px solid var(--hairline);cursor:zoom-in;display:block}
+/* 글쓰기 화면의 첨부 사진 목록(각 장마다 × 로 개별 삭제) */
+.sc-photo-grid{display:none;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;margin-top:10px}
+.sc-photo-grid.has{display:grid}
+.sc-photo-item{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;border:1px solid var(--hairline)}
+.sc-photo-item img{width:100%;height:100%;object-fit:cover;display:block}
+.sc-photo-del{position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center;border:none;padding:0}
+.sc-photo-idx{position:absolute;left:4px;bottom:4px;background:rgba(0,0,0,.55);color:#fff;font-size:10px;font-weight:600;padding:1px 6px;border-radius:7px}
 .sc-content-cell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
 .sc-content-cell.expanded{white-space:pre-wrap;overflow:visible;text-overflow:clip;word-break:break-word}
 .sc-like-btn,.sc-comment-btn{display:flex;align-items:center;gap:4px;background:none;border:none;cursor:pointer;color:var(--ink-48);font-size:12px;padding:2px;max-width:100%;overflow:hidden}
@@ -1305,6 +1318,12 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 #img-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:400;cursor:pointer}
 #img-lightbox.open{display:flex}
 #img-lightbox img{max-width:90vw;max-height:90vh;object-fit:contain;border-radius:var(--radius-md)}
+/* 사진이 여러 장일 때만 나타나는 좌우 이동 버튼과 "3 / 5" 표시 */
+.lb-nav{position:absolute;top:50%;transform:translateY(-50%);width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;font-size:28px;line-height:1;display:none;align-items:center;justify-content:center;border:none;padding:0 0 4px}
+.lb-nav:hover{background:rgba(255,255,255,.28)}
+#lightbox-prev{left:14px}
+#lightbox-next{right:14px}
+.lb-count{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);color:#fff;font-size:13px;background:rgba(0,0,0,.55);padding:5px 13px;border-radius:var(--radius-pill);display:none}
 /* 더보기(⋯) 메뉴 안의 수정/삭제 버튼 — 각 줄을 꽉 채우는 메뉴 아이템 형태 */
 .post-delete-btn,.post-edit-btn{display:block;width:100%;text-align:center;padding:11px 14px;font-size:13px;color:var(--ink);background:none;border:none;border-bottom:1px solid var(--hairline);cursor:pointer;transition:background var(--t)}
 .post-delete-btn{color:#ed4956;border-bottom:none}
@@ -2038,20 +2057,17 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
           </div>
         </div>
         <div class="modal-field">
-          <label class="modal-label">인증 사진 (필수)</label>
+          <label class="modal-label">인증 사진 (필수 · 최대 <span id="sc-photo-max">5</span>장)</label>
           <div class="photo-upload-row">
             <label class="photo-upload-label" for="sc-photo">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
               사진 선택
             </label>
-            <input type="file" id="sc-photo" accept="image/*" style="display:none" onchange="previewPhoto('sc')">
+            <input type="file" id="sc-photo" accept="image/*" multiple style="display:none" onchange="previewScPhotos()">
             <span class="photo-file-name" id="sc-photo-name">파일 없음</span>
-            <button class="photo-clear-btn" id="sc-photo-clear" onclick="clearPhoto('sc')" style="display:none">×</button>
+            <button class="photo-clear-btn" id="sc-photo-clear" onclick="clearScPhotos()" style="display:none">×</button>
           </div>
-          <div class="photo-preview-wrap" id="sc-photo-preview" style="display:none">
-            <img id="sc-photo-img" src="" alt="미리보기" class="photo-preview-img">
-            <video id="sc-photo-video" class="photo-preview-img" controls playsinline style="display:none"></video>
-          </div>
+          <div class="sc-photo-grid" id="sc-photo-grid"></div>
         </div>
         <div class="modal-field">
           <label class="modal-label">한마디 (선택)</label>
@@ -3153,6 +3169,9 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 <!-- 이미지 라이트박스 -->
 <div id="img-lightbox" onclick="closeLightbox()">
   <img id="lightbox-img" src="" alt="">
+  <button class="lb-nav" id="lightbox-prev" onclick="event.stopPropagation();lightboxStep(-1)">‹</button>
+  <button class="lb-nav" id="lightbox-next" onclick="event.stopPropagation();lightboxStep(1)">›</button>
+  <div class="lb-count" id="lightbox-count"></div>
 </div>
 
 <!-- DM 메시지 삭제/수정 메뉴 (모바일 꾹 누르기 / PC 우클릭 시 showDmMsgMenu가 내용을 채우고 위치를 잡음) -->
@@ -8046,18 +8065,20 @@ async function submitPost(type){
 
 async function deletePost(id,imageUrl,type){
   if(!confirm('정말 삭제할까요?'))return;
-  let postAuthorId=null;
+  let postAuthorId=null,postPhotos=[];
   try{
-    const {data:postRow,error}=await sb.from('posts').select('student_id').eq('id',id).single();
+    const {data:postRow,error}=await sb.from('posts').select('student_id,image_url,image_urls').eq('id',id).single();
     if(error){toast('게시글을 찾을 수 없어요');return}
     postAuthorId=postRow?.student_id;
+    postPhotos=postPhotoUrls(postRow);
   }catch(e){toast('게시글 권한 확인에 실패했어요');return}
   const canManagePost=postAuthorId===currentStudentId || isBoardModerator();
   if(!canManagePost){toast('권한이 없습니다');return}
-  if(imageUrl){
-    const parts=imageUrl.split('/board-photos/');
-    if(parts[1])await sb.storage.from('board-photos').remove([parts[1]]);
-  }
+  // 사진이 여러 장일 수 있으므로 DB에서 읽은 목록으로 전부 지운다(인자로 받은 imageUrl은
+  // 그 조회가 실패했을 때를 위한 폴백).
+  const photoPaths=(postPhotos.length?postPhotos:(imageUrl?[imageUrl]:[]))
+    .map(u=>(u||'').split('/board-photos/')[1]).filter(Boolean);
+  if(photoPaths.length)await sb.storage.from('board-photos').remove(photoPaths);
   await sb.from('posts').delete().eq('id',id);
   toast('삭제되었습니다');
   await boardLoader(type)();
@@ -8406,8 +8427,13 @@ function renderStudyCertRow(p,num,comments){
   const nojdCount=votes.filter(v=>v==='nojd').length;
   const myVote=boardVerifyMap[p.id]?.[currentStudentId];
   const commentCount=comments.length;
-  const thumbHtml=p.image_url
-    ?`<img class="sc-thumb" src="${p.image_url}" onclick="openLightbox('${p.image_url}')" alt="인증 사진">`
+  const photos=postPhotoUrls(p);
+  scGalleryMap[p.id]=photos;
+  const thumbHtml=photos.length
+    ?`<span class="sc-thumb-wrap" onclick="openPostGallery('${p.id}',0)">
+        <img class="sc-thumb" src="${photos[0]}" alt="인증 사진">
+        ${photos.length>1?`<span class="sc-thumb-more">+${photos.length-1}</span>`:''}
+      </span>`
     :`<span style="color:var(--ink-48)">-</span>`;
   const moreMenuHtml=canManagePost?`<div class="post-more-wrap">
       <button class="post-more-btn" onclick="togglePostMenu(event,'${p.id}')">⋯</button>
@@ -8458,6 +8484,7 @@ function renderStudyCertRow(p,num,comments){
     <div class="sc-cell sc-cell-flex">${moreMenuHtml}</div>
   </div>
   <div class="sc-comments-panel" id="comments-${p.id}" style="display:none">
+    ${photos.length>1?`<div class="sc-detail-photos">${photos.map((u,i)=>`<img src="${u}" alt="인증 사진 ${i+1}" onclick="openPostGallery('${p.id}',${i})">`).join('')}</div>`:''}
     ${renderStudyLogSummary(p.study_log)}
     <div class="comment-list" id="comment-list-${p.id}">${commentsHtml}</div>
     <div class="comment-input-row">
@@ -8523,7 +8550,7 @@ function openStudyCertWritePage(){
   document.getElementById('sc-log-rows').innerHTML='';
   addScLogRow(); // 바로 입력할 수 있게 빈 줄 하나는 기본으로 둠
   document.getElementById('sc-content').value='';
-  clearPhoto('sc');
+  clearScPhotos();
   document.getElementById('sc-error').style.display='none';
   // 활성 루틴이 있으면 이 인증을 어느 루틴에 연결할지 고를 수 있게 한다(루틴이 여러 개일
   // 수 있어서 자동 연결 대신 선택형으로 — 예: 국어 루틴 인증인데 수학 루틴에 잘못 잡히는 일 방지).
@@ -8570,33 +8597,108 @@ async function loadStudyRecordForCert(){
   const totalSec=rows.reduce((a,r)=>a+r.seconds,0);
   toast(`${dateStr} 기록을 불러왔어요: ${fmtStudySeconds(totalSec)} ✓`);
 }
+// ── 공부인증 사진 여러 장 첨부 ──
+// input[type=file][multiple]은 고를 때마다 files가 통째로 교체되므로(추가가 아니라 대체),
+// 여러 번 나눠 고르는 걸 지원하려면 이렇게 별도 배열에 누적해야 한다. 미리보기 blob URL도
+// 같이 들고 있다가 다시 그릴 때마다 revoke한다(누적되면 메모리 누수).
+const SC_PHOTO_MAX=5;
+const SC_PHOTO_MAX_BYTES=10*1024*1024;
+let scPhotoFiles=[];
+let scPhotoPreviewUrls=[];
+
+function previewScPhotos(){
+  const input=document.getElementById('sc-photo');
+  const picked=Array.from(input.files||[]);
+  input.value=''; // 같은 파일을 다시 고를 수 있게 비운다(누적 방식이라 필수)
+  let over=false;
+  for(const f of picked){
+    if(scPhotoFiles.length>=SC_PHOTO_MAX){over=true;break}
+    if(!f.type.startsWith('image/')){toast('사진만 첨부할 수 있어요');continue}
+    if(f.size>SC_PHOTO_MAX_BYTES){toast(`"${f.name}"은(는) 10MB가 넘어서 뺐어요`);continue}
+    scPhotoFiles.push(f);
+  }
+  if(over)toast(`사진은 최대 ${SC_PHOTO_MAX}장까지예요`);
+  renderScPhotoPreviews();
+}
+function removeScPhoto(i){
+  scPhotoFiles.splice(i,1);
+  renderScPhotoPreviews();
+}
+function clearScPhotos(){
+  scPhotoFiles=[];
+  const input=document.getElementById('sc-photo');
+  if(input)input.value='';
+  renderScPhotoPreviews();
+}
+function renderScPhotoPreviews(){
+  const grid=document.getElementById('sc-photo-grid');
+  if(!grid)return;
+  scPhotoPreviewUrls.forEach(u=>URL.revokeObjectURL(u));
+  scPhotoPreviewUrls=[];
+  grid.innerHTML=scPhotoFiles.map((f,i)=>{
+    const u=URL.createObjectURL(f);
+    scPhotoPreviewUrls.push(u);
+    return`<div class="sc-photo-item">
+      <img src="${u}" alt="첨부 사진 ${i+1}">
+      <span class="sc-photo-idx">${i+1}</span>
+      <button class="sc-photo-del" onclick="removeScPhoto(${i})" title="이 사진 빼기">×</button>
+    </div>`;
+  }).join('');
+  grid.classList.toggle('has',scPhotoFiles.length>0);
+  document.getElementById('sc-photo-name').textContent=scPhotoFiles.length?`${scPhotoFiles.length}장 선택됨`:'파일 없음';
+  document.getElementById('sc-photo-clear').style.display=scPhotoFiles.length?'flex':'none';
+}
+
+// 게시글의 사진 목록 — 새 글은 image_urls(배열), 이 기능 이전 글은 image_url(한 장)만 있다.
+function postPhotoUrls(p){
+  if(p&&Array.isArray(p.image_urls)&&p.image_urls.length)return p.image_urls.filter(Boolean);
+  return p&&p.image_url?[p.image_url]:[];
+}
+// 인라인 onclick에 배열을 넘기면 따옴표 이스케이프가 지저분해지므로 글 id로 참조한다.
+let scGalleryMap={};
+function openPostGallery(postId,idx){openLightboxGallery(scGalleryMap[postId]||[],idx)}
+
 async function submitStudyCertPost(){
   const errEl=document.getElementById('sc-error');
   errEl.style.display='none';
   const logRows=scLogRowsData();
   const studySeconds=logRows.reduce((a,r)=>a+r.seconds,0);
   const studyDate=document.getElementById('sc-date').value||localDateStr();
-  const photoInput=document.getElementById('sc-photo');
-  const file=photoInput.files[0];
-  if(!file){errEl.textContent='인증 사진을 첨부해주세요';errEl.style.display='block';return}
+  if(!scPhotoFiles.length){errEl.textContent='인증 사진을 첨부해주세요';errEl.style.display='block';return}
   if(studySeconds<=0){errEl.textContent='과목별 공부 시간을 입력하거나 학습 기록을 불러와주세요';errEl.style.display='block';return}
   const submitBtn=document.getElementById('sc-submit-btn');
-  submitBtn.textContent='인증하는 중...';submitBtn.disabled=true;
-  const ext=file.name.split('.').pop();
-  const fileName=`img_${currentStudentId}_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-  const{error:upErr}=await sb.storage.from('board-photos').upload(fileName,file);
-  if(upErr){errEl.textContent='사진 업로드 실패: '+upErr.message;errEl.style.display='block';submitBtn.textContent='인증하기';submitBtn.disabled=false;return}
-  const{data:urlData}=sb.storage.from('board-photos').getPublicUrl(fileName);
+  submitBtn.disabled=true;
+  // 한 장이라도 실패하면 이미 올라간 파일은 스토리지에 쓰레기로 남으므로, 실패/중단 시엔
+  // 지금까지 올린 것들을 지우고 되돌린다.
+  const uploadedPaths=[],urls=[];
+  const bail=async(msg)=>{
+    if(uploadedPaths.length){try{await sb.storage.from('board-photos').remove(uploadedPaths)}catch(e){}}
+    errEl.textContent=msg;errEl.style.display='block';
+    submitBtn.textContent='인증하기';submitBtn.disabled=false;
+  };
+  for(let i=0;i<scPhotoFiles.length;i++){
+    const file=scPhotoFiles[i];
+    submitBtn.textContent=scPhotoFiles.length>1?`사진 올리는 중... (${i+1}/${scPhotoFiles.length})`:'인증하는 중...';
+    const ext=(file.name.split('.').pop()||'jpg');
+    const fileName=`img_${currentStudentId}_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+    const{error:upErr}=await sb.storage.from('board-photos').upload(fileName,file);
+    if(upErr){await bail(`사진 업로드 실패(${i+1}번째): `+upErr.message);return}
+    uploadedPaths.push(fileName);
+    urls.push(sb.storage.from('board-photos').getPublicUrl(fileName).data.publicUrl);
+  }
+  submitBtn.textContent='인증하는 중...';
   const content=document.getElementById('sc-content').value.trim()||'오늘도 공부 완료!';
   const{data:newPost,error}=await sb.from('posts').insert({
     user_id:currentUser.id,student_id:currentStudentId,
     author_name:currentName||currentStudentId+'번',
-    category:'studycert',subject:null,content,image_url:urlData.publicUrl,
+    // image_url에는 첫 장을 그대로 넣는다 — 옛 글/다른 화면(게시글 공유 등)이 이 컬럼만
+    // 보고 있어서, 여러 장이 되어도 한 장짜리로는 계속 정상 동작하게 하기 위함.
+    category:'studycert',subject:null,content,image_url:urls[0],image_urls:urls,
     study_seconds:studySeconds,study_date:studyDate,study_log:logRows,
     routine_id:document.getElementById('sc-routine-select')?.value||null
   }).select().single();
   submitBtn.textContent='인증하기';submitBtn.disabled=false;
-  if(error){errEl.textContent='게시 실패: '+error.message;errEl.style.display='block';return}
+  if(error){await bail('게시 실패: '+error.message);return}
   // 이 글쓰기 페이지는 공부인증 탭의 버튼으로만 들어올 수 있어 currentFreeCategory는 항상
   // 'studycert' — closeStudyCertWritePage()의 navigate('free-board')가 알아서 새로고침해준다.
   closeStudyCertWritePage();
@@ -8836,8 +8938,38 @@ async function loadFreeBoard(){
 async function loadQnaBoard(){await loadBoardPosts('qna','qna-list','아직 질문이 없어요!','qna')}
 async function loadBugBoard(){await loadBoardPosts('bug','bug-list','아직 제보된 버그가 없어요.','bug')}
 
-function openLightbox(url){document.getElementById('lightbox-img').src=url;document.getElementById('img-lightbox').classList.add('open')}
+// 라이트박스 — 사진이 여러 장인 게시글을 위해 목록+현재 인덱스를 들고 있는다. 한 장짜리
+// 호출(openLightbox)은 길이 1짜리 목록으로 취급해서 기존 호출부는 그대로 둬도 동작한다.
+let lightboxUrls=[],lightboxIdx=0;
+function openLightbox(url){openLightboxGallery([url],0)}
+function openLightboxGallery(urls,idx){
+  lightboxUrls=(Array.isArray(urls)?urls:[urls]).filter(Boolean);
+  if(!lightboxUrls.length)return;
+  lightboxIdx=Math.min(Math.max(idx||0,0),lightboxUrls.length-1);
+  renderLightbox();
+  document.getElementById('img-lightbox').classList.add('open');
+}
+function renderLightbox(){
+  document.getElementById('lightbox-img').src=lightboxUrls[lightboxIdx]||'';
+  const multi=lightboxUrls.length>1;
+  const prev=document.getElementById('lightbox-prev'),next=document.getElementById('lightbox-next'),cnt=document.getElementById('lightbox-count');
+  if(prev)prev.style.display=multi?'flex':'none';
+  if(next)next.style.display=multi?'flex':'none';
+  if(cnt){cnt.style.display=multi?'block':'none';cnt.textContent=`${lightboxIdx+1} / ${lightboxUrls.length}`}
+}
+function lightboxStep(d){
+  if(lightboxUrls.length<2)return;
+  lightboxIdx=(lightboxIdx+d+lightboxUrls.length)%lightboxUrls.length;
+  renderLightbox();
+}
 function closeLightbox(){document.getElementById('img-lightbox').classList.remove('open')}
+// 키보드(←/→/Esc)로도 넘길 수 있게 — 라이트박스가 열려 있을 때만 가로챈다.
+document.addEventListener('keydown',e=>{
+  if(!document.getElementById('img-lightbox')?.classList.contains('open'))return;
+  if(e.key==='ArrowLeft')lightboxStep(-1);
+  else if(e.key==='ArrowRight')lightboxStep(1);
+  else if(e.key==='Escape')closeLightbox();
+});
 
 // ── ADMIN ──
 async function loadMyRole(){

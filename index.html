@@ -888,7 +888,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
    피드(인스타형 카드)는 그대로 두고, 같은 글을 표 형태로도 볼 수 있게 하는 보기 모드.
    제목을 누르면 그 줄 아래로 본문/사진/개추·비추/댓글이 펼쳐진다(별도 페이지 없이). */
 .bl-wrap{border:1px solid var(--hairline);border-radius:var(--radius-lg);overflow:hidden;background:var(--canvas)}
-.bl-head,.bl-row{display:grid;grid-template-columns:52px 1fr 92px 62px 48px 48px;align-items:center;gap:8px;padding:9px 12px}
+.bl-head,.bl-row{display:grid;grid-template-columns:52px 1fr 88px 92px 46px 46px;align-items:center;gap:8px;padding:9px 12px}
 .bl-head{background:var(--parchment);border-bottom:1px solid var(--hairline);font-size:11.5px;font-weight:600;color:var(--ink-48);text-align:center}
 .bl-head span:nth-child(2){text-align:left}
 .bl-row{border-bottom:1px solid var(--hairline);font-size:12.5px;color:var(--ink-80);text-align:center;cursor:pointer;transition:background var(--t)}
@@ -1395,7 +1395,9 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .comment-text{font-size:14px;color:var(--ink);line-height:1.5;word-break:break-word;white-space:pre-wrap}
 .comment-del{font-size:11px;color:var(--ink-48);background:none;border:none;cursor:pointer;margin-left:auto;flex-shrink:0;transition:color var(--t),transform .12s ease}
 .comment-del:hover{color:#c00}
-.comment-input-row{display:flex;gap:6px}
+.comment-input-row{display:flex;gap:6px;align-items:center}
+.comment-anon-label{display:flex;align-items:center;gap:3px;flex-shrink:0;font-size:11.5px;color:var(--ink-48);cursor:pointer;user-select:none}
+.comment-anon-label input{width:14px;height:14px;accent-color:var(--blue);margin:0}
 .comment-input{flex:1;padding:7px 12px;border:1px solid var(--hairline);border-radius:var(--radius-pill);font-size:13px;color:var(--ink);background:var(--canvas);transition:border-color var(--t)}
 .comment-input:focus{border-color:var(--ig-blue);box-shadow:0 0 0 2px rgba(0,149,246,.12)}
 .comment-input::placeholder{color:var(--ink-48)}
@@ -2146,11 +2148,14 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
           </div>
         </div>
         <div class="modal-field">
-          <label style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink-80);cursor:pointer">
-            <input type="checkbox" id="free-anon" style="width:15px;height:15px;accent-color:var(--blue)">
-            🕶️ 익명으로 쓰기
-            <span style="font-size:11.5px;color:var(--ink-48)">(운영자는 작성자를 확인할 수 있어요)</span>
-          </label>
+          <label class="modal-label">글쓴이 이름</label>
+          <div class="er-type-row">
+            <button class="er-type-btn" id="free-name-real" onclick="setFreeNameMode('real')">내 이름</button>
+            <button class="er-type-btn" id="free-name-pen" onclick="setFreeNameMode('pen')">✒️ 필명</button>
+            <button class="er-type-btn" id="free-name-anon" onclick="setFreeNameMode('anon')">🕶️ 익명(ㅇㅇ)</button>
+          </div>
+          <input class="modal-input" id="free-pen-name" placeholder="필명 (예: 익명의수학러버)" maxlength="16" style="display:none;margin-top:8px">
+          <div style="font-size:11.5px;color:var(--ink-48);margin-top:6px">필명·익명으로 써도 운영자는 실제 작성자를 확인할 수 있어요.</div>
         </div>
         <div class="modal-field">
           <label class="modal-label">사진·동영상 <span style="font-weight:400;color:var(--ink-48);font-size:11px">선택</span></label>
@@ -8247,30 +8252,75 @@ const viewedPosts=new Set();
 // 실제 작성자는 행에 그대로 남아있고 화면에서만 가린다. 운영자(isBoardModerator)는 "익명 풀기"로
 // 볼 수 있다. ⚠️ 완전한 익명은 아니다 — posts를 읽을 수 있으면 개발자도구로 작성자를 볼 수 있음.
 const revealedAnon=new Set();
-function isAnonHidden(p){return !!p.is_anonymous&&!revealedAnon.has(p.id)}
+// ── 댓글 렌더(4군데에서 같은 모양을 쓰므로 공용 함수로) ──
+// 익명 댓글은 글쓴이 이름만 ㅇㅇ으로 가린다(댓글은 필명 없이 ㅇㅇ만 — 요청).
+function commentAuthorView(c){
+  const profile=boardProfileMap[c.student_id];
+  const realName=profile?.display_name||c.author_name;
+  if(!c.is_anonymous)return {name:realName,avatarUrl:profile?.avatar_url,masked:false,realName};
+  if(revealedAnon.has(c.id))return {name:realName,avatarUrl:profile?.avatar_url,masked:true,revealed:true,realName};
+  return {name:'ㅇㅇ',avatarUrl:null,masked:true,realName};
+}
+function renderCommentList(comments,postId,type){
+  return(comments||[]).map(c=>{
+    const canManage=c.student_id===currentStudentId||isBoardModerator();
+    const av=commentAuthorView(c);
+    const reveal=c.is_anonymous&&isBoardModerator()
+      ?(revealedAnon.has(c.id)
+        ?`<span class="anon-real">🔓 ${escHtml(c.student_id)}</span>`
+        :`<button class="anon-reveal" onclick="revealAnonAuthor('${c.id}')">🔒 익명 풀기</button>`)
+      :'';
+    return`<div class="comment-item">
+      <div class="comment-avatar">${avatarHtmlFor(av.name,av.avatarUrl)}</div>
+      <div class="comment-body">
+        <div class="comment-meta">
+          <span class="comment-author">${escHtml(av.name)}</span>
+          ${reveal}
+          <span class="comment-time">${formatRelativeTime(c.created_at)}</span>
+          ${canManage?`<button class="comment-edit" onclick="startEditComment('${c.id}','${postId}','${type}')">수정</button><button class="comment-del" onclick="deleteComment('${c.id}','${postId}','${type}')">삭제</button>`:''}
+        </div>
+        <div class="comment-text" id="comment-text-${c.id}">${escHtml(c.content)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+// 댓글 입력줄 — 익명 체크박스를 항상 같이 둔다.
+function renderCommentInputRow(postId,type,extraStyle){
+  return`<div class="comment-input-row"${extraStyle?` style="${extraStyle}"`:''}>
+      <input class="comment-input" id="comment-input-${postId}" placeholder="댓글을 입력하세요..." onkeydown="if(event.key==='Enter'&&!event.isComposing)submitComment('${postId}','${type}')">
+      <label class="comment-anon-label" title="익명(ㅇㅇ)으로 달기">
+        <input type="checkbox" id="comment-anon-${postId}">ㅇㅇ
+      </label>
+      <button class="comment-submit" onclick="submitComment('${postId}','${type}')">등록</button>
+    </div>`;
+}
+
+// 이 글이 실제 작성자를 가리고 있는지(익명이거나 필명이거나)
+function isMaskedPost(p){return !!(p&&(p.is_anonymous||p.pen_name))}
 // 목록/카드에 쓸 표시 이름과 아바타(익명이면 프로필도 감춘다).
 function postAuthorView(p){
   const profile=boardProfileMap[p.student_id];
   const realName=profile?.display_name||p.author_name;
-  if(!p.is_anonymous)return {name:realName,avatarUrl:profile?.avatar_url,anon:false,realName};
-  if(revealedAnon.has(p.id))return {name:realName,avatarUrl:profile?.avatar_url,anon:true,revealed:true,realName};
-  return {name:'ㅇㅇ',avatarUrl:null,anon:true,realName};
+  if(!isMaskedPost(p))return {name:realName,avatarUrl:profile?.avatar_url,masked:false,realName};
+  // 운영자가 풀어본 글은 실제 이름으로 보여주되, 가려진 글이었다는 표시(revealed)를 남긴다.
+  if(revealedAnon.has(p.id))return {name:realName,avatarUrl:profile?.avatar_url,masked:true,revealed:true,realName};
+  // 필명이 있으면 그 이름으로, 없으면(순수 익명) ㅇㅇ으로. 프로필 사진은 어느 쪽이든 가린다.
+  return {name:p.pen_name||'ㅇㅇ',avatarUrl:null,masked:true,pen:!!p.pen_name,realName};
 }
 // 운영자에게만 보이는 "익명 풀기" 버튼(이미 풀었으면 실제 이름을 대신 보여준다).
 function anonRevealHtml(p){
-  if(!p.is_anonymous||!isBoardModerator())return '';
+  if(!isMaskedPost(p)||!isBoardModerator())return '';
   if(revealedAnon.has(p.id)){
     const v=postAuthorView(p);
     return`<span class="anon-real">🔓 ${escHtml(p.student_id)}</span>`;
   }
   return`<button class="anon-reveal" onclick="event.stopPropagation();revealAnonAuthor('${p.id}')">🔒 익명 풀기</button>`;
 }
-function revealAnonAuthor(postId){
+function revealAnonAuthor(id){
   if(!isBoardModerator()){toast('권한이 없습니다');return}
-  revealedAnon.add(postId);
-  // 목록/상세를 다시 그려서 실제 이름이 나오게 한다.
-  const wasOpen=openPostId===postId;
-  if(wasOpen)openBoardPost(postId,true);
+  revealedAnon.add(id); // 글 id일 수도, 댓글 id일 수도 있다(둘 다 이 집합 하나로 관리)
+  if(openPostId)openBoardPost(openPostId,true);
+  else if(document.getElementById('page-study-board')?.classList.contains('active'))loadStudyBoard();
   else loadFreeBoard();
 }
 
@@ -8290,11 +8340,12 @@ function postTitleOf(p){
   const first=(p.content||'').split('\n').find(l=>l.trim())||'(내용 없음)';
   return first.length>60?first.slice(0,60)+'…':first;
 }
-// 오늘 쓴 글은 시:분, 그 전은 월.일 — 목록이 좁아서 둘 다 넣으면 잘린다.
+// 작성일은 날짜와 시간을 함께 보여준다(요청). 예: "08.25 14:32"
 function fmtBoardDate(iso){
-  const d=new Date(iso),now=new Date();
-  if(d.toDateString()===now.toDateString())return`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-  return`${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+  const d=new Date(iso);
+  const mm=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');
+  const hh=String(d.getHours()).padStart(2,'0'),mi=String(d.getMinutes()).padStart(2,'0');
+  return`${mm}.${dd} ${hh}:${mi}`;
 }
 function renderBoardList(posts,commentMap,startNum){
   const first=startNum??posts.length;
@@ -8317,7 +8368,7 @@ function renderBoardRow(p,num,commentCount){
       <span class="bl-title-text">${escHtml(postTitleOf(p))}</span>
       ${commentCount?`<span class="bl-cmt">[${commentCount}]</span>`:''}
     </span>
-    <span class="bl-author">${escHtml(authorName)}${av.revealed?'<span class="anon-badge">익명글</span>':''}</span>
+    <span class="bl-author">${escHtml(authorName)}${av.revealed?`<span class="anon-badge">${p.pen_name?'필명 '+escHtml(p.pen_name):'익명글'}</span>`:''}</span>
     <span class="bl-date">${fmtBoardDate(p.created_at)}</span>
     <span class="bl-view">${views}</span>
     <span class="bl-up${up?' on':''}" id="bl-up-${p.id}">${up||0}</span>
@@ -8369,31 +8420,17 @@ function renderBoardDetail(p,comments){
     ?`<video src="${p.image_url}" controls playsinline></video>`
     :`<img src="${p.image_url}" alt="첨부사진" onclick="openLightbox('${p.image_url}')">`}</div>`:'';
   const mine=myBoardVote(p.id);
-  const commentsHtml=comments.map(c=>{
-    const canManageComment=c.student_id===currentStudentId||isBoardModerator();
-    const cp=boardProfileMap[c.student_id];
-    const cn=cp?.display_name||c.author_name;
-    return`<div class="comment-item">
-      <div class="comment-avatar">${avatarHtmlFor(cn,cp?.avatar_url)}</div>
-      <div class="comment-body">
-        <div class="comment-meta">
-          <span class="comment-author">${escHtml(cn)}</span>
-          <span class="comment-time">${formatRelativeTime(c.created_at)}</span>
-          ${canManageComment?`<button class="comment-edit" onclick="startEditComment('${c.id}','${p.id}','${p.category}')">수정</button><button class="comment-del" onclick="deleteComment('${c.id}','${p.id}','${p.category}')">삭제</button>`:''}
-        </div>
-        <div class="comment-text" id="comment-text-${c.id}">${escHtml(c.content)}</div>
-      </div>
-    </div>`;
-  }).join('');
+  const commentsHtml=renderCommentList(comments,p.id,p.category);
   return`<div class="bl-page">
     <div class="bl-back" onclick="closeBoardPost()">← 목록으로</div>
     <div class="bl-detail-title">${escHtml(postTitleOf(p))}</div>
     <div class="bl-detail-meta">
-      <span>${escHtml(authorName)}${av.revealed?'<span class="anon-badge">익명글</span>':''}</span>
+      <span>${escHtml(authorName)}${av.revealed?`<span class="anon-badge">${p.pen_name?'필명 '+escHtml(p.pen_name):'익명글'}</span>`:''}</span>
       ${anonRevealHtml(p)}
       <span>·</span>
       <span>${formatRelativeTime(p.created_at)}</span><span>·</span>
-      <span>조회 ${p.view_count||0}</span>
+      <span>조회 ${p.view_count||0}</span><span>·</span>
+      <span>공유 <span id="bl-share-count-${p.id}">${p.share_count||0}</span></span>
       <span style="margin-left:auto;display:flex;gap:8px;align-items:center">
         <button class="bl-share" onclick="openSharePostModal('${p.id}')" title="DM으로 공유">
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
@@ -8417,10 +8454,7 @@ function renderBoardDetail(p,comments){
     </div>
     <div class="comment-section" style="display:block">
       <div class="comment-list" id="comment-list-${p.id}">${commentsHtml}</div>
-      <div class="comment-input-row">
-        <input class="comment-input" id="comment-input-${p.id}" placeholder="댓글을 입력하세요..." onkeydown="if(event.key==='Enter'&&!event.isComposing)submitComment('${p.id}','${p.category}')">
-        <button class="comment-submit" onclick="submitComment('${p.id}','${p.category}')">등록</button>
-      </div>
+      ${renderCommentInputRow(p.id,p.category)}
     </div>
   </div>`;
 }
@@ -8542,8 +8576,16 @@ function goFreePage(n){
   loadFreeBoard();
   window.scrollTo(0,0);
 }
+// 공부인증/시험회고도 같은 방식으로 넘긴다.
+let studyPage=1;
+function goStudyPage(n){
+  if(n<1)return;
+  studyPage=n;
+  loadStudyBoard();
+  window.scrollTo(0,0);
+}
 // 1 2 3 … 형태의 페이지 번호. 페이지가 많아지면 현재 페이지 주변 10개만 보여준다.
-function renderPager(total,page){
+function renderPager(total,page,goFn){
   const pages=Math.max(1,Math.ceil(total/POSTS_PER_PAGE));
   if(pages<=1)return'';
   const WINDOW=10;
@@ -8552,7 +8594,7 @@ function renderPager(total,page){
   start=Math.max(1,Math.min(start,end-WINDOW+1));
   const btn=(label,target,opts={})=>
     `<button class="pager-btn${opts.cls||''}"${opts.disabled?' disabled':''}
-      onclick="goFreePage(${target})">${label}</button>`;
+      onclick="${goFn||'goFreePage'}(${target})">${label}</button>`;
   let html='';
   if(page>1){
     html+=btn('◀◀',1,{cls:' pager-arrow'});
@@ -8580,6 +8622,21 @@ function switchFreeTab(t){
   renderFreeTabs();
   loadFreeBoard();
 }
+// 글쓴이 이름 표시 방식: real(내 이름) | pen(필명) | anon(익명 ㅇㅇ)
+let freeNameMode='real';
+function setFreeNameMode(v){
+  freeNameMode=v;
+  ['real','pen','anon'].forEach(k=>document.getElementById('free-name-'+k)?.classList.toggle('active',k===v));
+  const penInput=document.getElementById('free-pen-name');
+  if(penInput){
+    penInput.style.display=v==='pen'?'block':'none';
+    // 마지막에 쓴 필명을 계정에 기억해두고 기본값으로 채워준다(매번 다시 타이핑하지 않게).
+    if(v==='pen'&&!penInput.value)penInput.value=currentUser?.user_metadata?.pen_name||'';
+    if(v==='pen')penInput.focus();
+  }
+  scheduleDraftSave('free');
+}
+
 // 이 글을 어디에 보이게 할지: both(둘 다) | gallery(목록형만) | feed(카드형만)
 let freeShowIn='both';
 function setFreeShowIn(v){
@@ -8593,7 +8650,9 @@ function openFreeWritePage(){
   if(form)form.style.display=''; // 예전 버전에서 숨겨둔 상태가 남아있을 수 있어 항상 되돌린다
   document.getElementById('free-title').value='';
   document.getElementById('free-content').value='';
-  const anon=document.getElementById('free-anon');if(anon)anon.checked=false;
+  const penInput=document.getElementById('free-pen-name');
+  if(penInput)penInput.value='';
+  setFreeNameMode('real');
   setFreeShowIn('both');
   clearPhoto('free');
   document.querySelectorAll('.page').forEach(pg=>pg.classList.remove('active'));
@@ -8618,6 +8677,7 @@ function renderStudyTabs(){
 }
 function switchStudyTab(t){
   studyTab=t;
+  studyPage=1;
   renderStudyTabs();
   loadStudyBoard();
 }
@@ -8638,9 +8698,11 @@ async function loadStudyBoard(){
 const DRAFT_TTL_MS=7*24*60*60*1000; // 일주일 지난 초안은 조용히 버린다
 const DRAFT_FORMS={
   free:      {label:'갤러리 글',    container:'page-free-write',      ids:['free-title','free-content'],
-              get:()=>({anon:!!document.getElementById('free-anon')?.checked,showIn:freeShowIn}),
+              get:()=>({nameMode:freeNameMode,penName:document.getElementById('free-pen-name')?.value||'',showIn:freeShowIn}),
               set:d=>{
-                const el=document.getElementById('free-anon');if(el)el.checked=!!d.anon;
+                const pen=document.getElementById('free-pen-name');
+                if(pen&&d.penName)pen.value=d.penName;
+                if(d.nameMode)setFreeNameMode(d.nameMode);
                 if(d.showIn)setFreeShowIn(d.showIn);
               }},
   qna:       {label:'질문',        container:'qna-write-form',       ids:['qna-subject','qna-content']},
@@ -8839,6 +8901,9 @@ async function submitPost(type){
   const contentEl=document.getElementById(`${type}-content`);
   const content=contentEl.value.trim();
   if(!content){toast('내용을 입력해주세요');return}
+  if(type==='free'&&freeNameMode==='pen'&&!document.getElementById('free-pen-name')?.value.trim()){
+    toast('필명을 입력해주세요');return;
+  }
   const submitBtn=document.getElementById(`${type}-submit-btn`);
   const label=BOARD_SUBMIT_LABEL[type];
   submitBtn.textContent='올리는 중...';submitBtn.disabled=true;
@@ -8866,15 +8931,22 @@ async function submitPost(type){
     category,subject,content,image_url:imageUrl,
     // 제목은 자유게시판 갤러리 목록용 — 다른 게시판에는 입력칸 자체가 없다.
     title:type==='free'?(document.getElementById('free-title')?.value.trim()||null):null,
-    is_anonymous:type==='free'?!!document.getElementById('free-anon')?.checked:false,
+    is_anonymous:type==='free'&&freeNameMode==='anon',
+    pen_name:(type==='free'&&freeNameMode==='pen')?(document.getElementById('free-pen-name')?.value.trim()||null):null,
     show_in:type==='free'?freeShowIn:'both'
   });
   if(error){toast('게시 실패: '+error.message);submitBtn.textContent=label;submitBtn.disabled=false;return}
   contentEl.value='';clearPhoto(type);
   const titleEl=document.getElementById('free-title');
   if(type==='free'&&titleEl)titleEl.value='';
-  const anonEl=document.getElementById('free-anon');
-  if(type==='free'&&anonEl)anonEl.checked=false;
+  // 방금 쓴 필명은 계정에 기억해서 다음 글쓰기 때 기본값으로 채워준다.
+  if(type==='free'&&freeNameMode==='pen'){
+    const pen=document.getElementById('free-pen-name')?.value.trim();
+    if(pen&&pen!==currentUser?.user_metadata?.pen_name){
+      sb.auth.updateUser({data:{...currentUser.user_metadata,pen_name:pen}});
+      if(currentUser)currentUser.user_metadata={...currentUser.user_metadata,pen_name:pen};
+    }
+  }
   finishDraft(type);
   submitBtn.textContent=label;submitBtn.disabled=false;
   toast(type==='bug'?'제보됐어요, 확인할게요 ✓':'게시되었습니다 ✓');
@@ -8958,7 +9030,7 @@ function renderPost(p,type,comments=[]){
   // 보여준다 — 그래야 마이페이지에서 이름을 바꾸면 예전 글에도 바로 반영됨. 탈퇴 등으로
   // user_profiles에 없는 학번이면 스냅샷으로 폴백.
   const av=postAuthorView(p);
-  const authorProfile=av.anon&&!av.revealed?null:boardProfileMap[p.student_id];
+  const authorProfile=av.masked&&!av.revealed?null:boardProfileMap[p.student_id];
   const authorName=av.name;
   const likerIds=boardLikesMap[p.id]||[];
   const isLiked=likerIds.includes(currentStudentId);
@@ -8984,28 +9056,12 @@ function renderPost(p,type,comments=[]){
       <svg viewBox="0 0 24 24"><path d="M12 21s-6.716-4.443-9.192-8.143C.115 9.521 2.044 4 6.731 4c2.126 0 3.215 1.095 4.03 2.258C11.576 5.095 12.664 4 14.79 4 19.476 4 21.405 9.521 21.192 12.857 18.716 16.557 12 21 12 21z"></path></svg>
     </button>`:'';
   const likeCountHtml=showLike?`<span class="board-like-count" id="board-like-count-${p.id}" onclick="viewLikers('${p.id}')">${likeCount>0?`좋아요 ${likeCount}개`:''}</span>`:'';
-  const commentsHtml=comments.map(c=>{
-    const isMyComment=c.student_id===currentStudentId;
-    const canManageComment=isMyComment || isBoardModerator();
-    const commentProfile=boardProfileMap[c.student_id];
-    const commentAuthorName=commentProfile?.display_name || c.author_name;
-    return`<div class="comment-item">
-      <div class="comment-avatar">${avatarHtmlFor(commentAuthorName,commentProfile?.avatar_url)}</div>
-      <div class="comment-body">
-        <div class="comment-meta">
-          <span class="comment-author">${escHtml(commentAuthorName)}</span>
-          <span class="comment-time">${formatRelativeTime(c.created_at)}</span>
-          ${canManageComment?`<button class="comment-edit" onclick="startEditComment('${c.id}','${p.id}','${type}')">수정</button><button class="comment-del" onclick="deleteComment('${c.id}','${p.id}','${type}')">삭제</button>`:''}
-        </div>
-        <div class="comment-text" id="comment-text-${c.id}">${escHtml(c.content)}</div>
-      </div>
-    </div>`;
-  }).join('');
+  const commentsHtml=renderCommentList(comments,p.id,type);
   const commentCount=comments.length;
   return`<div class="qna-card" id="post-${p.id}">
     <div class="qna-header">
       <div class="qna-avatar">${avatarHtmlFor(authorName,authorProfile?.avatar_url)}</div>
-      <span class="qna-author">${escHtml(authorName)}${av.revealed?'<span class="anon-badge">익명글</span>':''}</span>
+      <span class="qna-author">${escHtml(authorName)}${av.revealed?`<span class="anon-badge">${p.pen_name?'필명 '+escHtml(p.pen_name):'익명글'}</span>`:''}</span>
       ${anonRevealHtml(p)}
       ${subjectPill}
       <div class="qna-header-spacer"></div>
@@ -9030,10 +9086,7 @@ function renderPost(p,type,comments=[]){
     </div>
     <div class="comment-section" id="comments-${p.id}" style="display:none">
       <div class="comment-list" id="comment-list-${p.id}">${commentsHtml}</div>
-      <div class="comment-input-row">
-        <input class="comment-input" id="comment-input-${p.id}" placeholder="댓글을 입력하세요..." onkeydown="if(event.key==='Enter'&&!event.isComposing)submitComment('${p.id}','${type}')">
-        <button class="comment-submit" onclick="submitComment('${p.id}','${type}')">등록</button>
-      </div>
+      ${renderCommentInputRow(p.id,type)}
     </div>
   </div>`;
 }
@@ -9092,7 +9145,8 @@ async function confirmSharePostToDm(roomId){
   sharingToDm=true;
   const {data:post,error}=await sb.from('posts').select('*').eq('id',postId).single();
   if(error||!post){toast('게시글을 찾을 수 없어요');sharingToDm=false;return}
-  const authorName=boardProfileMap[post.student_id]?.display_name||post.author_name;
+  // 익명/필명 글은 공유해도 그 이름으로 나가야 한다(여기서 실명을 쓰면 익명이 깨진다).
+  const authorName=postAuthorView(post).name;
   const isVideoAttachment=post.image_url&&(/\/vid_[^/]*$/.test(post.image_url)||(!/\/img_[^/]*$/.test(post.image_url)&&/\.(mp4|webm|mov|m4v|ogg|ogv|avi|wmv|mkv|3gp|flv|mpeg|mpg)(\?|$)/i.test(post.image_url)));
   // DM 메시지 렌더링은 항상 <img>로만 보여주므로(동영상 재생 지원 없음), 동영상 첨부 글은
   // 사진을 옮기지 않고 안내 문구만 붙인다 — 깨진 이미지로 보이는 것보다 낫다.
@@ -9117,6 +9171,9 @@ async function confirmSharePostToDm(roomId){
   if(sendErr){toast('공유 실패: '+sendErr.message);return}
   closeSharePostModal();
   toast('DM으로 공유했어요 ✓');
+  sb.rpc('increment_post_share',{pid:postId}); // 공유수 +1 (남의 글도 올려야 해서 전용 함수)
+  const shareEl=document.getElementById('bl-share-count-'+postId);
+  if(shareEl)shareEl.textContent=(post.share_count||0)+1;
   triggerNotify('dm-message',{message_id:msg.id});
   await loadDmRooms();
 }
@@ -9133,28 +9190,18 @@ async function submitComment(postId,type){
   if(!content)return;
   // 더블 엔터/렉으로 핸들러가 겹쳐 불려도 중복 등록되지 않도록 요청 전에 입력칸을 먼저 비운다.
   inp.value='';
+  const anonBox=document.getElementById(`comment-anon-${postId}`);
+  const isAnon=!!anonBox?.checked;
   const {data,error}=await sb.from('comments').insert({
     post_id:postId,user_id:currentUser.id,
     student_id:currentStudentId,
     author_name:currentName||currentStudentId+'번',
-    content
+    content,is_anonymous:isAnon
   }).select().single();
   if(error){toast('댓글 등록 실패: '+error.message);inp.value=content;return}
-  // 댓글 목록에 바로 추가
+  // 댓글 목록에 바로 추가(익명이면 ㅇㅇ으로)
   const list=document.getElementById(`comment-list-${postId}`);
-  const item=document.createElement('div');item.className='comment-item';
-  item.innerHTML=`
-    <div class="comment-avatar">${avatarHtmlFor(data.author_name,currentAvatarUrl)}</div>
-    <div class="comment-body">
-      <div class="comment-meta">
-        <span class="comment-author">${escHtml(data.author_name)}</span>
-        <span class="comment-time">${formatRelativeTime(data.created_at)}</span>
-        <button class="comment-edit" onclick="startEditComment('${data.id}','${postId}','${type}')">수정</button>
-        <button class="comment-del" onclick="deleteComment('${data.id}','${postId}','${type}')">삭제</button>
-      </div>
-      <div class="comment-text" id="comment-text-${data.id}">${escHtml(data.content)}</div>
-    </div>`;
-  list.appendChild(item);
+  if(list)list.insertAdjacentHTML('beforeend',renderCommentList([data],postId,type));
   // 버튼 카운트 업데이트 — 카드 뷰(.comment-toggle-btn 텍스트)와 공부인증 표 뷰
   // (#sc-comment-count-* 숫자) 둘 다 지원
   const cur=list.children.length;
@@ -9270,23 +9317,7 @@ function renderStudyCertRow(p,num,comments){
         <button class="post-delete-btn" onclick="closeAllPostMenus();deletePost('${p.id}','${p.image_url||''}','studycert')">삭제</button>
       </div>
     </div>`:'';
-  const commentsHtml=comments.map(c=>{
-    const isMyComment=c.student_id===currentStudentId;
-    const canManageComment=isMyComment||isBoardModerator();
-    const commentProfile=boardProfileMap[c.student_id];
-    const commentAuthorName=commentProfile?.display_name||c.author_name;
-    return`<div class="comment-item">
-      <div class="comment-avatar">${avatarHtmlFor(commentAuthorName,commentProfile?.avatar_url)}</div>
-      <div class="comment-body">
-        <div class="comment-meta">
-          <span class="comment-author">${escHtml(commentAuthorName)}</span>
-          <span class="comment-time">${formatRelativeTime(c.created_at)}</span>
-          ${canManageComment?`<button class="comment-edit" onclick="startEditComment('${c.id}','${p.id}','studycert')">수정</button><button class="comment-del" onclick="deleteComment('${c.id}','${p.id}','studycert')">삭제</button>`:''}
-        </div>
-        <div class="comment-text" id="comment-text-${c.id}">${escHtml(c.content)}</div>
-      </div>
-    </div>`;
-  }).join('');
+  const commentsHtml=renderCommentList(comments,p.id,'studycert');
   return`<div class="sc-row" id="post-${p.id}">
     <div class="sc-cell" data-label="번호">${num}</div>
     <div class="sc-cell sc-cell-flex" data-label="작성자">
@@ -9315,10 +9346,7 @@ function renderStudyCertRow(p,num,comments){
     ${photos.length>1?`<div class="sc-detail-photos">${photos.map((u,i)=>`<img src="${u}" alt="인증 사진 ${i+1}" onclick="openPostGallery('${p.id}',${i})">`).join('')}</div>`:''}
     ${renderStudyLogSummary(p.study_log)}
     <div class="comment-list" id="comment-list-${p.id}">${commentsHtml}</div>
-    <div class="comment-input-row">
-      <input class="comment-input" id="comment-input-${p.id}" placeholder="댓글을 입력하세요..." onkeydown="if(event.key==='Enter'&&!event.isComposing)submitComment('${p.id}','studycert')">
-      <button class="comment-submit" onclick="submitComment('${p.id}','studycert')">등록</button>
-    </div>
+    ${renderCommentInputRow(p.id,'studycert')}
   </div>`;
 }
 
@@ -9797,22 +9825,7 @@ function renderExamReviewCard(p,comments=[]){
       :`<div class="er-field-value">${escHtml(f.value)}</div>`;
     return`<div><div class="er-field-label">${f.label}</div>${body}</div>`;
   }).join('');
-  const commentsHtml=comments.map(c=>{
-    const canManageComment=c.student_id===currentStudentId||isBoardModerator();
-    const commentProfile=boardProfileMap[c.student_id];
-    const commentAuthorName=commentProfile?.display_name||c.author_name;
-    return`<div class="comment-item">
-      <div class="comment-avatar">${avatarHtmlFor(commentAuthorName,commentProfile?.avatar_url)}</div>
-      <div class="comment-body">
-        <div class="comment-meta">
-          <span class="comment-author">${escHtml(commentAuthorName)}</span>
-          <span class="comment-time">${formatRelativeTime(c.created_at)}</span>
-          ${canManageComment?`<button class="comment-edit" onclick="startEditComment('${c.id}','${p.id}','examreview')">수정</button><button class="comment-del" onclick="deleteComment('${c.id}','${p.id}','examreview')">삭제</button>`:''}
-        </div>
-        <div class="comment-text" id="comment-text-${c.id}">${escHtml(c.content)}</div>
-      </div>
-    </div>`;
-  }).join('');
+  const commentsHtml=renderCommentList(comments,p.id,'examreview');
   return`<div class="qna-card" id="post-${p.id}">
     <div class="qna-header">
       <div class="qna-avatar">${avatarHtmlFor(authorName,authorProfile?.avatar_url)}</div>
@@ -9846,10 +9859,7 @@ function renderExamReviewCard(p,comments=[]){
     </div>
     <div class="comment-section" id="comments-${p.id}" style="display:none">
       <div class="comment-list" id="comment-list-${p.id}">${commentsHtml}</div>
-      <div class="comment-input-row">
-        <input class="comment-input" id="comment-input-${p.id}" placeholder="댓글을 입력하세요..." onkeydown="if(event.key==='Enter'&&!event.isComposing)submitComment('${p.id}','examreview')">
-        <button class="comment-submit" onclick="submitComment('${p.id}','examreview')">등록</button>
-      </div>
+      ${renderCommentInputRow(p.id,'examreview')}
     </div>
   </div>`;
 }
@@ -10077,7 +10087,9 @@ async function loadBoardPosts(category,listElId,emptyMsg,type){
   const isHot=category==='hot';
   // 갤러리/피드는 서버에서 20개씩 잘라 받고(range), 인기글은 추천 수를 계산해봐야 걸러낼 수
   // 있어서 최근 200개를 받아온 뒤 아래에서 거르고 자른다.
-  const from=(freePage-1)*POSTS_PER_PAGE;
+  const isStudy=['studycert','examreview'].includes(type);
+  const page=isText?freePage:(isStudy?studyPage:1);
+  const from=(page-1)*POSTS_PER_PAGE;
   const query=isText
     ? (isHot
         // 인기글은 "추천 많이 받은 글" 모음이라 올릴 곳(show_in)과 무관하게 전부 대상으로 본다.
@@ -10086,12 +10098,15 @@ async function loadBoardPosts(category,listElId,emptyMsg,type){
         : sb.from('posts').select('*',{count:'exact'}).in('category',TEXT_CATEGORIES)
             .in('show_in',freeTab==='feed'?['both','feed']:['both','gallery'])
             .order('created_at',{ascending:false}).range(from,from+POSTS_PER_PAGE-1))
-    : sb.from('posts').select('*').eq('category',category).order('created_at',{ascending:false}).limit(30);
+    : isStudy
+      ? sb.from('posts').select('*',{count:'exact'}).eq('category',category).order('created_at',{ascending:false}).range(from,from+POSTS_PER_PAGE-1)
+      : sb.from('posts').select('*').eq('category',category).order('created_at',{ascending:false}).limit(30);
   let {data:posts,count}=await query;
   let total=count??(posts?posts.length:0);
   // 글이 지워져서 마지막 쪽이 비었다면 한 쪽 앞으로 되돌린다(빈 화면 방지).
-  if(isText&&!isHot&&freePage>1&&(!posts||!posts.length)&&total>0){
-    freePage=Math.max(1,Math.ceil(total/POSTS_PER_PAGE));
+  if(page>1&&(!posts||!posts.length)&&total>0&&(isStudy||(isText&&!isHot))){
+    const last=Math.max(1,Math.ceil(total/POSTS_PER_PAGE));
+    if(isStudy)studyPage=last; else freePage=last;
     return loadBoardPosts(category,listElId,emptyMsg,type);
   }
   const el=document.getElementById(listElId);
@@ -10123,7 +10138,8 @@ async function loadBoardPosts(category,listElId,emptyMsg,type){
   const commentMap={};(comments||[]).forEach(c=>{if(!commentMap[c.post_id])commentMap[c.post_id]=[];commentMap[c.post_id].push(c)});
   // 목록의 "번호"는 이 페이지가 아니라 전체 기준으로 매긴다(1쪽 첫 줄 = 전체 개수).
   const startNum=total-from;
-  const pagerHtml=isText?renderPager(total,freePage):'';
+  const pagerHtml=isText?renderPager(total,freePage,'goFreePage')
+    :isStudy?renderPager(total,studyPage,'goStudyPage'):'';
   el.innerHTML=(type==='studycert'
     ?renderStudyCertTable(posts,commentMap)
     :type==='examreview'

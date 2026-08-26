@@ -239,6 +239,27 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-08-25 (17차): **필명 기능 + 공유수 + 익명 댓글 + 공부인증 페이지 넘김 + 작성일에 시간까지**.
+  `sw.js`의 `SW_BUILD`도 `2026-08-25-17`로 올림.
+  - **필명**(마이그레이션 `add_pen_name_to_posts` → `posts.pen_name`): 글쓰기에서 글쓴이 이름을
+    **[내 이름] [✒️ 필명] [🕶️ 익명(ㅇㅇ)]** 중에 고른다(`freeNameMode`). 필명을 고르면 입력칸이
+    뜨고, 마지막에 쓴 필명은 `user_metadata.pen_name`에 기억해 다음 글쓰기 때 자동으로 채운다.
+    표시 이름은 `postAuthorView()`가 한곳에서 결정(익명→ㅇㅇ, 필명→그 이름, 둘 다 프로필 사진은
+    가림). 운영자의 "익명 풀기"는 **필명 글에도** 적용된다(`isMaskedPost`).
+  - **DM 공유 시 익명이 새던 버그**: `confirmSharePostToDm()`이 실제 작성자 이름을 그대로 넣고
+    있어서 익명/필명 글을 공유하면 실명이 드러났다 → `postAuthorView(post).name`으로 교체.
+  - **공유수**(마이그레이션 `add_share_count_to_posts` → `posts.share_count` +
+    `increment_post_share(uuid)` SECURITY DEFINER): DM 공유가 성공하면 +1, 글 상세 메타에
+    `조회 N · 공유 N`으로 보여준다.
+  - **익명 댓글**(마이그레이션 `add_is_anonymous_to_comments` → `comments.is_anonymous`):
+    댓글 입력줄에 `ㅇㅇ` 체크박스. **댓글은 필명 없이 ㅇㅇ만**(요청). 운영자는 댓글에도
+    "익명 풀기"로 실제 작성자를 볼 수 있다(`revealAnonAuthor`가 글/댓글 id를 같은 집합으로 관리).
+    이 김에 4곳에 복붙돼 있던 댓글 목록/입력줄 마크업을 `renderCommentList()`/
+    `renderCommentInputRow()` 공용 함수로 합쳤다(앞으로 댓글 UI는 이 두 함수만 고치면 됨).
+  - **공부인증/시험회고 페이지 넘김**: `studyPage`/`goStudyPage`. `renderPager(total,page,goFn)`가
+    이동 함수명을 받도록 일반화. 갤러리와 동일하게 20개/쪽.
+  - **작성일**에 날짜+시간을 함께 표시(`08.25 14:32`) — 예전엔 오늘이면 시간, 아니면 날짜만
+    보여줬다. 목록의 작성일 칸 폭도 같이 넓혔다.
 - 2026-08-25 (16차): **갤러리 페이지 넘김(20개/쪽) + 글쓰기에서 올릴 곳(갤러리/피드) 선택 +
   갤러리 상세에도 DM 공유 버튼**. `sw.js`의 `SW_BUILD`도 `2026-08-25-16`으로 올림.
   - **페이지 넘김**: `POSTS_PER_PAGE=20`, `freePage`, `goFreePage(n)`, 하단에 디시식 페이저

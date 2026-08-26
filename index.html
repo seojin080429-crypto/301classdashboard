@@ -8313,8 +8313,6 @@ async function openBoardPost(id,silent){
   if(!detail||!list)return;
   openPostId=id;
   list.style.display='none';
-  const form=document.getElementById('free-write-form');
-  if(form)form.style.display='none';
   const btnWrap=document.getElementById('free-write-btn-wrap');
   if(btnWrap)btnWrap.style.display='none';
   detail.style.display='block';
@@ -8527,6 +8525,8 @@ function switchFreeTab(t){
 }
 // 글쓰기는 공부인증처럼 전용 페이지로 이동한다(인라인 폼 → 페이지 전환).
 function openFreeWritePage(){
+  const form=document.getElementById('free-write-form');
+  if(form)form.style.display=''; // 예전 버전에서 숨겨둔 상태가 남아있을 수 있어 항상 되돌린다
   document.getElementById('free-title').value='';
   document.getElementById('free-content').value='';
   const anon=document.getElementById('free-anon');if(anon)anon.checked=false;

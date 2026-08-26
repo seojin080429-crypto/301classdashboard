@@ -893,7 +893,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 
 /* 익명 글 표시 */
 .anon-badge{display:inline-block;font-size:10.5px;font-weight:700;color:#6b46c1;background:rgba(107,70,193,.12);border:1px solid rgba(107,70,193,.25);border-radius:5px;padding:1px 5px;margin-left:4px;vertical-align:middle}
-.anon-reveal{font-size:11px;color:var(--ink-48);background:none;border:1px dashed var(--hairline);border-radius:var(--radius-pill);padding:2px 8px;margin-left:6px}
+.anon-reveal{font-size:11px;color:var(--ink-48);background:none;border:1px dashed var(--hairline);border-radius:var(--radius-pill);padding:2px 8px;margin-left:6px;flex-shrink:0;white-space:nowrap}
 .anon-reveal:hover{border-color:#6b46c1;color:#6b46c1}
 .anon-real{font-size:11.5px;color:#6b46c1;font-weight:600;margin-left:6px}
 
@@ -1410,19 +1410,28 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .comment-item{display:flex;gap:8px;align-items:flex-start;animation:item-in .22s ease both}
 .comment-avatar{width:24px;height:24px;border-radius:50%;background:#1d1d1f;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#fff;flex-shrink:0;margin-top:1px}
 .comment-body{flex:1;min-width:0}
-.comment-meta{display:flex;align-items:center;gap:6px;margin-bottom:2px}
+.comment-meta{display:flex;align-items:center;gap:6px;margin-bottom:2px;flex-wrap:wrap}
 .comment-author{font-size:13px;font-weight:600;color:var(--ink)}
-.comment-time{font-size:11px;color:var(--ink-48)}
+.comment-time{font-size:11px;color:var(--ink-48);flex-shrink:0;white-space:nowrap}
 .comment-text{font-size:14px;color:var(--ink);line-height:1.5;word-break:break-word;white-space:pre-wrap}
 .comment-del{font-size:11px;color:var(--ink-48);background:none;border:none;cursor:pointer;margin-left:auto;flex-shrink:0;transition:color var(--t),transform .12s ease}
 .comment-del:hover{color:#c00}
 .comment-input-row{display:flex;gap:6px;align-items:center}
+/* 답장(대댓글) — 부모 댓글 아래에 ↳ 로 이어 붙인다 */
+.comment-item.is-reply{margin-left:22px;position:relative}
+.comment-reply-arrow{flex-shrink:0;color:var(--ink-48);font-size:13px;line-height:24px;margin-right:-2px}
+.comment-reply-btn{font-size:11px;color:var(--ink-48);background:none;border:none;cursor:pointer;padding:0;flex-shrink:0}
+.comment-reply-btn:hover{color:var(--ig-blue)}
+.comment-reply-box{margin-left:22px}
+.comment-reply-box:empty{display:none}
+/* 글쓴이가 자기 글에 단 댓글 표시 — 익명이면 "ㅇㅇ (작성자)"가 된다 */
+.comment-op{font-size:10px;font-weight:600;padding:1px 6px;border-radius:var(--radius-pill);background:rgba(0,149,246,.12);color:var(--ig-blue);flex-shrink:0}
 .comment-anon-label{display:flex;align-items:center;gap:3px;flex-shrink:0;font-size:11.5px;color:var(--ink-48);cursor:pointer;user-select:none}
 .comment-anon-label input{width:14px;height:14px;accent-color:var(--blue);margin:0}
-.comment-input{flex:1;padding:7px 12px;border:1px solid var(--hairline);border-radius:var(--radius-pill);font-size:13px;color:var(--ink);background:var(--canvas);transition:border-color var(--t)}
+.comment-input{flex:1;min-width:0;padding:9px 14px;border:1px solid var(--hairline);border-radius:var(--radius-pill);font-size:13px;color:var(--ink);background:var(--canvas);transition:border-color var(--t)}
 .comment-input:focus{border-color:var(--ig-blue);box-shadow:0 0 0 2px rgba(0,149,246,.12)}
 .comment-input::placeholder{color:var(--ink-48)}
-.comment-submit{padding:7px 14px;background:var(--ig-blue);color:#fff;font-size:12px;font-weight:600;border-radius:var(--radius-pill);border:none;cursor:pointer;transition:opacity var(--t)}
+.comment-submit{flex-shrink:0;padding:9px 18px;min-height:38px;background:var(--ig-blue);color:#fff;font-size:13px;font-weight:600;border-radius:var(--radius-pill);border:none;cursor:pointer;transition:opacity var(--t)}
 .comment-submit:hover{opacity:.85}
 .likers-modal-item{padding:8px 4px;font-size:14px;color:var(--ink);border-bottom:1px solid var(--hairline)}
 .likers-modal-item:last-child{border-bottom:none}
@@ -8352,6 +8361,8 @@ function showFirstLaunchGuide(){
 // renderPost()가 참조하는 학번→프로필 맵/좋아요 명단 — loadBoardPosts()가 게시판을 불러올
 // 때마다 최신으로 채운다.
 let boardProfileMap={}, boardLikesMap={}, boardVerifyMap={}, boardDownMap={};
+// 댓글에 "작성자" 표시를 달려면 그 댓글이 달린 글의 작성자/익명 여부를 알아야 한다.
+let boardPostMap={};
 
 // ── 게시글 투표(비밀 투표) ──
 // 요청: "게시물 올릴때 투표도 올릴 수 있게 / 투표는 비밀 투표로".
@@ -8463,37 +8474,83 @@ function commentAuthorView(c){
   if(revealedAnon.has(c.id))return {name:realName,avatarUrl:profile?.avatar_url,masked:true,revealed:true,realName};
   return {name:'ㅇㅇ',avatarUrl:null,masked:true,realName};
 }
-function renderCommentList(comments,postId,type){
-  return(comments||[]).map(c=>{
-    const canManage=c.student_id===currentStudentId||isBoardModerator();
-    const av=commentAuthorView(c);
-    const reveal=c.is_anonymous&&isBoardModerator()
-      ?(revealedAnon.has(c.id)
-        ?`<span class="anon-real">🔓 ${escHtml(c.student_id)}</span>`
-        :`<button class="anon-reveal" onclick="revealAnonAuthor('${c.id}')">🔒 익명 풀기</button>`)
-      :'';
-    return`<div class="comment-item">
+// 글쓴이가 자기 글에 단 댓글이면 "(작성자)" 표시를 붙인다(요청: "댓글에 작성자가 대답할경우
+// 익명이여도 ㅇㅇ(작성자)이렇게 보이게 해").
+// ⚠️ 단, **익명/필명 글인데 댓글은 실명으로 단 경우**엔 붙이지 않는다 — 그 배지가
+//    "이 실명 = 익명 글의 글쓴이"를 그대로 알려줘서 익명이 풀려버리기 때문.
+function isPostAuthorComment(c,postId){
+  const post=boardPostMap[postId];
+  if(!post||post.student_id!==c.student_id)return false;
+  if(isMaskedPost(post)&&!c.is_anonymous&&!revealedAnon.has(post.id))return false;
+  return true;
+}
+// 답장은 한 단계만 — 답장에 단 답장도 맨 위 부모 밑에 나란히 붙인다(무한 들여쓰기 방지).
+function commentTree(comments){
+  const byId={};(comments||[]).forEach(c=>{byId[c.id]=c});
+  const roots=[],childrenOf={};
+  (comments||[]).forEach(c=>{
+    let root=c,guard=0;
+    while(root.parent_id&&byId[root.parent_id]&&guard++<10)root=byId[root.parent_id];
+    if(root===c)roots.push(c);
+    else(childrenOf[root.id]=childrenOf[root.id]||[]).push(c);
+  });
+  return{roots,childrenOf};
+}
+function renderCommentItem(c,postId,type,isReply){
+  const canManage=c.student_id===currentStudentId||isBoardModerator();
+  const av=commentAuthorView(c);
+  const reveal=c.is_anonymous&&isBoardModerator()
+    ?(revealedAnon.has(c.id)
+      ?`<span class="anon-real">🔓 ${escHtml(c.student_id)}</span>`
+      :`<button class="anon-reveal" onclick="revealAnonAuthor('${c.id}')">🔒 익명 풀기</button>`)
+    :'';
+  const opBadge=isPostAuthorComment(c,postId)?'<span class="comment-op">작성자</span>':'';
+  return`<div class="comment-item${isReply?' is-reply':''}">
+      ${isReply?'<span class="comment-reply-arrow">↳</span>':''}
       <div class="comment-avatar">${avatarHtmlFor(av.name,av.avatarUrl)}</div>
       <div class="comment-body">
         <div class="comment-meta">
           <span class="comment-author">${escHtml(av.name)}</span>
+          ${opBadge}
           ${reveal}
           <span class="comment-time">${formatRelativeTime(c.created_at)}</span>
+          <button class="comment-reply-btn" onclick="toggleCommentReply('${c.id}','${postId}','${type}')">답장</button>
           ${canManage?`<button class="comment-edit" onclick="startEditComment('${c.id}','${postId}','${type}')">수정</button><button class="comment-del" onclick="deleteComment('${c.id}','${postId}','${type}')">삭제</button>`:''}
         </div>
         <div class="comment-text" id="comment-text-${c.id}">${escHtml(c.content)}</div>
       </div>
     </div>`;
+}
+function renderCommentList(comments,postId,type){
+  const{roots,childrenOf}=commentTree(comments);
+  return roots.map(c=>{
+    const replies=(childrenOf[c.id]||[]).map(r=>renderCommentItem(r,postId,type,true)).join('');
+    // 답장 입력칸은 부모 댓글 묶음의 맨 아래에 열린다(답장들 밑).
+    return renderCommentItem(c,postId,type,false)+replies+`<div class="comment-reply-box" id="reply-box-${c.id}"></div>`;
   }).join('');
 }
+// 답장 입력칸 열기/닫기 — 한 번에 하나만 열어둔다.
+function toggleCommentReply(commentId,postId,type){
+  const box=document.getElementById(`reply-box-${commentId}`);
+  if(!box)return;
+  const open=!!box.innerHTML;
+  document.querySelectorAll('.comment-reply-box').forEach(b=>{b.innerHTML=''});
+  if(open)return;
+  box.innerHTML=renderCommentInputRow(postId,type,'margin-top:8px',commentId);
+  document.getElementById(`comment-input-r-${commentId}`)?.focus();
+}
 // 댓글 입력줄 — 익명 체크박스를 항상 같이 둔다.
-function renderCommentInputRow(postId,type,extraStyle){
+function renderCommentInputRow(postId,type,extraStyle,parentId){
+  // 답장 입력칸은 부모 댓글 id로 구분한다(같은 글에 입력칸이 여러 개 떠 있을 수 있어서).
+  const inputId=parentId?`comment-input-r-${parentId}`:`comment-input-${postId}`;
+  const anonId=parentId?`comment-anon-r-${parentId}`:`comment-anon-${postId}`;
+  const call=`submitComment('${postId}','${type}'${parentId?`,'${parentId}'`:''})`;
   return`<div class="comment-input-row"${extraStyle?` style="${extraStyle}"`:''}>
-      <input class="comment-input" id="comment-input-${postId}" placeholder="댓글을 입력하세요..." onkeydown="if(event.key==='Enter'&&!event.isComposing)submitComment('${postId}','${type}')">
+      <input class="comment-input" id="${inputId}" placeholder="${parentId?'답장을 입력하세요...':'댓글을 입력하세요...'}" onkeydown="if(event.key==='Enter'&&!event.isComposing)${call}">
       <label class="comment-anon-label" title="익명(ㅇㅇ)으로 달기">
-        <input type="checkbox" id="comment-anon-${postId}">ㅇㅇ
+        <input type="checkbox" id="${anonId}">ㅇㅇ
       </label>
-      <button class="comment-submit" onclick="submitComment('${postId}','${type}')">등록</button>
+      <button class="comment-submit" onclick="${call}">${parentId?'답장':'등록'}</button>
     </div>`;
 }
 
@@ -8598,6 +8655,7 @@ async function openBoardPost(id,silent){
     boardPollMap[id]?Promise.resolve():loadPostPolls([id]),
   ]);
   if(!post){detail.innerHTML='<div class="bl-empty">글을 찾을 수 없어요</div>';return}
+  boardPostMap[post.id]=post;
   // 조회수는 한 세션에 글당 한 번만 올린다(들락날락해도 안 올라가게).
   // ⚠️ RPC 응답을 기다렸다가 그리면 화면이 늦어지므로, 화면에는 먼저 +1 한 값을 보여주고
   //    서버 반영은 뒤에서 처리한다(실패해도 화면은 그대로 두되 콘솔에 남긴다).
@@ -9430,32 +9488,37 @@ function toggleComments(postId){
   if(el.style.display==='block')document.getElementById(`comment-input-${postId}`)?.focus();
 }
 
-async function submitComment(postId,type){
-  const inp=document.getElementById(`comment-input-${postId}`);
+// 등록 후에는 목록을 통째로 다시 그린다 — 답장이 부모 밑으로 들어가야 해서 예전처럼
+// 맨 끝에 이어붙이는 방식으로는 위치를 맞출 수 없다.
+async function refreshCommentList(postId,type){
+  const {data}=await sb.from('comments').select('*').eq('post_id',postId).order('created_at');
+  const list=document.getElementById(`comment-list-${postId}`);
+  if(list)list.innerHTML=renderCommentList(data||[],postId,type);
+  const count=(data||[]).length;
+  const card=document.getElementById(`post-${postId}`);
+  const toggleBtn=card?.querySelector('.comment-toggle-btn');
+  if(toggleBtn)toggleBtn.textContent=count?`댓글 ${count}개 모두 보기`:'';
+  const scCount=document.getElementById(`sc-comment-count-${postId}`);
+  if(scCount)scCount.textContent=count||'';
+  return count;
+}
+async function submitComment(postId,type,parentId){
+  const inp=document.getElementById(parentId?`comment-input-r-${parentId}`:`comment-input-${postId}`);
+  if(!inp)return;
   const content=inp.value.trim();
   if(!content)return;
   // 더블 엔터/렉으로 핸들러가 겹쳐 불려도 중복 등록되지 않도록 요청 전에 입력칸을 먼저 비운다.
   inp.value='';
-  const anonBox=document.getElementById(`comment-anon-${postId}`);
+  const anonBox=document.getElementById(parentId?`comment-anon-r-${parentId}`:`comment-anon-${postId}`);
   const isAnon=!!anonBox?.checked;
   const {data,error}=await sb.from('comments').insert({
     post_id:postId,user_id:currentUser.id,
     student_id:currentStudentId,
     author_name:currentName||currentStudentId+'번',
-    content,is_anonymous:isAnon
+    content,is_anonymous:isAnon,parent_id:parentId||null
   }).select().single();
   if(error){toast('댓글 등록 실패: '+error.message);inp.value=content;return}
-  // 댓글 목록에 바로 추가(익명이면 ㅇㅇ으로)
-  const list=document.getElementById(`comment-list-${postId}`);
-  if(list)list.insertAdjacentHTML('beforeend',renderCommentList([data],postId,type));
-  // 버튼 카운트 업데이트 — 카드 뷰(.comment-toggle-btn 텍스트)와 공부인증 표 뷰
-  // (#sc-comment-count-* 숫자) 둘 다 지원
-  const cur=list.children.length;
-  const card=document.getElementById(`post-${postId}`);
-  const toggleBtn=card?.querySelector('.comment-toggle-btn');
-  if(toggleBtn)toggleBtn.textContent=`댓글 ${cur}개 모두 보기`;
-  const scCount=document.getElementById(`sc-comment-count-${postId}`);
-  if(scCount)scCount.textContent=cur||'';
+  await refreshCommentList(postId,type);
   triggerNotify('comment',{comment_id:data.id});
 }
 
@@ -10384,6 +10447,8 @@ async function loadBoardPosts(category,listElId,emptyMsg,type){
   }
   boardVerifyMap={};(verifications||[]).forEach(v=>{(boardVerifyMap[v.post_id]=boardVerifyMap[v.post_id]||{})[v.student_id]=v.vote});
   const commentMap={};(comments||[]).forEach(c=>{if(!commentMap[c.post_id])commentMap[c.post_id]=[];commentMap[c.post_id].push(c)});
+  // 댓글의 "작성자" 표시가 글쓴이/익명 여부를 봐야 하므로 그리기 전에 채워둔다.
+  posts.forEach(pp=>{boardPostMap[pp.id]=pp});
   // 목록의 "번호"는 이 페이지가 아니라 전체 기준으로 매긴다(1쪽 첫 줄 = 전체 개수).
   const startNum=total-from;
   const pagerHtml=isText?renderPager(total,freePage,'goFreePage')

@@ -707,14 +707,17 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .dm-thread-title-btn{cursor:pointer}
 .dm-thread-title-btn:hover{color:var(--blue)}
 /* 채팅방 정보 패널 */
-.dm-info-row{display:flex;align-items:center;gap:10px;width:100%;padding:13px 4px;border:none;background:none;border-bottom:1px solid var(--hairline);font-size:14px;color:var(--ink);text-align:left;cursor:pointer}
+.dm-info-row{display:flex;align-items:center;gap:10px;width:100%;padding:13px 4px;border-radius:var(--radius-sm);border:none;background:none;border-bottom:1px solid var(--hairline);font-size:14px;color:var(--ink);text-align:left;cursor:pointer}
 .dm-info-row:last-child{border-bottom:none}
 .dm-info-row:hover{background:var(--parchment)}
 .dm-info-row.danger{color:#d93025}
 .dm-info-row-desc{margin-left:auto;font-size:12px;color:var(--ink-48)}
-.dm-info-members{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 12px}
-.dm-info-member{display:flex;align-items:center;gap:5px;padding:4px 9px;border-radius:var(--radius-pill);background:var(--parchment);border:1px solid var(--hairline);font-size:12.5px;color:var(--ink-80)}
+.dm-info-members{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 16px}
+.dm-info-member{display:flex;align-items:center;gap:6px;padding:4px 10px 4px 4px;border-radius:var(--radius-pill);background:var(--parchment);border:1px solid var(--hairline);font-size:12.5px;color:var(--ink-80)}
+.dm-info-avatar{width:20px;height:20px;border-radius:50%;background:#1d1d1f;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:#fff;flex-shrink:0}
+.dm-info-avatar img{width:100%;height:100%;object-fit:cover}
 .dm-info-label{font-size:11px;font-weight:700;color:var(--ink-48);letter-spacing:.03em;margin-bottom:6px}
+.dm-info-actions{border-top:1px solid var(--hairline)}
 .dm-leave-btn{font-size:12px;color:var(--ink-48);padding:6px 10px;border-radius:var(--radius-pill);border:1px solid var(--hairline);flex-shrink:0}
 .dm-leave-btn:hover{border-color:#e11d48;color:#e11d48}
 .dm-thread-log{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
@@ -3527,16 +3530,12 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 
 <!-- 채팅방 정보 — 방 이름/ⓘ 를 누르면 열린다(알림 끄기, 초대, 나가기) -->
 <div class="modal-overlay" id="dm-info-modal" onclick="if(event.target===this)closeDmRoomInfo()">
-  <div class="modal-box" style="max-width:380px">
-    <div class="modal-header">
-      <div class="modal-title" id="dm-info-title">채팅방 정보</div>
-      <button class="modal-close" onclick="closeDmRoomInfo()">×</button>
-    </div>
-    <div class="modal-body">
-      <div class="dm-info-label" id="dm-info-members-label">참여자</div>
-      <div class="dm-info-members" id="dm-info-members"></div>
-      <div id="dm-info-actions"></div>
-    </div>
+  <div class="modal" style="max-width:380px">
+    <button class="modal-close" onclick="closeDmRoomInfo()">×</button>
+    <div class="modal-title" id="dm-info-title">채팅방 정보</div>
+    <div class="dm-info-label" id="dm-info-members-label">참여자</div>
+    <div class="dm-info-members" id="dm-info-members"></div>
+    <div class="dm-info-actions" id="dm-info-actions"></div>
   </div>
 </div>
 
@@ -8058,7 +8057,7 @@ async function openDmRoomInfo(){
   document.getElementById('dm-info-members-label').textContent=`참여자 ${(parts||[]).length}명`;
   document.getElementById('dm-info-members').innerHTML=(parts||[]).map(x=>{
     const name=profileMap[x.student_id]?.display_name||x.student_id;
-    return`<span class="dm-info-member">${avatarHtmlFor(name,profileMap[x.student_id]?.avatar_url)}${escHtml(name)}${x.user_id===currentUser.id?' (나)':''}</span>`;
+    return`<span class="dm-info-member"><span class="dm-info-avatar">${avatarHtmlFor(name,profileMap[x.student_id]?.avatar_url)}</span>${escHtml(name)}${x.user_id===currentUser.id?' (나)':''}</span>`;
   }).join('')||'<span class="dm-info-member">—</span>';
   renderDmRoomInfoActions(room);
 }

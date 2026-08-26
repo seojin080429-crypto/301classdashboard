@@ -508,6 +508,12 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
    하고, Apple HIG(44pt)/Material(48dp) 권장에 맞춰 탭 영역을 넉넉히 키운다. max-width가
    아니라 pointer:coarse를 기준으로 삼는 이유: 아이패드는 가로모드/큰 화면에서도 터치
    입력이라 폭 기준 미디어쿼리만으로는 못 잡기 때문. */
+/* iOS는 글자 16px 미만인 입력칸을 누르면 화면을 확대해버리고 되돌아오지 않는다.
+   자주 쓰는 입력칸만 모바일에서 16px로 올려 그 확대를 막는다. */
+@media(max-width:834px){
+  .modal-input,.form-textarea,.form-select,.auth-input,.comment-input,
+  .task-add-input,.calc-cell-input,.calc-cell-select,.sc-log-task{font-size:16px}
+}
 @media(pointer:coarse){
   .task-edit-btn,.task-del-btn{opacity:1;padding:9px}
   .erm-row .task-edit-btn,.erm-row .task-del-btn{padding:8px}
@@ -518,6 +524,11 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
   .modal-close{padding:8px;margin:-8px -8px 0 0}
   .tf-close,.tf-wake{padding:9px 16px}
   .dm-msg-del,.qna-reply-btn,.calc-row-del{padding:6px}
+  /* 최근 추가분 — 답장/투표/채팅방 정보처럼 손가락으로 누르는 것들 */
+  .comment-reply-btn,.comment-edit,.comment-del{padding:6px 4px}
+  .poll-option-btn{padding:13px 14px}
+  .dm-info-row{padding:15px 6px}
+  .bl-row{padding-top:11px;padding-bottom:11px}
 }
 
 /* FULLSCREEN TIMER */
@@ -1021,6 +1032,20 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 /* 공부인증 게시판 표가 모바일에서 가로 스크롤로 잘려 보이는 문제(제보: "폰에서 화면이
    짤리는 문제") — .sc-write-table의 카드형 반응형과 같은 방식으로, 834px 이하에서
    그리드 표 대신 글마다 카드로 세로 쌓는다. */
+/* 아이패드 가로(1024px)는 사이드바를 빼면 표를 펼 폭이 760px쯤뿐이라 원래 min-width(820px)로는
+   가로 스크롤이 생겼다. 카드로 쌓으면 한 건이 한 화면을 다 먹어 오히려 답답해서, 이 구간에서는
+   열 너비만 줄여 표를 그대로 유지한다. */
+@media(min-width:835px) and (max-width:1100px){
+  .sc-table{grid-template-columns:30px 92px 62px 46px minmax(100px,1fr) 116px 56px 76px 34px;min-width:0}
+  .sc-th{padding:8px 5px;font-size:10px}
+  .sc-cell{padding:8px 5px;font-size:12.5px}
+  .sc-avatar{width:22px;height:22px;font-size:9px}
+  .sc-name{font-size:12px}
+  /* ㅇㅈ/ㄴㅇㅈ 두 개가 줄바꿈되면 행 높이가 두 배가 된다 — 한 줄에 들어가게 줄인다 */
+  .sc-vote-btn{padding:3px 5px;font-size:10px;gap:2px}
+  /* 맨 끝 ⋯ 칸은 좌우 여백을 없애야 딱 떨어진다(안 그러면 4px 정도 삐져나가 가로 스크롤) */
+  .sc-cell:last-child{padding-left:0;padding-right:2px}
+}
 @media(max-width:834px){
   .sc-table-wrap{overflow-x:visible;border:none;background:none}
   .sc-table{display:block;min-width:0}
@@ -1176,6 +1201,9 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
     display: flex;
     flex-direction: column; /* 메시지창 내부 레이아웃 수직 정렬 강제 */
   }
+  /* 아이폰 홈 인디케이터(하단 바) 영역에 입력줄이 깔리지 않게 — 노치 없는 기기에선 0이라
+     아무 영향이 없다. */
+  .dm-thread-input-row{padding-bottom:calc(12px + env(safe-area-inset-bottom))}
   .dm-back-btn {
     display: flex;
     align-items: center;
@@ -1271,6 +1299,18 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .mcal-task-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
 .mcal-task-chk{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--ink-48);margin-left:9px}
 .mcal-task-chk input{width:11px;height:11px;accent-color:var(--blue);flex-shrink:0}
+/* 폰에서는 min-width 700px 때문에 달력이 통째로 가로 스크롤이었다 — 한 화면에 7칸이 들어오게
+   줄이고, 좁아서 못 읽는 할 일 제목 대신 색 점만 남긴다(날짜를 누르면 그 날 일지로 간다). */
+@media(max-width:640px){
+  .mcal-weekday-row,.mcal-grid{grid-template-columns:repeat(7,1fr);min-width:0}
+  .mcal-scroll{overflow-x:hidden}
+  .mcal-cell{min-height:56px;padding:3px 2px;overflow:hidden}
+  .mcal-date{flex-direction:column;align-items:center;gap:1px;margin-bottom:3px;font-size:10.5px}
+  .mcal-day-time{font-size:9px}
+  .mcal-task{display:inline-block;margin:0 2px 0 0}
+  .mcal-task-name{font-size:0;gap:0}
+  .mcal-task-chk{display:none}
+}
 .mcal-task-chk input:checked{accent-color:var(--green-dark)}
 /* ── 대학별 환산점수 계산기 (내신 계산기 페이지 안) ──
    원본 단독 HTML의 클래스명(.tab/.pane/.chip/.bar/.vb 등)을 그대로 쓰되, 앱의 다른 화면과
@@ -1357,7 +1397,26 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .admin-role-badge.owner{background:rgba(236,72,189,.12);color:#c026a8}
 .admin-role-badge.admin{background:rgba(0,102,204,.1);color:var(--blue)}
 .admin-role-badge.teacher{background:rgba(46,204,113,.12);color:#1a9c53}
-.admin-table-wrap{overflow-x:auto}
+.admin-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+/* 열이 많아 폰에서 다 못 담는 표(대학별 환산점수 등)는 옆으로 밀 수 있다는 걸 알려준다 */
+.wide-table-hint{display:none;font-size:11px;color:var(--ink-48);margin:2px 0 6px}
+@media(max-width:640px){.wide-table-hint{display:block}}
+/* 내신 계산기 표 — 폰에서는 6칸짜리 가로 표 대신 과목 한 줄을 카드 하나로 쌓는다
+   (가로 스크롤하며 등급을 입력하는 건 사실상 못 쓴다). td의 data-label이 라벨이 된다. */
+@media(max-width:640px){
+  .calc-table thead{display:none}
+  .calc-table,.calc-table tbody{display:block;width:100%}
+  .calc-table tr{display:grid;grid-template-columns:1fr 1fr;gap:9px 10px;border:1px solid var(--hairline);border-radius:var(--radius-md);padding:11px;margin-bottom:10px;background:var(--canvas)}
+  /* .admin-table td의 border-bottom을 이기려면 클래스를 하나 더 겹쳐야 한다(같은 특이도면
+     뒤에 오는 .admin-table 규칙이 이긴다). */
+  .admin-table.calc-table td{display:block;border:none;padding:0}
+  .calc-table td[data-label]::before{content:attr(data-label);display:block;font-size:10.5px;font-weight:600;color:var(--ink-48);margin-bottom:3px}
+  .calc-table td[data-label="과목명"],.admin-table.calc-table td[colspan]{grid-column:1/-1}
+  .admin-table.calc-table td.calc-row-actions{grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end;align-items:center}
+  .calc-table .calc-cell-input,.calc-table .calc-cell-select{width:100%}
+  .calc-table .calc-unit-input,.calc-table .calc-grade-input{width:100%}
+  .calc-detail-grid{grid-template-columns:1fr 1fr}
+}
 .admin-table{width:100%;border-collapse:collapse;font-size:13px}
 .admin-table th{padding:9px 12px;text-align:left;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-48);border-bottom:1px solid var(--hairline);white-space:nowrap}
 .admin-table td{padding:12px 12px;border-bottom:1px solid var(--hairline);color:var(--ink);vertical-align:middle}
@@ -2546,7 +2605,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         <div class="view-toggle" id="calc-semester-tabs" style="flex-wrap:wrap"></div>
 
         <div class="admin-table-wrap">
-          <table class="admin-table">
+          <table class="admin-table calc-table">
             <thead>
               <tr><th style="min-width:140px">과목명</th><th>교과군</th><th>단위수</th><th>유형</th><th>등급 / 성취도</th><th></th></tr>
             </thead>
@@ -2615,6 +2674,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         </div>
         <div class="uc-hint">환산점수는 대학마다 만점 척도가 달라 직접 비교가 안 됩니다. 대학 간 비교는 <b>달성률</b>이나 <b>환산등급</b>으로 하세요. 표 머리글을 눌러도 정렬됩니다. 배점표가 일부만 공개된 대학은 점수 대신 <b>환산등급</b>만 나옵니다.</div>
 
+        <div class="wide-table-hint">표를 옆으로 밀면 만점·달성률·환산등급까지 볼 수 있어요 →</div>
         <div class="admin-table-wrap">
           <table class="admin-table uc-table" id="uc-res">
             <thead><tr>
@@ -11715,17 +11775,18 @@ function renderCalcTable(){
       const hasDetail=['raw','mean','sd','dA','dB','dC'].some(k=>r[k]!=null);
       const open=calcDetailOpen.has(`${currentCalcSemester}:${i}`);
       const numCell=(f,label,ph)=>`<label class="calc-detail-f"><span>${label}</span><input class="calc-cell-input" type="number" step="0.1" placeholder="${ph}" value="${r[f]??''}" onchange="updateCalcField(${i},'${f}',this.value)"></label>`;
+      // data-label은 폰에서 표가 카드로 바뀔 때 각 입력칸 위에 붙는 라벨이다(.calc-table 참고).
       return`<tr>
-        <td><input class="calc-cell-input" type="text" value="${escAttr(r.name)}" onchange="updateCalcField(${i},'name',this.value)"></td>
-        <td><select class="calc-cell-select" onchange="updateCalcField(${i},'category',this.value)">${catOptions(r.category)}</select></td>
-        <td><input class="calc-cell-input calc-unit-input" type="number" min="0.5" step="0.5" value="${r.unit}" onchange="updateCalcField(${i},'unit',this.value)"></td>
-        <td><select class="calc-cell-select" onchange="updateCalcField(${i},'type',this.value)">
+        <td data-label="과목명"><input class="calc-cell-input" type="text" value="${escAttr(r.name)}" onchange="updateCalcField(${i},'name',this.value)"></td>
+        <td data-label="교과군"><select class="calc-cell-select" onchange="updateCalcField(${i},'category',this.value)">${catOptions(r.category)}</select></td>
+        <td data-label="단위수"><input class="calc-cell-input calc-unit-input" type="number" min="0.5" step="0.5" value="${r.unit}" onchange="updateCalcField(${i},'unit',this.value)"></td>
+        <td data-label="유형"><select class="calc-cell-select" onchange="updateCalcField(${i},'type',this.value)">
           <option value="general"${r.type==='general'?' selected':''}>일반선택</option>
           <option value="career"${r.type==='career'?' selected':''}>진로선택</option>
           <option value="peart"${r.type==='peart'?' selected':''}>체육·예술</option>
         </select></td>
-        <td>${gradeCell}</td>
-        <td style="white-space:nowrap">
+        <td data-label="${isGeneral?'석차등급':'성취도'}">${gradeCell}</td>
+        <td class="calc-row-actions" style="white-space:nowrap">
           <button class="calc-detail-btn${hasDetail?' has':''}${open?' open':''}" onclick="toggleCalcDetail(${i})" title="원점수·표준편차·분포비율 입력">상세${hasDetail?' ●':''}</button>
           <button class="calc-row-del" onclick="removeCalcSubject(${i})" title="삭제">×</button>
         </td>

@@ -869,6 +869,15 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .sc-avatar img{width:100%;height:100%;object-fit:cover}
 .sc-name{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sc-time-val{font-weight:700;color:var(--ig-blue)}
+/* 페이지 넘김(디시 스타일) — 목록 하단 가운데 */
+.pager{display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:wrap;margin:16px 0 4px}
+.pager-btn{min-width:28px;height:28px;padding:0 7px;border:none;background:none;color:var(--ink-80);font-size:13px;border-radius:6px;transition:all var(--t)}
+.pager-btn:hover{background:var(--parchment);color:var(--blue)}
+.pager-btn.on{color:#d93025;font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.pager-btn:disabled{color:var(--ink-48);opacity:.35}
+.pager-arrow{font-size:11px}
+.pager-info{margin-left:8px;font-size:11.5px;color:var(--ink-48)}
+
 /* 익명 글 표시 */
 .anon-badge{display:inline-block;font-size:10.5px;font-weight:700;color:#6b46c1;background:rgba(107,70,193,.12);border:1px solid rgba(107,70,193,.25);border-radius:5px;padding:1px 5px;margin-left:4px;vertical-align:middle}
 .anon-reveal{font-size:11px;color:var(--ink-48);background:none;border:1px dashed var(--hairline);border-radius:var(--radius-pill);padding:2px 8px;margin-left:6px}
@@ -898,6 +907,8 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 /* 펼친 상세 */
 .bl-page{border:1px solid var(--hairline);border-radius:var(--radius-lg);background:var(--canvas);padding:18px 16px}
 .bl-back{display:inline-block;font-size:13px;color:var(--blue);cursor:pointer;margin-bottom:12px}
+.bl-share{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:var(--ink-48);background:none;border:1px solid var(--hairline);border-radius:var(--radius-pill);padding:3px 9px}
+.bl-share:hover{border-color:var(--blue);color:var(--blue)}
 .bl-back:hover{text-decoration:underline}
 .bl-detail-title{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:6px}
 .bl-detail-meta{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink-48);margin-bottom:12px;flex-wrap:wrap}
@@ -2125,6 +2136,14 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         <div class="modal-field">
           <label class="modal-label">내용</label>
           <textarea class="form-textarea" id="free-content" placeholder="내용을 입력하세요..." style="min-height:160px"></textarea>
+        </div>
+        <div class="modal-field">
+          <label class="modal-label">올릴 곳</label>
+          <div class="er-type-row">
+            <button class="er-type-btn" id="free-showin-both" onclick="setFreeShowIn('both')">둘 다</button>
+            <button class="er-type-btn" id="free-showin-gallery" onclick="setFreeShowIn('gallery')">갤러리만</button>
+            <button class="er-type-btn" id="free-showin-feed" onclick="setFreeShowIn('feed')">피드만</button>
+          </div>
         </div>
         <div class="modal-field">
           <label style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink-80);cursor:pointer">
@@ -8277,9 +8296,9 @@ function fmtBoardDate(iso){
   if(d.toDateString()===now.toDateString())return`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
   return`${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
 }
-function renderBoardList(posts,commentMap){
-  const total=posts.length;
-  const rows=posts.map((p,i)=>renderBoardRow(p,total-i,(commentMap[p.id]||[]).length)).join('');
+function renderBoardList(posts,commentMap,startNum){
+  const first=startNum??posts.length;
+  const rows=posts.map((p,i)=>renderBoardRow(p,first-i,(commentMap[p.id]||[]).length)).join('');
   return`<div class="bl-wrap">
     <div class="bl-head"><span>번호</span><span>제목</span><span>글쓴이</span><span>작성일</span><span>조회</span><span>추천</span></div>
     ${rows}
@@ -8375,10 +8394,14 @@ function renderBoardDetail(p,comments){
       <span>·</span>
       <span>${formatRelativeTime(p.created_at)}</span><span>·</span>
       <span>조회 ${p.view_count||0}</span>
-      ${canManagePost?`<span style="margin-left:auto;display:flex;gap:8px">
-        <button class="comment-edit" onclick="startEditPost('${p.id}','${p.category}')">수정</button>
-        <button class="comment-del" onclick="deletePost('${p.id}','${p.image_url||''}','${p.category}')">삭제</button>
-      </span>`:''}
+      <span style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <button class="bl-share" onclick="openSharePostModal('${p.id}')" title="DM으로 공유">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          공유
+        </button>
+        ${canManagePost?`<button class="comment-edit" onclick="startEditPost('${p.id}','${p.category}')">수정</button>
+        <button class="comment-del" onclick="deletePost('${p.id}','${p.image_url||''}','${p.category}')">삭제</button>`:''}
+      </span>
     </div>
     <div class="bl-detail-body" id="post-content-${p.id}">${escHtml(p.content)}</div>
     ${mediaHtml}
@@ -8510,6 +8533,39 @@ function isHotPost(p){
   return Date.now()-new Date(p.created_at).getTime()<=HOT_MAX_AGE_MS;
 }
 
+// 한 페이지에 보여줄 글 수 — 이보다 많이 쌓이면 하단 페이지 번호로 넘긴다.
+const POSTS_PER_PAGE=20;
+let freePage=1;
+function goFreePage(n){
+  if(n<1)return;
+  freePage=n;
+  loadFreeBoard();
+  window.scrollTo(0,0);
+}
+// 1 2 3 … 형태의 페이지 번호. 페이지가 많아지면 현재 페이지 주변 10개만 보여준다.
+function renderPager(total,page){
+  const pages=Math.max(1,Math.ceil(total/POSTS_PER_PAGE));
+  if(pages<=1)return'';
+  const WINDOW=10;
+  let start=Math.max(1,page-Math.floor(WINDOW/2));
+  let end=Math.min(pages,start+WINDOW-1);
+  start=Math.max(1,Math.min(start,end-WINDOW+1));
+  const btn=(label,target,opts={})=>
+    `<button class="pager-btn${opts.cls||''}"${opts.disabled?' disabled':''}
+      onclick="goFreePage(${target})">${label}</button>`;
+  let html='';
+  if(page>1){
+    html+=btn('◀◀',1,{cls:' pager-arrow'});
+    html+=btn('◀',page-1,{cls:' pager-arrow'});
+  }
+  for(let i=start;i<=end;i++)html+=btn(i,i,{cls:i===page?' on':''});
+  if(page<pages){
+    html+=btn('▶',page+1,{cls:' pager-arrow'});
+    html+=btn('▶▶',pages,{cls:' pager-arrow'});
+  }
+  return`<div class="pager">${html}<span class="pager-info">${total}개 · ${page}/${pages}쪽</span></div>`;
+}
+
 // 갤러리 페이지 탭: gallery | feed | hot
 let freeTab=(localStorage.getItem('bugwang_free_tab')||'gallery');
 if(!['gallery','feed','hot'].includes(freeTab))freeTab='gallery';
@@ -8519,9 +8575,17 @@ function renderFreeTabs(){
 function switchFreeTab(t){
   if(openPostId)closeBoardPost();
   freeTab=t;
+  freePage=1;
   try{localStorage.setItem('bugwang_free_tab',t)}catch(e){}
   renderFreeTabs();
   loadFreeBoard();
+}
+// 이 글을 어디에 보이게 할지: both(둘 다) | gallery(목록형만) | feed(카드형만)
+let freeShowIn='both';
+function setFreeShowIn(v){
+  freeShowIn=v;
+  ['both','gallery','feed'].forEach(k=>document.getElementById('free-showin-'+k)?.classList.toggle('active',k===v));
+  scheduleDraftSave('free');
 }
 // 글쓰기는 공부인증처럼 전용 페이지로 이동한다(인라인 폼 → 페이지 전환).
 function openFreeWritePage(){
@@ -8530,6 +8594,7 @@ function openFreeWritePage(){
   document.getElementById('free-title').value='';
   document.getElementById('free-content').value='';
   const anon=document.getElementById('free-anon');if(anon)anon.checked=false;
+  setFreeShowIn('both');
   clearPhoto('free');
   document.querySelectorAll('.page').forEach(pg=>pg.classList.remove('active'));
   document.getElementById('page-free-write').classList.add('active');
@@ -8573,8 +8638,11 @@ async function loadStudyBoard(){
 const DRAFT_TTL_MS=7*24*60*60*1000; // 일주일 지난 초안은 조용히 버린다
 const DRAFT_FORMS={
   free:      {label:'갤러리 글',    container:'page-free-write',      ids:['free-title','free-content'],
-              get:()=>({anon:!!document.getElementById('free-anon')?.checked}),
-              set:d=>{const el=document.getElementById('free-anon');if(el)el.checked=!!d.anon}},
+              get:()=>({anon:!!document.getElementById('free-anon')?.checked,showIn:freeShowIn}),
+              set:d=>{
+                const el=document.getElementById('free-anon');if(el)el.checked=!!d.anon;
+                if(d.showIn)setFreeShowIn(d.showIn);
+              }},
   qna:       {label:'질문',        container:'qna-write-form',       ids:['qna-subject','qna-content']},
   bug:       {label:'버그 제보',    container:'bug-write-form',       ids:['bug-content']},
   // 공지 "수정"은 원본이 서버에 있으므로 초안을 만들지 않는다(복구가 오히려 헷갈림).
@@ -8798,7 +8866,8 @@ async function submitPost(type){
     category,subject,content,image_url:imageUrl,
     // 제목은 자유게시판 갤러리 목록용 — 다른 게시판에는 입력칸 자체가 없다.
     title:type==='free'?(document.getElementById('free-title')?.value.trim()||null):null,
-    is_anonymous:type==='free'?!!document.getElementById('free-anon')?.checked:false
+    is_anonymous:type==='free'?!!document.getElementById('free-anon')?.checked:false,
+    show_in:type==='free'?freeShowIn:'both'
   });
   if(error){toast('게시 실패: '+error.message);submitBtn.textContent=label;submitBtn.disabled=false;return}
   contentEl.value='';clearPhoto(type);
@@ -8809,7 +8878,13 @@ async function submitPost(type){
   finishDraft(type);
   submitBtn.textContent=label;submitBtn.disabled=false;
   toast(type==='bug'?'제보됐어요, 확인할게요 ✓':'게시되었습니다 ✓');
-  if(type==='free')navigate('free-board'); // 글쓰기 페이지에서 목록으로 돌아간다
+  if(type==='free'){
+    // 갤러리만/피드만 고른 글이 안 보이는 탭으로 돌아가면 "안 올라갔나?" 싶으므로 맞춰서 이동한다.
+    if(freeShowIn==='gallery'&&freeTab==='feed')freeTab='gallery';
+    if(freeShowIn==='feed'&&freeTab!=='feed')freeTab='feed';
+    freePage=1;
+    navigate('free-board');
+  }
   else await boardLoader(type)();
 }
 
@@ -10000,10 +10075,25 @@ async function loadBoardPosts(category,listElId,emptyMsg,type){
   // 마이너 갤러리(갤러리/피드/인기글)는 옛 카테고리 값까지 포함해 한 묶음으로 가져온다.
   const isText=isTextBoard(category)||category==='hot';
   const isHot=category==='hot';
+  // 갤러리/피드는 서버에서 20개씩 잘라 받고(range), 인기글은 추천 수를 계산해봐야 걸러낼 수
+  // 있어서 최근 200개를 받아온 뒤 아래에서 거르고 자른다.
+  const from=(freePage-1)*POSTS_PER_PAGE;
   const query=isText
-    ? sb.from('posts').select('*').in('category',TEXT_CATEGORIES).order('created_at',{ascending:false}).limit(isHot?200:50)
+    ? (isHot
+        // 인기글은 "추천 많이 받은 글" 모음이라 올릴 곳(show_in)과 무관하게 전부 대상으로 본다.
+        ? sb.from('posts').select('*').in('category',TEXT_CATEGORIES).order('created_at',{ascending:false}).limit(200)
+        // 갤러리 탭은 both/gallery, 피드 탭은 both/feed만 — 글쓴이가 고른 "올릴 곳"을 따른다.
+        : sb.from('posts').select('*',{count:'exact'}).in('category',TEXT_CATEGORIES)
+            .in('show_in',freeTab==='feed'?['both','feed']:['both','gallery'])
+            .order('created_at',{ascending:false}).range(from,from+POSTS_PER_PAGE-1))
     : sb.from('posts').select('*').eq('category',category).order('created_at',{ascending:false}).limit(30);
-  let {data:posts}=await query;
+  let {data:posts,count}=await query;
+  let total=count??(posts?posts.length:0);
+  // 글이 지워져서 마지막 쪽이 비었다면 한 쪽 앞으로 되돌린다(빈 화면 방지).
+  if(isText&&!isHot&&freePage>1&&(!posts||!posts.length)&&total>0){
+    freePage=Math.max(1,Math.ceil(total/POSTS_PER_PAGE));
+    return loadBoardPosts(category,listElId,emptyMsg,type);
+  }
   const el=document.getElementById(listElId);
   const showEmpty=()=>{el.innerHTML=`<div style="text-align:center;padding:32px;color:var(--ink-48);font-size:13px">${emptyMsg}</div>`};
   if(!posts||!posts.length){showEmpty();return}
@@ -10025,18 +10115,25 @@ async function loadBoardPosts(category,listElId,emptyMsg,type){
   if(isHot){
     posts=posts.filter(isHotPost);
     if(!posts.length){showEmpty();return}
+    total=posts.length;
+    posts=posts.slice(from,from+POSTS_PER_PAGE);
+    if(!posts.length){freePage=1;return loadBoardPosts(category,listElId,emptyMsg,type)}
   }
   boardVerifyMap={};(verifications||[]).forEach(v=>{(boardVerifyMap[v.post_id]=boardVerifyMap[v.post_id]||{})[v.student_id]=v.vote});
   const commentMap={};(comments||[]).forEach(c=>{if(!commentMap[c.post_id])commentMap[c.post_id]=[];commentMap[c.post_id].push(c)});
-  el.innerHTML=type==='studycert'
+  // 목록의 "번호"는 이 페이지가 아니라 전체 기준으로 매긴다(1쪽 첫 줄 = 전체 개수).
+  const startNum=total-from;
+  const pagerHtml=isText?renderPager(total,freePage):'';
+  el.innerHTML=(type==='studycert'
     ?renderStudyCertTable(posts,commentMap)
     :type==='examreview'
       ?posts.map(p=>renderExamReviewCard(p,commentMap[p.id]||[])).join('')
       // 갤러리/인기글은 목록형, 피드는 기존 인스타형 카드. 카드 쪽 type은 'free'로 고정한다
       // (댓글/삭제/좋아요가 어느 게시판 것인지 판단하는 값이라 실제 카테고리와 무관하게 통일).
       :(isText&&freeTab!=='feed')
-        ?renderBoardList(posts,commentMap)
-        :posts.map(p=>renderPost(p,isText?'free':type,commentMap[p.id]||[])).join('');
+        ?renderBoardList(posts,commentMap,startNum)
+        :posts.map(p=>renderPost(p,isText?'free':type,commentMap[p.id]||[])).join('')
+  )+pagerHtml;
   // 다시 그린 뒤에도 펼쳐 보던 글은 그대로 펼쳐둔다(댓글을 달면 목록이 새로 그려지므로).
   if(openPostId)openBoardPost(openPostId,true);
 }

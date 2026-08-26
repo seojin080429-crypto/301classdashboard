@@ -239,6 +239,28 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-08-25 (14차): **게시판 구조 개편 — 카테고리 탭을 없애고 갤러리/피드로, 공부인증·시험회고는
+  학습 파트로 분리, 갤러리 글쓰기도 전용 페이지로**. `sw.js`의 `SW_BUILD`도 `2026-08-25-14`로 올림.
+  - **3-1 마이너 갤러리**: 자랑/잡동사니/정보·팁 카테고리 탭을 없애고 **[갤러리][피드][🔥 인기글]**
+    탭으로 바꿨다. 셋 다 **같은 글 묶음**이고 보여주는 방식만 다르다(갤러리=목록형, 피드=인스타형
+    카드, 인기글=최근 2주 내 개추-비추 3 이상). `freeTab`(localStorage `bugwang_free_tab`).
+    - 새 글은 전부 `category='free'`로 저장한다. 옛 글(brag/misc/tips)도 같이 보여야 하므로
+      조회는 `TEXT_CATEGORIES=['free','brag','misc','tips']`로 `in()` 한다. 앞으로 게시판을
+      더 나눌 일이 없으면 이 배열만 보면 됨. `FREE_BOARD_CATEGORIES`/`currentFreeCategory`/
+      `switchFreeCategory`/`setFreeView` 등 옛 체계는 전부 제거.
+    - **글쓰기는 전용 페이지**(`#page-free-write`, `openFreeWritePage`/`closeFreeWritePage`)로
+      이동 — 공부인증 글쓰기와 같은 패턴. 인라인 폼과 토글(`freeWriteOpen`)은 삭제.
+      초안 자동저장의 컨테이너도 이 페이지로 바뀜(제목/내용/익명 체크 복구는 그대로).
+  - **공부인증/시험회고 → 학습 파트**: 사이드바 "학습" 그룹에 `공부인증/시험회고`
+    (`data-page="study-board"`) 추가, 전용 페이지 `#page-study-board`에 탭 2개(`studyTab`)와
+    루틴 현황판·글쓰기 버튼을 옮겼다. 목록은 `#study-list`, 로더는 `loadStudyBoard()`.
+    전용 글쓰기 페이지에서 돌아갈 때도 `navigate('study-board')` + 해당 탭으로 복귀.
+  - `boardLoader(type)`: studycert/examreview → `loadStudyBoard`, TEXT_CATEGORIES → `loadFreeBoard`.
+    옛 글의 category('brag' 등)가 type으로 들어와도 갤러리로 잘 돌아온다.
+  - ⚠️ 작업 중 사고: 옛 카테고리 블록을 통째로 잘라낼 때 경계를 `const BOARD_SUBMIT_LABEL`로
+    잡았다가 그 사이에 있던 **글 자동저장 모듈 전체가 같이 지워질 뻔했다**(문법 검사 전에 발견해
+    되돌림). 이 파일은 단일 스크립트라 "A부터 B까지 지우기" 식 편집은 그 구간에 뭐가 들어있는지
+    반드시 먼저 확인할 것.
 - 2026-08-25 (13차): 익명 글의 표시 이름을 `익명` → **`ㅇㅇ`**(디시 스타일)로 변경
   (`postAuthorView`). 운영자가 "익명 풀기"를 누르면 실제 이름이 나오는 건 그대로.
   `sw.js`의 `SW_BUILD`도 `2026-08-25-13`으로 올림.

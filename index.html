@@ -1614,6 +1614,9 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         <div class="nav-item" data-page="timer" onclick="navigate('timer')">
           <svg viewBox="0 0 24 24" style="stroke:#f59e0b"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>타이머
         </div>
+        <div class="nav-item" data-page="study-board" onclick="navigate('study-board')">
+          <svg viewBox="0 0 24 24" style="stroke:#10b981"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>공부인증/시험회고
+        </div>
         <div class="nav-item" data-page="simo" onclick="navigate('simo')" id="nav-simo" style="display:none">
           <svg viewBox="0 0 24 24" style="stroke:#14b8a6"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>실모반
         </div>
@@ -2088,69 +2091,93 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
       </div>
     </div>
 
-    <!-- FREE BOARD -->
+    <!-- FREE BOARD — 같은 글 묶음을 갤러리(목록형)/피드(카드형) 두 가지로 보여준다.
+         예전엔 자랑·잡동사니·정보팁 카테고리 탭이었는데, 카테고리 대신 "보는 방식"으로
+         나누는 게 낫다는 요청으로 탭 자체를 갤러리/피드로 바꿨다(글은 전부 한 묶음). -->
     <div class="page" id="page-free-board">
       <div class="page-title">3-1 마이너 갤러리</div>
       <div class="page-sub">반 친구들과 자유롭게 이야기하세요</div>
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
-        <div class="view-toggle" id="free-category-tabs" style="flex-wrap:wrap;margin-bottom:0"></div>
-        <!-- 우측 컨트롤 묶음: 보기 전환 + 글쓰기(탭에 따라 버튼이 바뀐다) -->
-        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;margin-left:auto">
-        <div class="view-toggle" id="free-view-toggle" style="margin-bottom:0;flex-shrink:0">
-          <button class="view-btn" id="free-view-feed" onclick="setFreeView('feed')">피드</button>
-          <button class="view-btn" id="free-view-gallery" onclick="setFreeView('gallery')">갤러리</button>
+      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+        <div class="view-toggle" id="free-tabs" style="flex-wrap:wrap;margin-bottom:0">
+          <button class="view-btn" id="free-tab-gallery" onclick="switchFreeTab('gallery')">갤러리</button>
+          <button class="view-btn" id="free-tab-feed" onclick="switchFreeTab('feed')">피드</button>
+          <button class="view-btn" id="free-tab-hot" onclick="switchFreeTab('hot')">🔥 인기글</button>
         </div>
-        <!-- 자유 형식 탭의 글쓰기 — 폼이 항상 펼쳐져 목록을 밀어내던 걸 버튼 토글로 바꿈 -->
-        <div id="free-write-btn-wrap" style="display:none;flex-shrink:0">
-          <button class="btn-primary" id="free-write-btn" onclick="toggleFreeWriteForm()">✏️ 글쓰기</button>
-        </div>
-        <!-- 공부인증 탭에서만 보이는 버튼들 — 이 탭은 아래 인라인 글쓰기 폼 대신 전용 페이지
-             (#page-studycert-write)로 이동한다(renderFreeCategoryTabs() 참고) -->
-        <div id="studycert-write-btn" style="display:none;flex-shrink:0;gap:8px">
-          <button class="btn-ghost" onclick="openRoutineModal()">⏰ 루틴 설정</button>
-          <button class="btn-primary" onclick="openStudyCertWritePage()">+ 글쓰기</button>
-        </div>
-        <!-- 시험 회고 탭도 공부인증과 같은 전용 페이지 방식 -->
-        <div id="examreview-write-btn" style="display:none;flex-shrink:0">
-          <button class="btn-primary" onclick="openExamReviewWritePage()">+ 회고 쓰기</button>
-        </div>
-        </div>
-      </div>
-      <!-- 공부인증 탭 상단 — 반 친구들의 오늘 인증 현황을 한눈에(네모박스, 가로 스크롤) -->
-      <div id="study-routine-board" style="display:none"></div>
-      <div class="write-form" id="free-write-form">
-        <div class="write-form-title">글 작성</div>
-        <div class="form-row">
-          <select class="form-select" id="free-post-category"></select>
-        </div>
-        <input class="modal-input" id="free-title" placeholder="제목 (선택 — 갤러리 목록에 보여요)" style="margin-bottom:8px">
-        <label style="display:flex;align-items:center;gap:7px;margin-bottom:8px;font-size:13px;color:var(--ink-80);cursor:pointer">
-          <input type="checkbox" id="free-anon" style="width:15px;height:15px;accent-color:var(--blue)">
-          🕶️ 익명으로 쓰기
-          <span style="font-size:11.5px;color:var(--ink-48)">(운영자는 작성자를 확인할 수 있어요)</span>
-        </label>
-        <textarea class="form-textarea" id="free-content" placeholder="내용을 입력하세요..."></textarea>
-        <!-- 사진/동영상 업로드 -->
-        <div class="photo-upload-row">
-          <label class="photo-upload-label" for="free-photo">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-            사진/동영상 첨부
-          </label>
-          <input type="file" id="free-photo" accept="image/*,video/*" style="display:none" onchange="previewPhoto('free')">
-          <span class="photo-file-name" id="free-photo-name">파일 없음</span>
-          <button class="photo-clear-btn" id="free-photo-clear" onclick="clearPhoto('free')" style="display:none">×</button>
-        </div>
-        <div class="photo-preview-wrap" id="free-photo-preview" style="display:none">
-          <img id="free-photo-img" src="" alt="미리보기" class="photo-preview-img">
-          <video id="free-photo-video" class="photo-preview-img" controls playsinline style="display:none"></video>
-        </div>
-        <div class="form-actions">
-          <button class="btn-primary" id="free-submit-btn" onclick="submitPost('free')">게시하기</button>
+        <div style="margin-left:auto;flex-shrink:0" id="free-write-btn-wrap">
+          <button class="btn-primary" onclick="openFreeWritePage()">✏️ 글쓰기</button>
         </div>
       </div>
       <div class="qna-list" id="free-list"></div>
       <!-- 갤러리에서 글을 누르면 목록을 감추고 여기에 상세를 그린다(페이지가 바뀐 것처럼) -->
       <div id="free-detail" style="display:none"></div>
+    </div>
+
+    <!-- 마이너 갤러리 글쓰기 전용 페이지 -->
+    <div class="page" id="page-free-write">
+      <span class="section-hd-link" onclick="closeFreeWritePage()">← 갤러리로</span>
+      <div class="page-title" style="margin-top:10px">글쓰기</div>
+      <div class="page-sub">3-1 마이너 갤러리에 올라갑니다</div>
+      <div class="card spacer" id="free-write-form">
+        <div class="modal-field">
+          <label class="modal-label">제목 <span style="font-weight:400;color:var(--ink-48);font-size:11px">선택 — 갤러리 목록에 보여요</span></label>
+          <input class="modal-input" id="free-title" placeholder="제목">
+        </div>
+        <div class="modal-field">
+          <label class="modal-label">내용</label>
+          <textarea class="form-textarea" id="free-content" placeholder="내용을 입력하세요..." style="min-height:160px"></textarea>
+        </div>
+        <div class="modal-field">
+          <label style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink-80);cursor:pointer">
+            <input type="checkbox" id="free-anon" style="width:15px;height:15px;accent-color:var(--blue)">
+            🕶️ 익명으로 쓰기
+            <span style="font-size:11.5px;color:var(--ink-48)">(운영자는 작성자를 확인할 수 있어요)</span>
+          </label>
+        </div>
+        <div class="modal-field">
+          <label class="modal-label">사진·동영상 <span style="font-weight:400;color:var(--ink-48);font-size:11px">선택</span></label>
+          <div class="photo-upload-row">
+            <label class="photo-upload-label" for="free-photo">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              사진/동영상 첨부
+            </label>
+            <input type="file" id="free-photo" accept="image/*,video/*" style="display:none" onchange="previewPhoto('free')">
+            <span class="photo-file-name" id="free-photo-name">파일 없음</span>
+            <button class="photo-clear-btn" id="free-photo-clear" onclick="clearPhoto('free')" style="display:none">×</button>
+          </div>
+          <div class="photo-preview-wrap" id="free-photo-preview" style="display:none">
+            <img id="free-photo-img" src="" alt="미리보기" class="photo-preview-img">
+            <video id="free-photo-video" class="photo-preview-img" controls playsinline style="display:none"></video>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-ghost" onclick="closeFreeWritePage()">취소</button>
+          <button class="btn-primary" id="free-submit-btn" onclick="submitPost('free')">게시하기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 공부인증 / 시험회고 — 학습 파트로 옮긴 전용 페이지 -->
+    <div class="page" id="page-study-board">
+      <div class="page-title">공부인증 / 시험회고</div>
+      <div class="page-sub">오늘 공부를 인증하고, 시험은 돌아보며 정리해요</div>
+      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+        <div class="view-toggle" id="study-tabs" style="flex-wrap:wrap;margin-bottom:0">
+          <button class="view-btn" id="study-tab-studycert" onclick="switchStudyTab('studycert')">공부인증</button>
+          <button class="view-btn" id="study-tab-examreview" onclick="switchStudyTab('examreview')">시험 회고</button>
+        </div>
+        <div style="margin-left:auto;flex-shrink:0;display:flex;gap:8px">
+          <div id="studycert-write-btn" style="display:none;gap:8px">
+            <button class="btn-ghost" onclick="openRoutineModal()">⏰ 루틴 설정</button>
+            <button class="btn-primary" onclick="openStudyCertWritePage()">+ 인증하기</button>
+          </div>
+          <div id="examreview-write-btn" style="display:none">
+            <button class="btn-primary" onclick="openExamReviewWritePage()">+ 회고 쓰기</button>
+          </div>
+        </div>
+      </div>
+      <!-- 공부인증 탭 상단 — 반 친구들의 오늘 인증 현황을 한눈에(네모박스, 가로 스크롤) -->
+      <div id="study-routine-board" style="display:none"></div>
+      <div class="qna-list" id="study-list"></div>
     </div>
 
     <!-- 공부인증 글쓰기 전용 페이지(모달 대신 화면 전환 — 요청: "글쓰기를 누르면 위에 뜨는게
@@ -4159,7 +4186,8 @@ function navigate(page){
   if(page==='mypage'){updatePushToggleUI();loadMyMessageThread()}
   if(page==='dm')loadDmRooms();
   // 게시판은 부팅 때 미리 받지 않으므로 들어갈 때마다 최신으로 불러온다
-  if(page==='free-board'){loadFreeBoard();offerFreeDraftIfFormVisible()}
+  if(page==='free-board')loadFreeBoard();
+  if(page==='study-board')loadStudyBoard();
   if(page==='qna-board'){loadQnaBoard();offerDraftRestore('qna')}
   if(page==='bug-report'){loadBugBoard();offerDraftRestore('bug')}
   // notice는 원래 여기 없어서, 다른 페이지에 있는 동안 투표 결과 등이 바뀌어도 공지 페이지로
@@ -8224,7 +8252,7 @@ function revealAnonAuthor(postId){
   // 목록/상세를 다시 그려서 실제 이름이 나오게 한다.
   const wasOpen=openPostId===postId;
   if(wasOpen)openBoardPost(postId,true);
-  else boardLoader(currentFreeCategory)();
+  else loadFreeBoard();
 }
 
 // ── 갤러리 보기(목록형) ──
@@ -8310,7 +8338,8 @@ function closeBoardPost(){
   if(detail){detail.style.display='none';detail.innerHTML=''}
   const list=document.getElementById('free-list');
   if(list)list.style.display='';
-  renderFreeCategoryTabs();  // 글쓰기 버튼 등 원래 상태로
+  const btnWrap=document.getElementById('free-write-btn-wrap');
+  if(btnWrap)btnWrap.style.display='';
   loadFreeBoard();           // 조회수/추천/댓글수를 최신으로
   window.scrollTo(0,0);
 }
@@ -8469,15 +8498,11 @@ function clearPhoto(type){
 // 자유게시판은 하나의 category='free'로 뭉뚱그리지 않고, 성격이 다른 글이 섞여서 원하는 걸
 // 찾기 어렵다는 요청으로 4개 하위 카테고리로 나눈다. posts.category 값 자체를 이 4개 키로
 // 쓰고(스키마 변경 없음 — category는 CHECK 제약 없는 text 컬럼), 탭으로 걸러서 보여준다.
-const FREE_BOARD_CATEGORIES=[
-  {key:'brag',label:'자랑',empty:'아직 자랑거리가 없어요. 첫 글을 남겨보세요!'},
-  {key:'studycert',label:'공부인증',empty:'아직 공부 인증이 없어요!'},
-  {key:'examreview',label:'시험 회고',empty:'아직 시험 회고가 없어요. 시험을 봤다면 남겨보세요!'},
-  {key:'misc',label:'잡동사니',empty:'아직 글이 없어요.'},
-  {key:'tips',label:'정보·팁',empty:'아직 등록된 정보/팁이 없어요.'},
-  // 실제 카테고리가 아니라 "추천을 많이 받은 글"을 모아 보는 가상 탭(글쓰기 대상이 아님).
-  {key:'hot',label:'🔥 인기글',empty:'아직 인기글이 없어요. 최근 2주 안에 개추를 3개 이상 받으면 올라와요!',virtual:true}
-];
+// 마이너 갤러리는 "카테고리"가 아니라 "보는 방식"으로 나눈다(요청: 자랑/잡동사니 → 갤러리/피드).
+// 글은 전부 한 묶음이고, 갤러리=목록형 / 피드=인스타형 카드 / 인기글=추천 많은 글 모음이다.
+// TEXT_CATEGORIES: 예전 카테고리로 저장된 글들도 같이 보여줘야 해서 옛 값을 전부 포함한다.
+const TEXT_CATEGORIES=['free','brag','misc','tips'];
+function isTextBoard(type){return TEXT_CATEGORIES.includes(type)}
 // 개추 - 비추가 이 값 이상이면 인기글로 올라간다. 단, 오래된 글은 계속 상단에 남지 않도록
 // 작성 후 2주가 지나면 인기글에서 내려간다(추천 수는 그대로 남는다).
 const HOT_SCORE=3;
@@ -8486,82 +8511,58 @@ function isHotPost(p){
   if(postScore(p.id)<HOT_SCORE)return false;
   return Date.now()-new Date(p.created_at).getTime()<=HOT_MAX_AGE_MS;
 }
-// 갤러리 목록으로 볼 수 있는(=글 형태가 자유로운) 카테고리들. 공부인증/시험 회고는 전용 UI를 쓴다.
-const GALLERY_CATEGORIES=['brag','misc','tips'];
-const FREE_CATEGORY_KEYS=FREE_BOARD_CATEGORIES.map(c=>c.key);
-let currentFreeCategory=FREE_BOARD_CATEGORIES[0].key;
-// 피드(인스타형 카드) / 갤러리(목록형) 보기 — 선택은 기기에 기억한다.
-let freeView=(localStorage.getItem('bugwang_free_view')==='gallery')?'gallery':'feed';
-function setFreeView(v){
-  if(openPostId){openPostId=null;const d=document.getElementById('free-detail');if(d){d.style.display='none';d.innerHTML=''}
-    const l=document.getElementById('free-list');if(l)l.style.display=''}
-  freeView=v;
-  try{localStorage.setItem('bugwang_free_view',v)}catch(e){}
-  renderFreeCategoryTabs();
-  loadFreeBoard();
+
+// 갤러리 페이지 탭: gallery | feed | hot
+let freeTab=(localStorage.getItem('bugwang_free_tab')||'gallery');
+if(!['gallery','feed','hot'].includes(freeTab))freeTab='gallery';
+function renderFreeTabs(){
+  ['gallery','feed','hot'].forEach(t=>document.getElementById('free-tab-'+t)?.classList.toggle('active',freeTab===t));
 }
-function galleryCapable(cat){return GALLERY_CATEGORIES.includes(cat)||cat==='hot'}
-// 글쓰기 폼은 기본으로 접혀 있고 우측 상단 "글쓰기" 버튼으로 연다(목록이 먼저 보이도록).
-let freeWriteOpen=false;
-function freeCanWrite(){return !['studycert','examreview','hot'].includes(currentFreeCategory)}
-function toggleFreeWriteForm(){
-  freeWriteOpen=!freeWriteOpen;
-  renderFreeCategoryTabs();
-  if(freeWriteOpen){
-    offerDraftRestore('free'); // 쓰다 만 글이 있으면 이때 물어본다
-    const form=document.getElementById('free-write-form');
-    form?.scrollIntoView({behavior:'smooth',block:'nearest'});
-    document.getElementById('free-title')?.focus();
-  }
-}
-function renderFreeCategoryTabs(){
-  const tabsEl=document.getElementById('free-category-tabs');
-  const selectEl=document.getElementById('free-post-category');
-  if(tabsEl)tabsEl.innerHTML=FREE_BOARD_CATEGORIES.map(c=>
-    `<button class="view-btn${c.key===currentFreeCategory?' active':''}" data-cat="${c.key}" onclick="switchFreeCategory('${c.key}')">${c.label}</button>`
-  ).join('');
-  // 공부인증은 전용 페이지로만 작성하므로(공부 시간 필수 등 구조가 달라서) 일반 글쓰기 폼의
-  // 카테고리 선택지에서는 빼서, 이 폼으로 study_seconds 없는 공부인증 글이 만들어지는 걸 막는다.
-  // 공부인증/시험 회고는 전용 페이지로만 작성하므로(구조가 완전히 달라서) 일반 글쓰기 폼의
-  // 카테고리 선택지에서는 뺀다 — 이 폼으로 필수 항목이 빠진 글이 만들어지는 걸 막기 위함.
-  const FORM_EXCLUDED=['studycert','examreview','hot'];
-  if(selectEl)selectEl.innerHTML=FREE_BOARD_CATEGORIES.filter(c=>!FORM_EXCLUDED.includes(c.key)).map(c=>`<option value="${c.key}">${c.label}</option>`).join('');
-  const isStudyCert=currentFreeCategory==='studycert';
-  const isExamReview=currentFreeCategory==='examreview';
-  // 보기 전환은 자유 형식 글 탭에서만 의미가 있다(공부인증/시험 회고는 전용 UI).
-  const viewToggle=document.getElementById('free-view-toggle');
-  if(viewToggle){
-    viewToggle.style.display=galleryCapable(currentFreeCategory)?'flex':'none';
-    document.getElementById('free-view-feed')?.classList.toggle('active',freeView==='feed');
-    document.getElementById('free-view-gallery')?.classList.toggle('active',freeView==='gallery');
-  }
-  const writeForm=document.getElementById('free-write-form');
-  const scWriteBtn=document.getElementById('studycert-write-btn');
-  const erWriteBtn=document.getElementById('examreview-write-btn');
-  const routineBoard=document.getElementById('study-routine-board');
-  const canWrite=freeCanWrite();
-  if(writeForm)writeForm.style.display=(canWrite&&freeWriteOpen)?'':'none';
-  const writeBtnWrap=document.getElementById('free-write-btn-wrap');
-  if(writeBtnWrap)writeBtnWrap.style.display=canWrite?'block':'none';
-  const writeBtn=document.getElementById('free-write-btn');
-  if(writeBtn)writeBtn.textContent=freeWriteOpen?'✕ 닫기':'✏️ 글쓰기';
-  if(scWriteBtn)scWriteBtn.style.display=isStudyCert?'flex':'none';
-  if(erWriteBtn)erWriteBtn.style.display=isExamReview?'flex':'none';
-  if(routineBoard)routineBoard.style.display=isStudyCert?'block':'none';
-  if(isStudyCert)renderStudyRoutineBoard();
-}
-function offerFreeDraftIfFormVisible(){
-  const form=document.getElementById('free-write-form');
-  if(form&&form.style.display!=='none')offerDraftRestore('free');
-}
-function switchFreeCategory(cat){
+function switchFreeTab(t){
   if(openPostId)closeBoardPost();
-  currentFreeCategory=cat;
-  document.querySelectorAll('#free-category-tabs .view-btn').forEach(b=>b.classList.toggle('active',b.dataset.cat===cat));
-  const selectEl=document.getElementById('free-post-category');
-  if(selectEl)selectEl.value=cat; // 글쓰기 폼 기본 선택도 지금 보는 탭에 맞춰준다
+  freeTab=t;
+  try{localStorage.setItem('bugwang_free_tab',t)}catch(e){}
+  renderFreeTabs();
   loadFreeBoard();
-  offerFreeDraftIfFormVisible();
+}
+// 글쓰기는 공부인증처럼 전용 페이지로 이동한다(인라인 폼 → 페이지 전환).
+function openFreeWritePage(){
+  document.getElementById('free-title').value='';
+  document.getElementById('free-content').value='';
+  const anon=document.getElementById('free-anon');if(anon)anon.checked=false;
+  clearPhoto('free');
+  document.querySelectorAll('.page').forEach(pg=>pg.classList.remove('active'));
+  document.getElementById('page-free-write').classList.add('active');
+  window.scrollTo(0,0);
+  offerDraftRestore('free');
+}
+function closeFreeWritePage(){navigate('free-board')}
+
+// 공부인증 / 시험회고 페이지 탭
+let studyTab='studycert';
+function renderStudyTabs(){
+  ['studycert','examreview'].forEach(t=>document.getElementById('study-tab-'+t)?.classList.toggle('active',studyTab===t));
+  const isCert=studyTab==='studycert';
+  const scBtn=document.getElementById('studycert-write-btn');
+  const erBtn=document.getElementById('examreview-write-btn');
+  if(scBtn)scBtn.style.display=isCert?'flex':'none';
+  if(erBtn)erBtn.style.display=isCert?'none':'block';
+  const routineBoard=document.getElementById('study-routine-board');
+  if(routineBoard)routineBoard.style.display=isCert?'block':'none';
+  if(isCert)renderStudyRoutineBoard();
+}
+function switchStudyTab(t){
+  studyTab=t;
+  renderStudyTabs();
+  loadStudyBoard();
+}
+async function loadStudyBoard(){
+  renderStudyTabs();
+  const isCert=studyTab==='studycert';
+  await loadBoardPosts(
+    isCert?'studycert':'examreview','study-list',
+    isCert?'아직 공부 인증이 없어요!':'아직 시험 회고가 없어요. 시험을 봤다면 남겨보세요!',
+    isCert?'studycert':'examreview');
 }
 
 // ── 글 자동저장(초안) ──
@@ -8571,7 +8572,7 @@ function switchFreeCategory(cat){
 // 초안 키에 학번을 넣는 이유: 공용 기기에서 다음 사람이 남의 초안을 보게 되면 안 되기 때문.
 const DRAFT_TTL_MS=7*24*60*60*1000; // 일주일 지난 초안은 조용히 버린다
 const DRAFT_FORMS={
-  free:      {label:'자유게시판 글',container:'free-write-form',     ids:['free-post-category','free-title','free-content'],
+  free:      {label:'갤러리 글',    container:'page-free-write',      ids:['free-title','free-content'],
               get:()=>({anon:!!document.getElementById('free-anon')?.checked}),
               set:d=>{const el=document.getElementById('free-anon');if(el)el.checked=!!d.anon}},
   qna:       {label:'질문',        container:'qna-write-form',       ids:['qna-subject','qna-content']},
@@ -8761,7 +8762,8 @@ document.addEventListener('DOMContentLoaded',()=>Object.keys(DRAFT_FORMS).forEac
 
 const BOARD_SUBMIT_LABEL={free:'게시하기',qna:'질문 올리기',bug:'제보하기'};
 function boardLoader(type){
-  if(FREE_CATEGORY_KEYS.includes(type))return loadFreeBoard;
+  if(['studycert','examreview'].includes(type))return loadStudyBoard;
+  if(isTextBoard(type))return loadFreeBoard;
   return type==='qna'?loadQnaBoard:loadBugBoard;
 }
 
@@ -8773,8 +8775,8 @@ async function submitPost(type){
   const label=BOARD_SUBMIT_LABEL[type];
   submitBtn.textContent='올리는 중...';submitBtn.disabled=true;
   const subject=type==='qna'?document.getElementById('qna-subject').value:null;
-  // 자유게시판은 'free'라는 고정 카테고리 대신, 글쓰기 폼에서 고른 하위 카테고리를 그대로 저장한다.
-  const category=type==='free'?document.getElementById('free-post-category').value:type;
+  // 마이너 갤러리 글은 전부 category='free' 하나로 저장한다(탭이 카테고리가 아니라 보기 방식이라서).
+  const category=type;
   let imageUrl=null;
   const photoInput=document.getElementById(`${type}-photo`);
   const file=photoInput.files[0];
@@ -8804,11 +8806,10 @@ async function submitPost(type){
   if(type==='free'&&titleEl)titleEl.value='';
   const anonEl=document.getElementById('free-anon');
   if(type==='free'&&anonEl)anonEl.checked=false;
-  if(type==='free'){freeWriteOpen=false;renderFreeCategoryTabs()}
   finishDraft(type);
   submitBtn.textContent=label;submitBtn.disabled=false;
   toast(type==='bug'?'제보됐어요, 확인할게요 ✓':'게시되었습니다 ✓');
-  if(type==='free'&&category!==currentFreeCategory)switchFreeCategory(category); // 방금 글쓴 탭으로 바로 이동해서 보여줌
+  if(type==='free')navigate('free-board'); // 글쓰기 페이지에서 목록으로 돌아간다
   else await boardLoader(type)();
 }
 
@@ -8903,7 +8904,7 @@ function renderPost(p,type,comments=[]){
       <button class="post-delete-btn" onclick="closeAllPostMenus();deletePost('${p.id}','${p.image_url||''}','${type}')">삭제</button>
     </div>
   </div>`:'';
-  const showLike=FREE_CATEGORY_KEYS.includes(type);
+  const showLike=isTextBoard(type);
   const likeBtnHtml=showLike?`<button class="post-action-btn board-like-btn${isLiked?' liked':''}" id="board-like-btn-${p.id}" onclick="toggleLike('${p.id}')" title="좋아요">
       <svg viewBox="0 0 24 24"><path d="M12 21s-6.716-4.443-9.192-8.143C.115 9.521 2.044 4 6.731 4c2.126 0 3.215 1.095 4.03 2.258C11.576 5.095 12.664 4 14.79 4 19.476 4 21.405 9.521 21.192 12.857 18.716 16.557 12 21 12 21z"></path></svg>
     </button>`:'';
@@ -9322,7 +9323,8 @@ function openStudyCertWritePage(){
   offerDraftRestore('studycert');
 }
 function closeStudyCertWritePage(){
-  navigate('free-board'); // page-notice-write의 closeNoticeWritePage()와 동일한 패턴
+  studyTab='studycert';
+  navigate('study-board'); // page-notice-write의 closeNoticeWritePage()와 동일한 패턴
 }
 // "학습 기록 불러오기" — 선택한 날짜에 이 어플의 학습 플래너로 실제 기록된 공부 내역을
 // 과목·과제별로 합산해서(완료된 세션 + 오늘 날짜면 진행 중인 세션의 실시간 경과분까지)
@@ -9454,8 +9456,8 @@ async function submitStudyCertPost(){
   }).select().single();
   submitBtn.textContent='인증하기';submitBtn.disabled=false;
   if(error){await bail('게시 실패: '+error.message);return}
-  // 이 글쓰기 페이지는 공부인증 탭의 버튼으로만 들어올 수 있어 currentFreeCategory는 항상
-  // 'studycert' — closeStudyCertWritePage()의 navigate('free-board')가 알아서 새로고침해준다.
+  // 이 글쓰기 페이지는 공부인증 탭의 버튼으로만 들어올 수 있으므로,
+  // closeStudyCertWritePage()의 navigate('study-board')가 알아서 새로고침해준다.
   finishDraft('studycert');
   closeStudyCertWritePage();
   toast('공부 인증이 등록되었습니다 ✓');
@@ -9619,8 +9621,8 @@ function openExamReviewWritePage(){
   offerDraftRestore('examreview');
 }
 function closeExamReviewWritePage(){
-  currentFreeCategory='examreview'; // 돌아갔을 때 회고 탭이 열려 있도록
-  navigate('free-board');
+  studyTab='examreview'; // 돌아갔을 때 회고 탭이 열려 있도록
+  navigate('study-board');
 }
 
 // 이 페이지 입력칸 값을 읽는 짧은 헬퍼(빈 값은 '')
@@ -9995,10 +9997,11 @@ function renderVoteButtons(postId){
 }
 
 async function loadBoardPosts(category,listElId,emptyMsg,type){
-  // 인기글 탭은 실제 카테고리가 아니라, 자유 형식 글들 중 추천을 많이 받은 것만 모은 것이다.
+  // 마이너 갤러리(갤러리/피드/인기글)는 옛 카테고리 값까지 포함해 한 묶음으로 가져온다.
+  const isText=isTextBoard(category)||category==='hot';
   const isHot=category==='hot';
-  const query=isHot
-    ? sb.from('posts').select('*').in('category',GALLERY_CATEGORIES).order('created_at',{ascending:false}).limit(200)
+  const query=isText
+    ? sb.from('posts').select('*').in('category',TEXT_CATEGORIES).order('created_at',{ascending:false}).limit(isHot?200:50)
     : sb.from('posts').select('*').eq('category',category).order('created_at',{ascending:false}).limit(30);
   let {data:posts}=await query;
   const el=document.getElementById(listElId);
@@ -10008,7 +10011,7 @@ async function loadBoardPosts(category,listElId,emptyMsg,type){
   const isStudyCert=type==='studycert';
   const [{data:comments},{data:likes},{data:verifications},profileMap]=await Promise.all([
     sb.from('comments').select('*').in('post_id',ids).order('created_at'),
-    (FREE_CATEGORY_KEYS.includes(type)&&!isStudyCert)?sb.from('post_likes').select('post_id,student_id,vote').in('post_id',ids):Promise.resolve({data:[]}),
+    isText?sb.from('post_likes').select('post_id,student_id,vote').in('post_id',ids):Promise.resolve({data:[]}),
     isStudyCert?sb.from('post_verifications').select('post_id,student_id,vote').in('post_id',ids):Promise.resolve({data:[]}),
     loadProfileMap()
   ]);
@@ -10029,16 +10032,20 @@ async function loadBoardPosts(category,listElId,emptyMsg,type){
     ?renderStudyCertTable(posts,commentMap)
     :type==='examreview'
       ?posts.map(p=>renderExamReviewCard(p,commentMap[p.id]||[])).join('')
-      :(galleryCapable(type)&&freeView==='gallery')
+      // 갤러리/인기글은 목록형, 피드는 기존 인스타형 카드. 카드 쪽 type은 'free'로 고정한다
+      // (댓글/삭제/좋아요가 어느 게시판 것인지 판단하는 값이라 실제 카테고리와 무관하게 통일).
+      :(isText&&freeTab!=='feed')
         ?renderBoardList(posts,commentMap)
-        :posts.map(p=>renderPost(p,type,commentMap[p.id]||[])).join('');
+        :posts.map(p=>renderPost(p,isText?'free':type,commentMap[p.id]||[])).join('');
   // 다시 그린 뒤에도 펼쳐 보던 글은 그대로 펼쳐둔다(댓글을 달면 목록이 새로 그려지므로).
   if(openPostId)openBoardPost(openPostId,true);
 }
 async function loadFreeBoard(){
-  renderFreeCategoryTabs();
-  const meta=FREE_BOARD_CATEGORIES.find(c=>c.key===currentFreeCategory)||FREE_BOARD_CATEGORIES[0];
-  await loadBoardPosts(currentFreeCategory,'free-list',meta.empty,currentFreeCategory);
+  renderFreeTabs();
+  const empty=freeTab==='hot'
+    ?'아직 인기글이 없어요. 최근 2주 안에 개추를 3개 이상 받으면 올라와요!'
+    :'아직 글이 없어요. 첫 글을 남겨보세요!';
+  await loadBoardPosts(freeTab==='hot'?'hot':'free','free-list',empty,'free');
 }
 async function loadQnaBoard(){await loadBoardPosts('qna','qna-list','아직 질문이 없어요!','qna')}
 async function loadBugBoard(){await loadBoardPosts('bug','bug-list','아직 제보된 버그가 없어요.','bug')}

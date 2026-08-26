@@ -8207,7 +8207,7 @@ function postAuthorView(p){
   const realName=profile?.display_name||p.author_name;
   if(!p.is_anonymous)return {name:realName,avatarUrl:profile?.avatar_url,anon:false,realName};
   if(revealedAnon.has(p.id))return {name:realName,avatarUrl:profile?.avatar_url,anon:true,revealed:true,realName};
-  return {name:'익명',avatarUrl:null,anon:true,realName};
+  return {name:'ㅇㅇ',avatarUrl:null,anon:true,realName};
 }
 // 운영자에게만 보이는 "익명 풀기" 버튼(이미 풀었으면 실제 이름을 대신 보여준다).
 function anonRevealHtml(p){

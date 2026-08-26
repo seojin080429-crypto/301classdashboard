@@ -702,6 +702,17 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .dm-thread-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--hairline)}
 .dm-back-btn{display:none;font-size:22px;line-height:1;color:var(--ink-48);padding:0 4px;flex-shrink:0}
 .dm-thread-title{flex:1;font-size:14px;font-weight:600;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dm-thread-title-btn{cursor:pointer}
+.dm-thread-title-btn:hover{color:var(--blue)}
+/* 채팅방 정보 패널 */
+.dm-info-row{display:flex;align-items:center;gap:10px;width:100%;padding:13px 4px;border:none;background:none;border-bottom:1px solid var(--hairline);font-size:14px;color:var(--ink);text-align:left;cursor:pointer}
+.dm-info-row:last-child{border-bottom:none}
+.dm-info-row:hover{background:var(--parchment)}
+.dm-info-row.danger{color:#d93025}
+.dm-info-row-desc{margin-left:auto;font-size:12px;color:var(--ink-48)}
+.dm-info-members{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 12px}
+.dm-info-member{display:flex;align-items:center;gap:5px;padding:4px 9px;border-radius:var(--radius-pill);background:var(--parchment);border:1px solid var(--hairline);font-size:12.5px;color:var(--ink-80)}
+.dm-info-label{font-size:11px;font-weight:700;color:var(--ink-48);letter-spacing:.03em;margin-bottom:6px}
 .dm-leave-btn{font-size:12px;color:var(--ink-48);padding:6px 10px;border-radius:var(--radius-pill);border:1px solid var(--hairline);flex-shrink:0}
 .dm-leave-btn:hover{border-color:#e11d48;color:#e11d48}
 .dm-thread-log{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
@@ -2862,9 +2873,9 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
           <div class="dm-thread-active" id="dm-thread-active">
             <div class="dm-thread-head">
               <button class="dm-back-btn" id="dm-back-btn" onclick="closeDmThreadMobile()">‹</button>
-              <div class="dm-thread-title" id="dm-thread-title">—</div>
-              <button class="dm-leave-btn" id="dm-invite-btn" style="display:none" onclick="openInviteDmModal()">+ 초대</button>
-              <button class="dm-leave-btn" id="dm-leave-btn" style="display:none" onclick="leaveDmRoom()">나가기</button>
+              <!-- 인스타처럼 방 이름을 누르면 방 정보(알림 끄기·초대·나가기)가 열린다 -->
+              <div class="dm-thread-title dm-thread-title-btn" id="dm-thread-title" onclick="openDmRoomInfo()">—</div>
+              <button class="dm-leave-btn" onclick="openDmRoomInfo()" title="채팅방 정보">ⓘ</button>
             </div>
             <div class="dm-thread-log" id="dm-thread-log"></div>
             <div class="dm-photo-preview-row" id="dm-photo-preview-row" style="display:none">
@@ -3475,6 +3486,21 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
   <button class="lb-nav" id="lightbox-prev" onclick="event.stopPropagation();lightboxStep(-1)">‹</button>
   <button class="lb-nav" id="lightbox-next" onclick="event.stopPropagation();lightboxStep(1)">›</button>
   <div class="lb-count" id="lightbox-count"></div>
+</div>
+
+<!-- 채팅방 정보 — 방 이름/ⓘ 를 누르면 열린다(알림 끄기, 초대, 나가기) -->
+<div class="modal-overlay" id="dm-info-modal" onclick="if(event.target===this)closeDmRoomInfo()">
+  <div class="modal-box" style="max-width:380px">
+    <div class="modal-header">
+      <div class="modal-title" id="dm-info-title">채팅방 정보</div>
+      <button class="modal-close" onclick="closeDmRoomInfo()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="dm-info-label" id="dm-info-members-label">참여자</div>
+      <div class="dm-info-members" id="dm-info-members"></div>
+      <div id="dm-info-actions"></div>
+    </div>
+  </div>
 </div>
 
 <!-- DM 메시지 삭제/수정 메뉴 (모바일 꾹 누르기 / PC 우클릭 시 showDmMsgMenu가 내용을 채우고 위치를 잡음) -->
@@ -7684,8 +7710,6 @@ async function openDmThread(roomId){
   clearDmPhoto();
   const room=dmRooms.find(r=>r.id===roomId);
   document.getElementById('dm-thread-title').textContent=room?room.displayName:'대화';
-  document.getElementById('dm-leave-btn').style.display=room?.is_group?'inline-block':'none';
-  document.getElementById('dm-invite-btn').style.display=room?.is_group?'inline-block':'none';
   renderDmRoomList();
   await loadDmMessages(roomId);
   await markDmRoomRead(roomId);
@@ -7773,7 +7797,11 @@ function dmTouchEnd(e){
   if(dmLongPressFired&&e?.cancelable)e.preventDefault();
 }
 function showDmMsgMenu(event,id,touchX,touchY){
-  if(event)event.preventDefault();
+  if(event){
+    event.preventDefault();
+    event.stopPropagation();
+    event._dmMenuOpened=true; // 아래 document 리스너가 방금 연 메뉴를 도로 닫지 않도록 표시
+  }
   const msg=dmCurrentMessages.find(m=>m.id===id);
   if(!msg)return;
   dmMsgMenuTargetId=id;
@@ -7794,6 +7822,7 @@ function closeDmMsgMenu(){
 }
 document.addEventListener('click',()=>closeDmMsgMenu());
 document.addEventListener('contextmenu',(e)=>{
+  if(e._dmMenuOpened)return; // 방금 이 우클릭으로 연 메뉴다
   const menu=document.getElementById('dm-msg-menu');
   if(menu&&menu.style.display!=='none'&&!menu.contains(e.target))closeDmMsgMenu();
 });
@@ -7934,15 +7963,62 @@ async function markDmRoomRead(roomId){
   updateDmUnreadBadge();
 }
 
-// 단톡방만 나가기 지원 — 1:1은 상대방 기록에 "나감" 표시 같은 처리가 없어서 나가면 다시
-// 말 걸 때 새 방이 생기고 상대는 예전 방을 계속 보게 되는 애매함이 있어 범위에서 제외.
+// ── 채팅방 정보(알림 끄기 / 초대 / 나가기) ──
+let dmRoomMuted=false;
+async function openDmRoomInfo(){
+  if(!dmActiveRoomId)return;
+  const room=dmRooms.find(r=>r.id===dmActiveRoomId);
+  document.getElementById('dm-info-title').textContent=room?room.displayName:'채팅방 정보';
+  document.getElementById('dm-info-members').innerHTML='<span class="dm-info-member">불러오는 중…</span>';
+  document.getElementById('dm-info-actions').innerHTML='';
+  document.getElementById('dm-info-modal').classList.add('open');
+  // 참여자 + 내 알림 설정을 한 번에 가져온다
+  const {data:parts}=await sb.from('dm_participants').select('student_id,user_id,muted').eq('room_id',dmActiveRoomId);
+  const profileMap=await loadProfileMap();
+  const me=(parts||[]).find(x=>x.user_id===currentUser.id);
+  dmRoomMuted=!!me?.muted;
+  document.getElementById('dm-info-members-label').textContent=`참여자 ${(parts||[]).length}명`;
+  document.getElementById('dm-info-members').innerHTML=(parts||[]).map(x=>{
+    const name=profileMap[x.student_id]?.display_name||x.student_id;
+    return`<span class="dm-info-member">${avatarHtmlFor(name,profileMap[x.student_id]?.avatar_url)}${escHtml(name)}${x.user_id===currentUser.id?' (나)':''}</span>`;
+  }).join('')||'<span class="dm-info-member">—</span>';
+  renderDmRoomInfoActions(room);
+}
+function renderDmRoomInfoActions(room){
+  const el=document.getElementById('dm-info-actions');
+  if(!el)return;
+  el.innerHTML=`
+    <button class="dm-info-row" onclick="toggleDmMute()">
+      ${dmRoomMuted?'🔕':'🔔'} 알림 ${dmRoomMuted?'꺼짐':'켜짐'}
+      <span class="dm-info-row-desc">${dmRoomMuted?'누르면 다시 받기':'누르면 끄기'}</span>
+    </button>
+    ${room?.is_group?`<button class="dm-info-row" onclick="closeDmRoomInfo();openInviteDmModal()">➕ 대화상대 초대</button>`:''}
+    <button class="dm-info-row danger" onclick="leaveDmRoom()">🚪 채팅방 나가기</button>`;
+}
+function closeDmRoomInfo(){document.getElementById('dm-info-modal').classList.remove('open')}
+async function toggleDmMute(){
+  if(!dmActiveRoomId)return;
+  const next=!dmRoomMuted;
+  const {error}=await sb.from('dm_participants').update({muted:next})
+    .eq('room_id',dmActiveRoomId).eq('user_id',currentUser.id);
+  if(error){toast('알림 설정 변경 실패: '+error.message);return}
+  dmRoomMuted=next;
+  renderDmRoomInfoActions(dmRooms.find(r=>r.id===dmActiveRoomId));
+  toast(next?'이 채팅방 알림을 껐어요':'이 채팅방 알림을 다시 받아요');
+}
+
 async function leaveDmRoom(){
   if(!dmActiveRoomId)return;
   const room=dmRooms.find(r=>r.id===dmActiveRoomId);
-  if(!room?.is_group)return;
-  if(!confirm('이 단톡방에서 나갈까요? 대화 목록에서 사라져요.'))return;
+  // 1:1 방도 나갈 수 있게 했다(예전엔 단톡방만). 상대방 쪽 대화는 그대로 남는다.
+  const msg=room?.is_group
+    ?'이 단톡방에서 나갈까요? 대화 목록에서 사라져요.'
+    :'이 대화방에서 나갈까요? 내 목록에서만 사라지고 상대방에겐 그대로 남아요.';
+  if(!confirm(msg))return;
+  closeDmRoomInfo();
   const {error}=await sb.from('dm_participants').delete().eq('room_id',dmActiveRoomId).eq('user_id',currentUser.id);
   if(error){toast('나가기 실패: '+error.message);return}
+  toast('채팅방에서 나왔어요');
   notifyDmLeftView();
   dmActiveRoomId=null;
   document.getElementById('dm-thread-active').classList.remove('open');

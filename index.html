@@ -5660,9 +5660,15 @@ async function releaseScreenWakeLock(){
 }
 
 // 타이머 상태/전체화면 개폐/설정이 바뀔 때마다 호출하면 알아서 잡거나 놓는다.
+// 5초마다 영구히 도는 함수라, 바뀐 게 없으면 버튼 DOM은 손대지 않는다.
+let lastWakeBtnState=null;
 function syncScreenWakeLock(){
-  if(screenShouldStayAwake())acquireScreenWakeLock();
+  const want=screenShouldStayAwake();
+  if(want)acquireScreenWakeLock();
   else releaseScreenWakeLock();
+  const state=`${want}|${wakeLockPref}|${!!screenWakeLock}`;
+  if(state===lastWakeBtnState)return;
+  lastWakeBtnState=state;
   updateWakeLockBtn();
 }
 
@@ -5816,14 +5822,64 @@ function updateTfDisplay(){
   document.getElementById('tf-focus-time').textContent=fmtSec(t);
 }
 
+// 이 목록은 전체화면 타이머가 켜져 있는 동안 **1초마다** 불린다. 예전엔 매번 innerHTML을
+// 통째로 비우고 과목/과제 행과 SVG 아이콘까지 새로 만들었는데, 몇 시간씩 켜두는 화면이라
+// 시간당 3600번씩 DOM을 새로 만들며 CPU·배터리를 갉아먹고 있었다(renderTfRankGrid가 이미
+// 같은 이유로 고쳐진 적 있음). 이제는 구성(과목·과제 이름/색/실행 중인 태스크)이 그대로면
+// **시간 텍스트와 막대 길이만** 갈아끼운다.
+let tfListStructKey=null;
+function tfListStructureKey(){
+  return subjects.map(sub=>`${sub.name}|${sub.color}|${sub.tasks.map(t=>t.name).join('~')}`).join('#')
+    +`@${tfCurrentSi}@${activeTimer?activeTimer.subjectIdx+'.'+activeTimer.taskIdx:'-'}`;
+}
+function tfTotalSeconds(){
+  return subjects.reduce((s,sub)=>s+sub.tasks.reduce((a,t)=>a+t.seconds,0),0)||1;
+}
+// 구성이 그대로일 때 도는 가벼운 경로 — DOM을 만들지 않고 이미 있는 텍스트만 바꾼다.
+function updateTfSubjectTimes(){
+  const el=document.getElementById('tf-subject-list');
+  const pfx=document.getElementById('tf-task-progress');
+  if(!el)return;
+  const totalSec=tfTotalSeconds();
+  subjects.forEach((sub,si)=>{
+    const section=el.querySelector(`.tf-subject-section[data-si="${si}"]`);
+    if(!section)return;
+    const subSec=sub.tasks.reduce((a,t)=>a+t.seconds,0);
+    const subTime=section.querySelector('.tf-subject-time');
+    const subTxt=fmtSec(subSec);
+    if(subTime&&subTime.textContent!==subTxt)subTime.textContent=subTxt;
+    sub.tasks.forEach((t,ti)=>{
+      const cell=section.querySelector(`.tf-task-row[data-ti="${ti}"] .tf-task-time`);
+      const txt=fmtSec(t.seconds);
+      if(cell&&cell.textContent!==txt)cell.textContent=txt;
+    });
+  });
+  const activeSub=subjects[tfCurrentSi];
+  if(pfx&&activeSub){
+    activeSub.tasks.forEach((t,ti)=>{
+      const timeEl=pfx.querySelector(`.tf-task-bar-row[data-ti="${ti}"] .tf-task-bar-time`);
+      const txt=fmtSec(t.seconds);
+      if(timeEl&&timeEl.textContent!==txt)timeEl.textContent=txt;
+      const fill=pfx.querySelector(`.tf-task-bar-fill[data-ti="${ti}"]`);
+      const pct=Math.round((t.seconds/totalSec)*100)+'%';
+      if(fill&&fill.style.width!==pct)fill.style.width=pct;
+    });
+  }
+}
 function renderTfSubjectList(){
   const el=document.getElementById('tf-subject-list');
   const pfx=document.getElementById('tf-task-progress');
+  if(!el||!pfx)return;
+  const key=tfListStructureKey();
+  if(key===tfListStructKey&&el.children.length){updateTfSubjectTimes();return}
+  tfListStructKey=key;
   pfx.innerHTML='';el.innerHTML='';
-  const totalSec=subjects.reduce((s,sub)=>s+sub.tasks.reduce((a,t)=>a+t.seconds,0),0)||1;
+  const totalSec=tfTotalSeconds();
+  let pfxHtml='';
   subjects.forEach((sub,si)=>{
     const subSec=sub.tasks.reduce((s,t)=>s+t.seconds,0);
     const section=document.createElement('div');section.className='tf-subject-section';
+    section.dataset.si=si;
     const isActiveSub=si===tfCurrentSi;
     section.innerHTML=`
       <div class="tf-subject-header">
@@ -5836,7 +5892,7 @@ function renderTfSubjectList(){
           const isRunning=activeTimer&&si===activeTimer.subjectIdx&&ti===activeTimer.taskIdx;
           const stopIcon=`<svg viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8" rx="1"/></svg>`;
           const playIcon=`<svg viewBox="0 0 10 10"><path d="M2 1l7 4-7 4V1z"/></svg>`;
-          return`<div class="tf-task-row${isRunning?' active':''}" onclick="tfSwitchTask(${si},${ti})">
+          return`<div class="tf-task-row${isRunning?' active':''}" data-ti="${ti}" onclick="tfSwitchTask(${si},${ti})">
             <div class="tf-task-play${isRunning?' running':''}">
               ${isRunning?stopIcon:playIcon}
             </div>
@@ -5846,19 +5902,21 @@ function renderTfSubjectList(){
         }).join('')}
       </div>`;
     el.appendChild(section);
-    // 상단 프로그레스바 (현재 집중 태스크)
+    // 상단 프로그레스바 (현재 집중 태스크) — 예전엔 루프 안에서 innerHTML+=로 붙여 매 줄마다
+    // 앞의 HTML까지 다시 파싱했다. 문자열로 모아 한 번만 넣는다.
     if(isActiveSub){
       sub.tasks.forEach((t,ti)=>{
         const pct=Math.round((t.seconds/totalSec)*100);
-        pfx.innerHTML+=`<div class="tf-task-bar-row">
+        pfxHtml+=`<div class="tf-task-bar-row" data-ti="${ti}">
           <div class="tf-task-dot" style="background:${sub.color}"></div>
           <span class="tf-task-bar-label">${t.name}</span>
           <span class="tf-task-bar-time">${fmtSec(t.seconds)}</span>
         </div>
-        <div class="tf-task-bar-track"><div class="tf-task-bar-fill" style="width:${pct}%;background:${sub.color}"></div></div>`;
+        <div class="tf-task-bar-track"><div class="tf-task-bar-fill" data-ti="${ti}" style="width:${pct}%;background:${sub.color}"></div></div>`;
       });
     }
   });
+  pfx.innerHTML=pfxHtml;
 }
 
 async function tfSwitchTask(si,ti){
@@ -6014,7 +6072,9 @@ setInterval(checkStudyMarathon,20000);
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible'&&currentUser)applyServerTimerTruth().catch(()=>{});
 });
-setInterval(()=>{if(currentUser)applyServerTimerTruth().catch(()=>{})},60000);
+// 배경으로 밀린 동안은 건너뛴다 — 바로 위 visibilitychange에서 화면이 돌아올 때 어차피
+// 한 번 맞추므로 정확도 손해 없이 네트워크·배터리만 아낀다.
+setInterval(()=>{if(currentUser&&!document.hidden)applyServerTimerTruth().catch(()=>{})},60000);
 async function triggerMarathonConfirm(){
   if(!activeTimer||marathonModalOpen)return;
   marathonModalOpen=true;
@@ -6411,6 +6471,7 @@ async function addSubject(){
 }
 
 // SESSION LOG
+let sessionLogStructKey=null;
 function renderSessionLog(){
   // 이 함수는 "오늘"의 실시간 상태(진행 중인 타이머 포함)를 반영하는 용도라, 사용자가 일지
   // 뷰 날짜 내비게이션으로 다른 날짜를 보고 있을 때 타이머 tick 등으로 호출되면 그 화면을
@@ -6438,9 +6499,24 @@ function renderSessionLog(){
   });
 
   if(!items.length){
+    sessionLogStructKey='(비어있음)';
     el.innerHTML='<div style="text-align:center;padding:32px;color:var(--ink-48);font-size:13px">아직 기록된 공부가 없어요</div>';
     return;
   }
+
+  // 타이머가 도는 동안 **1초마다** 불리는 함수다. 예전엔 매번 목록 전체를 innerHTML로 다시
+  // 만들어서, 몇 시간짜리 공부 세션이면 수천 번 DOM을 새로 찍어냈다(전체화면 타이머의
+  // renderTfSubjectList와 같은 문제). 줄 구성이 그대로면 시간 텍스트만 갈아끼운다.
+  const key=items.map(i=>`${i.subject}|${i.task}|${i.color}|${i.isRunning?1:0}`).join('#');
+  if(key===sessionLogStructKey&&el.children.length===items.length){
+    items.forEach((item,idx)=>{
+      const durEl=el.children[idx]?.querySelector('.list-session-dur');
+      const txt=fmtSec(item.seconds);
+      if(durEl&&durEl.textContent!==txt)durEl.textContent=txt;
+    });
+    return;
+  }
+  sessionLogStructKey=key;
 
   el.innerHTML=items.map(item=>`
     <div class="list-session-row">
@@ -6461,6 +6537,7 @@ function renderSessionLog(){
 // 한 줄로). 합쳐진 과제는 시간 대신 "n회"를 표시하고, 안 합쳐진(1회) 과제는 기존처럼 그
 // 시작 시각을 그대로 보여준다. 정렬은 그날 처음 시작한 시각 기준 시간순 유지.
 function renderSessionLogForDate(sessions,idPrefix){
+  sessionLogStructKey=null; // 다른 날짜를 그렸으니 오늘 기준 구조키는 무효
   const el=document.getElementById((idPrefix||'')+'session-log-list');
   const done=sessions.filter(s=>s.started_at&&s.ended_at&&s.duration_seconds);
   if(!done.length){
@@ -7010,12 +7087,19 @@ function tickCountdown(type){
   if(type==='nap'&&++napDetectTick%60===0)refreshEarphoneState();
   const remainMs=t.endAt-Date.now();
   const elapsedMs=t.totalMs-remainMs;
-  document.getElementById(`${type}-display`).textContent=fmtClock(remainMs/1000);
-  document.getElementById(`${type}-elapsed`).textContent=fmtClock(elapsedMs/1000);
-  document.getElementById(`${type}-remaining`).textContent=fmtClock(remainMs/1000);
-  // 시계는 타이머와 완전히 같은 시간축을 쓴다 — 남은 시간이 0이 되는 순간 바늘도 정확히
-  // 시험 종료 시각(예: 10:00)을 가리키게 되고, 새로고침해도 endAt 기준이라 어긋나지 않는다.
-  if(t.clockStart!=null)drawExamClock(t.clockStart+Math.min(elapsedMs,t.totalMs)/60000);
+  // 4번에 한 번씩만 표시가 실제로 바뀐다(초 단위 표기인데 250ms마다 돌기 때문). 값이 그대로면
+  // 텍스트 쓰기와 캔버스 다시 그리기를 통째로 건너뛴다 — 시험 1교시 내내 도는 타이머라
+  // 그냥 두면 쓸데없는 레이아웃/페인트가 계속 쌓인다.
+  const remainTxt=fmtClock(remainMs/1000), elapsedTxt=fmtClock(elapsedMs/1000);
+  if(remainTxt!==t.lastRemainTxt||elapsedTxt!==t.lastElapsedTxt){
+    t.lastRemainTxt=remainTxt;t.lastElapsedTxt=elapsedTxt;
+    document.getElementById(`${type}-display`).textContent=remainTxt;
+    document.getElementById(`${type}-elapsed`).textContent=elapsedTxt;
+    document.getElementById(`${type}-remaining`).textContent=remainTxt;
+    // 시계는 타이머와 완전히 같은 시간축을 쓴다 — 남은 시간이 0이 되는 순간 바늘도 정확히
+    // 시험 종료 시각(예: 10:00)을 가리키게 되고, 새로고침해도 endAt 기준이라 어긋나지 않는다.
+    if(t.clockStart!=null)drawExamClock(t.clockStart+Math.min(elapsedMs,t.totalMs)/60000);
+  }
   if(remainMs<=0){
     clearInterval(t.interval);
     countdownTimers[type]=null;

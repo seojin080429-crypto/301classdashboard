@@ -1,21 +1,77 @@
-// 푸시 알림 전용 서비스 워커. 오프라인 캐싱 등은 하지 않는다 — 이 앱은 항상 최신 데이터를
-// 봐야 하는 대시보드라, 캐시가 낡은 화면을 보여주면 오히려 더 혼란스럽다.
+// 푸시 알림 + 앱 셸(코드) 캐싱용 서비스 워커.
+//
+// **데이터는 절대 캐시하지 않는다.** 이 앱은 항상 최신 데이터를 봐야 하는 대시보드라,
+// 낡은 데이터를 보여주면 쓸모가 없다. 그래서 Supabase 같은 외부(cross-origin) 요청은
+// 아예 가로채지 않고, 우리 도메인의 정적 파일(index.html/아이콘/매니페스트)만 캐시한다.
+//
+// 왜 캐시가 필요해졌나: index.html 하나에 코드가 다 들어있어서 700KB가 넘는데, 캐시가
+// 없으면 앱을 열 때마다 이걸 통째로 다시 받는다(모바일 데이터·느린 와이파이에서 그대로 렉).
+// 캐시를 먼저 보여주고 새 버전은 뒤에서 받아두는 방식(stale-while-revalidate)이라,
+// 새 버전이 배포되면 아래 SW_BUILD가 바뀌며 새 워커가 설치되고 → 앱이 "새로고침하기"
+// 배너를 띄우고 → 새로고침하면 새 셸이 뜬다(기존 업데이트 흐름 그대로).
 
 // index.html이 바뀌어도 이 파일 자체는 안 바뀌면 브라우저가 "새 버전이 있다"는 걸 감지 못
 // 한다(서비스 워커 업데이트는 이 파일의 바이트가 달라졌을 때만 트리거됨) — 그래서 index.html에
 // 의미 있는 변경이 생겨 배포할 때마다 이 값을 같이 올려서, 새 버전 배포 시 이 파일도 함께
 // 바뀌게 만든다. 값 자체는 로직에서 안 쓰고 순전히 "새 버전 신호"용.
-const SW_BUILD = '2026-08-26-28';
+const SW_BUILD = '2026-08-26-29';
 
 // index.html이 "새로고침하기" 배너에서 새 워커를 즉시 활성화시키려고 보내는 메시지
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
+// 앱 셸 캐시 — 이름에 SW_BUILD가 들어가서 배포할 때마다 새 캐시가 생기고 옛 캐시는 버려진다.
+const SHELL_CACHE = 'bugwang-shell-' + SW_BUILD;
+const SHELL_URLS = ['./', './index.html', './manifest.json'];
+
+// 새 워커를 설치할 때 셸을 미리 받아둔다. cache:'reload'로 브라우저 HTTP 캐시를 건너뛰어
+// 항상 "방금 배포된" 파일이 담기게 한다(안 그러면 옛 파일이 새 캐시에 그대로 복사될 수 있다).
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(SHELL_CACHE).then((cache) =>
+      Promise.all(SHELL_URLS.map((u) => cache.add(new Request(u, { cache: 'reload' })).catch(() => {})))
+    ).catch(() => {})
+  );
+});
+
 // skipWaiting으로 새 워커가 활성화되자마자 이미 열려있는 탭까지 바로 이어받게(그래야
 // index.html 쪽의 controllerchange 이벤트가 곧바로 발생해서 새로고침 흐름이 이어짐)
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== SHELL_CACHE).map((k) => caches.delete(k))))
+      .catch(() => {})
+      .then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  if (req.method !== 'GET') return;
+  let url;
+  try { url = new URL(req.url) } catch (e) { return }
+  // 외부(Supabase API, CDN 등)는 절대 손대지 않는다 — 데이터는 항상 네트워크에서.
+  if (url.origin !== self.location.origin) return;
+  // 서비스워커 자신을 캐시하면 새 버전을 영영 감지 못 한다.
+  if (url.pathname.endsWith('/sw.js')) return;
+
+  const isDoc = req.mode === 'navigate' || (req.headers.get('accept') || '').indexOf('text/html') !== -1;
+  event.respondWith((async () => {
+    const cache = await caches.open(SHELL_CACHE);
+    // 문서는 ?query가 붙어도 같은 셸로 본다(주소에 파라미터가 붙는 경로 대비).
+    const cached = await cache.match(req, { ignoreSearch: isDoc });
+    const fromNetwork = fetch(req).then((res) => {
+      if (res && res.ok && res.type === 'basic') cache.put(req, res.clone()).catch(() => {});
+      return res;
+    }).catch(() => null);
+    if (cached) {
+      event.waitUntil(fromNetwork); // 뒤에서 갱신만 해두고 화면은 즉시 캐시로
+      return cached;
+    }
+    const res = await fromNetwork;
+    return res || Response.error();
+  })());
 });
 
 self.addEventListener('push', (event) => {

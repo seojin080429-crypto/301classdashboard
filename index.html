@@ -7359,6 +7359,41 @@ async function triggerNotify(type,body){
   }catch(e){}
 }
 
+// ── 원본을 지울 때 알림도 함께 정리 ──
+// 서버(엣지 함수 /api/notify/purge)가 한 번에 두 가지를 한다:
+//   1) 알림센터의 알림 행 삭제 (받는 사람 행이라 RLS 때문에 클라이언트는 직접 못 지운다)
+//   2) **이미 상대 폰에 떠 있는 푸시 알림 닫기** — 지운 원본 id를 tag로 삼아 "닫기 푸시"를
+//      보내면 서비스워커가 그 알림을 닫는다(요청: "알람 켜놓은 사람한테 온 알람도 지워지게").
+// 서버가 안 되면 최소한 알림 행이라도 지우도록 DB 함수(purge_*)로 폴백한다(뜬 알림은 못 닫음).
+async function purgeNotifsFor(kind,id,rpcName,rpcArg){
+  try{
+    const token=await getAccessToken();
+    if(token){
+      const resp=await fetch(`${SERVER_URL}/api/notify/purge`,{
+        method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
+        body:JSON.stringify({kind,id})
+      });
+      if(resp.ok)return true;
+    }
+  }catch(e){}
+  const {error}=await sb.rpc(rpcName,rpcArg);
+  if(error)console.warn('알림 정리 실패',error);
+  return !error;
+}
+// 내 기기에 떠 있는 알림 닫기 — 방을 나갈 때처럼 "내 알림"만 정리하면 되는 경우에 쓴다.
+async function closeShownNotifs(filter){
+  try{
+    if(!('serviceWorker' in navigator))return;
+    const reg=await navigator.serviceWorker.ready;
+    const shown=await reg.getNotifications();
+    shown.forEach(n=>{
+      const d=n.data||{};
+      if(filter.refId&&d.refId===filter.refId)n.close();
+      else if(filter.tag&&(n.tag===filter.tag||d.tag===filter.tag))n.close();
+    });
+  }catch(e){}
+}
+
 // ── 알림센터 (종모양 버튼 + 드롭다운) ──
 // triggerNotify()가 부르는 백엔드 /api/notify/* 가 웹 푸시와 동시에 notifications 테이블에도
 // 같은 내용을 남겨두므로(bugwang-server의 insertNotifications), 여기선 그 테이블을 읽기만 한다.
@@ -7989,9 +8024,8 @@ async function sendDmMessage(){
 async function deleteDmMessage(id){
   if(!confirm('이 메시지를 삭제할까요?'))return;
   const {data:msg}=await sb.from('dm_messages').select('image_url').eq('id',id).single();
-  // 상대 알림센터/푸시 기록에 지운 메시지 내용이 그대로 남아있으면 지운 의미가 없다.
-  const {error:purgeErr}=await sb.rpc('purge_dm_message_notifications',{p_message_id:id});
-  if(purgeErr)console.warn('알림 정리 실패',purgeErr);
+  // 상대 알림센터/폰에 뜬 알림에 지운 메시지 내용이 그대로 남아있으면 지운 의미가 없다.
+  await purgeNotifsFor('dm-message',id,'purge_dm_message_notifications',{p_message_id:id});
   const {error}=await sb.from('dm_messages').delete().eq('id',id);
   if(error){toast('삭제 실패: '+error.message);return}
   if(msg?.image_url)await sb.storage.from('dm-photos').remove([msg.image_url]);
@@ -8064,9 +8098,10 @@ async function leaveDmRoom(){
   const {error}=await sb.from('dm_participants').delete().eq('room_id',leftRoomId).eq('user_id',currentUser.id);
   if(error){toast('나가기 실패: '+error.message);return}
   // 나간 방에서 온 알림이 알림센터에 남아있으면 눌러도 갈 곳이 없다 — 같이 지운다.
-  // (내 알림이라 RLS 안에서 직접 삭제 가능)
+  // (내 알림이라 RLS 안에서 직접 삭제 가능) 내 폰에 떠 있는 알림도 함께 닫는다.
   await sb.from('notifications').delete()
     .eq('recipient_user_id',currentUser.id).eq('type','dm-message').eq('ref_id',leftRoomId);
+  closeShownNotifs({refId:leftRoomId});
   loadNotifCount();
   toast('채팅방에서 나왔어요');
   notifyDmLeftView();
@@ -9284,10 +9319,8 @@ async function deletePost(id,imageUrl,type){
   const photoPaths=(postPhotos.length?postPhotos:(imageUrl?[imageUrl]:[]))
     .map(u=>(u||'').split('/board-photos/')[1]).filter(Boolean);
   if(photoPaths.length)await sb.storage.from('board-photos').remove(photoPaths);
-  // 알림은 받는 사람 것이라 RLS 때문에 내가 직접 못 지운다 — 글이 아직 살아있을 때
-  // security definer 함수로 소유권을 확인시키고 대신 지우게 한다(지운 뒤엔 확인 불가).
-  const {error:purgeErr}=await sb.rpc('purge_post_notifications',{p_post_id:id});
-  if(purgeErr)console.warn('알림 정리 실패',purgeErr);
+  // 글이 아직 살아있을 때 불러야 서버가 소유권을 확인할 수 있다(지운 뒤엔 확인 불가).
+  await purgeNotifsFor('post',id,'purge_post_notifications',{p_post_id:id});
   await sb.from('posts').delete().eq('id',id);
   toast('삭제되었습니다');
   await boardLoader(type)();
@@ -9543,8 +9576,7 @@ async function deleteComment(commentId,postId,type){
     toast('권한이 없습니다');
     return;
   }
-  const {error:purgeErr}=await sb.rpc('purge_comment_notifications',{p_comment_id:commentId});
-  if(purgeErr)console.warn('알림 정리 실패',purgeErr);
+  await purgeNotifsFor('comment',commentId,'purge_comment_notifications',{p_comment_id:commentId});
   await sb.from('comments').delete().eq('id',commentId);
   await boardLoader(type)();
 }

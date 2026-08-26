@@ -869,6 +869,56 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .sc-avatar img{width:100%;height:100%;object-fit:cover}
 .sc-name{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sc-time-val{font-weight:700;color:var(--ig-blue)}
+/* ── 갤러리 보기(게시판 목록형) ──
+   피드(인스타형 카드)는 그대로 두고, 같은 글을 표 형태로도 볼 수 있게 하는 보기 모드.
+   제목을 누르면 그 줄 아래로 본문/사진/개추·비추/댓글이 펼쳐진다(별도 페이지 없이). */
+.bl-wrap{border:1px solid var(--hairline);border-radius:var(--radius-lg);overflow:hidden;background:var(--canvas)}
+.bl-head,.bl-row{display:grid;grid-template-columns:52px 1fr 92px 62px 48px 48px;align-items:center;gap:8px;padding:9px 12px}
+.bl-head{background:var(--parchment);border-bottom:1px solid var(--hairline);font-size:11.5px;font-weight:600;color:var(--ink-48);text-align:center}
+.bl-head span:nth-child(2){text-align:left}
+.bl-row{border-bottom:1px solid var(--hairline);font-size:12.5px;color:var(--ink-80);text-align:center;cursor:pointer;transition:background var(--t)}
+.bl-row:hover{background:var(--parchment)}
+.bl-row.open{background:rgba(0,102,204,.05)}
+.bl-num{color:var(--ink-48);font-size:11.5px}
+.bl-title{text-align:left;display:flex;align-items:center;gap:5px;min-width:0}
+.bl-title-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}
+.bl-row.open .bl-title-text{font-weight:600;color:var(--blue)}
+.bl-cmt{color:var(--blue);font-size:11.5px;font-weight:600;flex-shrink:0}
+.bl-hot{flex-shrink:0;font-size:10px;font-weight:700;color:#d93025;border:1px solid rgba(217,48,37,.35);background:rgba(217,48,37,.08);border-radius:5px;padding:1px 4px}
+.bl-author{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bl-up{font-weight:700}
+.bl-up.on{color:#d93025}
+.bl-empty{padding:32px;text-align:center;color:var(--ink-48);font-size:13px}
+/* 펼친 상세 */
+.bl-detail{display:none;padding:16px 14px;border-bottom:1px solid var(--hairline);background:var(--parchment)}
+.bl-detail.open{display:block}
+.bl-detail-title{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:6px}
+.bl-detail-meta{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink-48);margin-bottom:12px;flex-wrap:wrap}
+.bl-detail-body{font-size:13.5px;line-height:1.7;color:var(--ink);white-space:pre-wrap;word-break:break-word}
+.bl-detail-media{margin-top:12px}
+.bl-detail-media img,.bl-detail-media video{max-width:100%;border-radius:var(--radius-lg);display:block}
+/* 개추/비추 */
+.bl-vote-row{display:flex;justify-content:center;gap:10px;margin:16px 0 4px}
+.bl-vote{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:74px;padding:8px 14px;border:1px solid var(--hairline);border-radius:var(--radius-lg);background:var(--canvas);transition:all var(--t)}
+.bl-vote-label{font-size:11.5px;color:var(--ink-48)}
+.bl-vote-count{font-size:17px;font-weight:700;color:var(--ink)}
+.bl-vote.up:hover,.bl-vote.up.on{border-color:#d93025;background:rgba(217,48,37,.08)}
+.bl-vote.up.on .bl-vote-count,.bl-vote.up.on .bl-vote-label{color:#d93025}
+.bl-vote.down:hover,.bl-vote.down.on{border-color:#3b5bdb;background:rgba(59,91,219,.08)}
+.bl-vote.down.on .bl-vote-count,.bl-vote.down.on .bl-vote-label{color:#3b5bdb}
+@media(max-width:640px){
+  /* 좁은 화면에선 제목 한 줄 + 메타 한 줄로 접는다 */
+  .bl-head{display:none}
+  .bl-row{grid-template-columns:1fr auto;grid-template-areas:"title title" "author meta";gap:4px 8px;text-align:left;padding:11px 12px}
+  /* 번호/작성일/조회/추천 칸은 숨기고 한 줄짜리 메타(.bl-meta-mobile)로 대신한다.
+     자식 선택자(>)를 쓰는 이유: .bl-meta-mobile 안에 들어있는 추천 숫자는 살려야 하기 때문. */
+  .bl-row>.bl-num,.bl-row>.bl-date,.bl-row>.bl-view,.bl-row>.bl-up{display:none}
+  .bl-title{grid-area:title}
+  .bl-author{grid-area:author;font-size:11.5px;color:var(--ink-48)}
+  .bl-meta-mobile{grid-area:meta;font-size:11.5px;color:var(--ink-48);text-align:right;white-space:nowrap}
+}
+@media(min-width:641px){.bl-meta-mobile{display:none}}
+
 /* 자동저장 상태 표시줄 — 글쓰기 폼 맨 위에 붙어서 "지금 저장됐다"를 눈에 보이게 알려준다 */
 .draft-bar{display:none;align-items:center;gap:10px;padding:10px 13px;margin-bottom:12px;border-radius:var(--radius-lg);border:1px solid rgba(52,199,89,.35);background:rgba(52,199,89,.09)}
 .draft-bar.show{display:flex}
@@ -2037,6 +2087,11 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
       <div class="page-sub">반 친구들과 자유롭게 이야기하세요</div>
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
         <div class="view-toggle" id="free-category-tabs" style="flex-wrap:wrap;margin-bottom:0"></div>
+        <!-- 같은 글을 피드(인스타형 카드) 또는 갤러리(목록형)로 볼 수 있게 하는 전환 -->
+        <div class="view-toggle" id="free-view-toggle" style="margin-bottom:0;flex-shrink:0">
+          <button class="view-btn" id="free-view-feed" onclick="setFreeView('feed')">피드</button>
+          <button class="view-btn" id="free-view-gallery" onclick="setFreeView('gallery')">갤러리</button>
+        </div>
         <!-- 공부인증 탭에서만 보이는 버튼들 — 이 탭은 아래 인라인 글쓰기 폼 대신 전용 페이지
              (#page-studycert-write)로 이동한다(renderFreeCategoryTabs() 참고) -->
         <div id="studycert-write-btn" style="display:none;flex-shrink:0;gap:8px">
@@ -2055,6 +2110,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         <div class="form-row">
           <select class="form-select" id="free-post-category"></select>
         </div>
+        <input class="modal-input" id="free-title" placeholder="제목 (선택 — 갤러리 목록에 보여요)" style="margin-bottom:8px">
         <textarea class="form-textarea" id="free-content" placeholder="내용을 입력하세요..."></textarea>
         <!-- 사진/동영상 업로드 -->
         <div class="photo-upload-row">
@@ -8115,7 +8171,198 @@ function showFirstLaunchGuide(){
 // ── BOARDS ──
 // renderPost()가 참조하는 학번→프로필 맵/좋아요 명단 — loadBoardPosts()가 게시판을 불러올
 // 때마다 최신으로 채운다.
-let boardProfileMap={}, boardLikesMap={}, boardVerifyMap={};
+let boardProfileMap={}, boardLikesMap={}, boardVerifyMap={}, boardDownMap={};
+// 갤러리 보기에서 펼쳐둔 글 / 이번 세션에 조회수를 이미 올린 글
+let expandedPostId=null;
+const viewedPosts=new Set();
+
+// ── 갤러리 보기(목록형) ──
+function postUpCount(id){return (boardLikesMap[id]||[]).length}
+function postDownCount(id){return (boardDownMap[id]||[]).length}
+function postScore(id){return postUpCount(id)-postDownCount(id)}
+function myBoardVote(id){
+  if((boardLikesMap[id]||[]).includes(currentStudentId))return 'up';
+  if((boardDownMap[id]||[]).includes(currentStudentId))return 'down';
+  return null;
+}
+// 제목이 없던 시절의 글(그리고 제목을 비운 글)은 본문 첫 줄을 제목처럼 보여준다.
+function postTitleOf(p){
+  const t=(p.title||'').trim();
+  if(t)return t;
+  const first=(p.content||'').split('\n').find(l=>l.trim())||'(내용 없음)';
+  return first.length>60?first.slice(0,60)+'…':first;
+}
+// 오늘 쓴 글은 시:분, 그 전은 월.일 — 목록이 좁아서 둘 다 넣으면 잘린다.
+function fmtBoardDate(iso){
+  const d=new Date(iso),now=new Date();
+  if(d.toDateString()===now.toDateString())return`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  return`${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+}
+function renderBoardList(posts,commentMap){
+  const total=posts.length;
+  const rows=posts.map((p,i)=>renderBoardRow(p,total-i,(commentMap[p.id]||[]).length)).join('');
+  return`<div class="bl-wrap">
+    <div class="bl-head"><span>번호</span><span>제목</span><span>글쓴이</span><span>작성일</span><span>조회</span><span>추천</span></div>
+    ${rows}
+  </div>`;
+}
+function renderBoardRow(p,num,commentCount){
+  const authorProfile=boardProfileMap[p.student_id];
+  const authorName=authorProfile?.display_name||p.author_name;
+  const up=postUpCount(p.id);
+  const hot=postScore(p.id)>=HOT_SCORE;
+  const views=p.view_count||0;
+  return`<div class="bl-row" id="bl-row-${p.id}" onclick="toggleBoardRow('${p.id}')">
+    <span class="bl-num">${num}</span>
+    <span class="bl-title">
+      ${hot?'<span class="bl-hot">인기</span>':''}
+      <span class="bl-title-text">${escHtml(postTitleOf(p))}</span>
+      ${commentCount?`<span class="bl-cmt">[${commentCount}]</span>`:''}
+    </span>
+    <span class="bl-author">${escHtml(authorName)}</span>
+    <span class="bl-date">${fmtBoardDate(p.created_at)}</span>
+    <span class="bl-view">${views}</span>
+    <span class="bl-up${up?' on':''}" id="bl-up-${p.id}">${up||0}</span>
+    <span class="bl-meta-mobile">${fmtBoardDate(p.created_at)} · 조회 ${views} · 추천 <span class="bl-up${up?' on':''}">${up||0}</span></span>
+  </div>
+  <div class="bl-detail" id="bl-detail-${p.id}"></div>`;
+}
+function toggleBoardRow(id){
+  const detail=document.getElementById('bl-detail-'+id);
+  if(!detail)return;
+  if(detail.classList.contains('open')){
+    detail.classList.remove('open');detail.innerHTML='';
+    document.getElementById('bl-row-'+id)?.classList.remove('open');
+    expandedPostId=null;
+    return;
+  }
+  openBoardRow(id);
+}
+// silent=true면 조회수를 올리지 않는다(댓글 등록 후 다시 그릴 때 재사용).
+async function openBoardRow(id,silent){
+  const detail=document.getElementById('bl-detail-'+id);
+  if(!detail)return;
+  if(expandedPostId&&expandedPostId!==id){
+    const prev=document.getElementById('bl-detail-'+expandedPostId);
+    if(prev){prev.classList.remove('open');prev.innerHTML=''}
+    document.getElementById('bl-row-'+expandedPostId)?.classList.remove('open');
+  }
+  expandedPostId=id;
+  document.getElementById('bl-row-'+id)?.classList.add('open');
+  detail.classList.add('open');
+  detail.innerHTML='<div class="bl-empty">불러오는 중…</div>';
+  const [{data:post},{data:comments}]=await Promise.all([
+    sb.from('posts').select('*').eq('id',id).single(),
+    sb.from('comments').select('*').eq('post_id',id).order('created_at'),
+  ]);
+  if(!post){detail.innerHTML='<div class="bl-empty">글을 찾을 수 없어요</div>';return}
+  detail.innerHTML=renderBoardDetail(post,comments||[]);
+  // 조회수는 한 세션에 글당 한 번만 올린다(펼쳤다 접었다 반복해도 안 올라가게).
+  if(!silent&&!viewedPosts.has(id)){
+    viewedPosts.add(id);
+    sb.rpc('increment_post_view',{pid:id});
+    const cell=document.querySelector(`#bl-row-${id} .bl-view`);
+    if(cell)cell.textContent=(post.view_count||0)+1;
+  }
+}
+function renderBoardDetail(p,comments){
+  const canManagePost=p.student_id===currentStudentId||isBoardModerator();
+  const authorProfile=boardProfileMap[p.student_id];
+  const authorName=authorProfile?.display_name||p.author_name;
+  const isVideo=p.image_url&&(/\/vid_[^/]*$/.test(p.image_url)||(!/\/img_[^/]*$/.test(p.image_url)&&/\.(mp4|webm|mov|m4v|ogg|ogv|avi|wmv|mkv|3gp|flv|mpeg|mpg)(\?|$)/i.test(p.image_url)));
+  const mediaHtml=p.image_url?`<div class="bl-detail-media">${isVideo
+    ?`<video src="${p.image_url}" controls playsinline></video>`
+    :`<img src="${p.image_url}" alt="첨부사진" onclick="openLightbox('${p.image_url}')">`}</div>`:'';
+  const mine=myBoardVote(p.id);
+  const commentsHtml=comments.map(c=>{
+    const canManageComment=c.student_id===currentStudentId||isBoardModerator();
+    const cp=boardProfileMap[c.student_id];
+    const cn=cp?.display_name||c.author_name;
+    return`<div class="comment-item">
+      <div class="comment-avatar">${avatarHtmlFor(cn,cp?.avatar_url)}</div>
+      <div class="comment-body">
+        <div class="comment-meta">
+          <span class="comment-author">${escHtml(cn)}</span>
+          <span class="comment-time">${formatRelativeTime(c.created_at)}</span>
+          ${canManageComment?`<button class="comment-edit" onclick="startEditComment('${c.id}','${p.id}','${p.category}')">수정</button><button class="comment-del" onclick="deleteComment('${c.id}','${p.id}','${p.category}')">삭제</button>`:''}
+        </div>
+        <div class="comment-text" id="comment-text-${c.id}">${escHtml(c.content)}</div>
+      </div>
+    </div>`;
+  }).join('');
+  return`<div onclick="event.stopPropagation()">
+    <div class="bl-detail-title">${escHtml(postTitleOf(p))}</div>
+    <div class="bl-detail-meta">
+      <span>${escHtml(authorName)}</span><span>·</span>
+      <span>${formatRelativeTime(p.created_at)}</span><span>·</span>
+      <span>조회 ${p.view_count||0}</span>
+      ${canManagePost?`<span style="margin-left:auto;display:flex;gap:8px">
+        <button class="comment-edit" onclick="startEditPost('${p.id}','${p.category}')">수정</button>
+        <button class="comment-del" onclick="deletePost('${p.id}','${p.image_url||''}','${p.category}')">삭제</button>
+      </span>`:''}
+    </div>
+    <div class="bl-detail-body" id="post-content-${p.id}">${escHtml(p.content)}</div>
+    ${mediaHtml}
+    <div class="bl-vote-row">
+      <button class="bl-vote up${mine==='up'?' on':''}" id="bl-vote-up-${p.id}" onclick="votePost('${p.id}','up')">
+        <span class="bl-vote-count" id="bl-vote-up-count-${p.id}">${postUpCount(p.id)}</span>
+        <span class="bl-vote-label">👍 개추</span>
+      </button>
+      <button class="bl-vote down${mine==='down'?' on':''}" id="bl-vote-down-${p.id}" onclick="votePost('${p.id}','down')">
+        <span class="bl-vote-count" id="bl-vote-down-count-${p.id}">${postDownCount(p.id)}</span>
+        <span class="bl-vote-label">👎 비추</span>
+      </button>
+    </div>
+    <div class="comment-section" style="display:block">
+      <div class="comment-list" id="comment-list-${p.id}">${commentsHtml}</div>
+      <div class="comment-input-row">
+        <input class="comment-input" id="comment-input-${p.id}" placeholder="댓글을 입력하세요..." onkeydown="if(event.key==='Enter'&&!event.isComposing)submitComment('${p.id}','${p.category}')">
+        <button class="comment-submit" onclick="submitComment('${p.id}','${p.category}')">등록</button>
+      </div>
+    </div>
+  </div>`;
+}
+// 개추/비추 — 같은 걸 다시 누르면 취소, 반대쪽을 누르면 갈아탄다.
+// post_likes 한 행에 vote만 다르게 저장하므로 개추와 비추를 동시에 누를 수는 없다.
+async function votePost(postId,kind){
+  if(!currentUser){toast('로그인이 필요해요');return}
+  const before=myBoardVote(postId);
+  const next=before===kind?null:kind;
+  // 낙관적 업데이트
+  boardLikesMap[postId]=(boardLikesMap[postId]||[]).filter(sid=>sid!==currentStudentId);
+  boardDownMap[postId]=(boardDownMap[postId]||[]).filter(sid=>sid!==currentStudentId);
+  if(next==='up')boardLikesMap[postId].push(currentStudentId);
+  if(next==='down')boardDownMap[postId].push(currentStudentId);
+  renderBoardVoteButtons(postId);
+  let error=null;
+  if(!next){
+    ({error}=await sb.from('post_likes').delete().eq('post_id',postId).eq('user_id',currentUser.id));
+  }else{
+    // 이미 반대쪽에 투표한 행이 있을 수 있으니 지우고 다시 넣는다(복합 PK라 upsert가 까다로움).
+    await sb.from('post_likes').delete().eq('post_id',postId).eq('user_id',currentUser.id);
+    ({error}=await sb.from('post_likes').insert({post_id:postId,student_id:currentStudentId,user_id:currentUser.id,vote:next}));
+  }
+  if(error){
+    toast('추천 처리에 실패했어요');
+    boardLikesMap[postId]=(boardLikesMap[postId]||[]).filter(sid=>sid!==currentStudentId);
+    boardDownMap[postId]=(boardDownMap[postId]||[]).filter(sid=>sid!==currentStudentId);
+    if(before==='up')boardLikesMap[postId].push(currentStudentId);
+    if(before==='down')boardDownMap[postId].push(currentStudentId);
+    renderBoardVoteButtons(postId);
+  }
+}
+function renderBoardVoteButtons(postId){
+  const up=postUpCount(postId),down=postDownCount(postId),mine=myBoardVote(postId);
+  const set=(id,txt)=>{const el=document.getElementById(id);if(el)el.textContent=txt};
+  set(`bl-vote-up-count-${postId}`,up);
+  set(`bl-vote-down-count-${postId}`,down);
+  document.getElementById(`bl-vote-up-${postId}`)?.classList.toggle('on',mine==='up');
+  document.getElementById(`bl-vote-down-${postId}`)?.classList.toggle('on',mine==='down');
+  // 목록 줄의 추천 숫자도 같이 갱신
+  document.querySelectorAll(`#bl-row-${postId} .bl-up`).forEach(el=>{
+    el.textContent=up;el.classList.toggle('on',up>0);
+  });
+}
 // 로그인 계정의 활성 공부 루틴들(여러 개 가능) — renderStudyRoutineBoard()가 상단 현황판을
 // 그릴 때마다 최신화해서 루틴 관리 모달/글쓰기 페이지의 연결 선택에 쓴다.
 let myRoutines=[];
@@ -8175,10 +8422,25 @@ const FREE_BOARD_CATEGORIES=[
   {key:'studycert',label:'공부인증',empty:'아직 공부 인증이 없어요!'},
   {key:'examreview',label:'시험 회고',empty:'아직 시험 회고가 없어요. 시험을 봤다면 남겨보세요!'},
   {key:'misc',label:'잡동사니',empty:'아직 글이 없어요.'},
-  {key:'tips',label:'정보·팁',empty:'아직 등록된 정보/팁이 없어요.'}
+  {key:'tips',label:'정보·팁',empty:'아직 등록된 정보/팁이 없어요.'},
+  // 실제 카테고리가 아니라 "추천을 많이 받은 글"을 모아 보는 가상 탭(글쓰기 대상이 아님).
+  {key:'hot',label:'🔥 인기글',empty:'아직 인기글이 없어요. 개추를 3개 이상 받으면 올라와요!',virtual:true}
 ];
+// 개추 - 비추가 이 값 이상이면 인기글로 올라간다.
+const HOT_SCORE=3;
+// 갤러리 목록으로 볼 수 있는(=글 형태가 자유로운) 카테고리들. 공부인증/시험 회고는 전용 UI를 쓴다.
+const GALLERY_CATEGORIES=['brag','misc','tips'];
 const FREE_CATEGORY_KEYS=FREE_BOARD_CATEGORIES.map(c=>c.key);
 let currentFreeCategory=FREE_BOARD_CATEGORIES[0].key;
+// 피드(인스타형 카드) / 갤러리(목록형) 보기 — 선택은 기기에 기억한다.
+let freeView=(localStorage.getItem('bugwang_free_view')==='gallery')?'gallery':'feed';
+function setFreeView(v){
+  freeView=v;
+  try{localStorage.setItem('bugwang_free_view',v)}catch(e){}
+  renderFreeCategoryTabs();
+  loadFreeBoard();
+}
+function galleryCapable(cat){return GALLERY_CATEGORIES.includes(cat)||cat==='hot'}
 function renderFreeCategoryTabs(){
   const tabsEl=document.getElementById('free-category-tabs');
   const selectEl=document.getElementById('free-post-category');
@@ -8189,15 +8451,22 @@ function renderFreeCategoryTabs(){
   // 카테고리 선택지에서는 빼서, 이 폼으로 study_seconds 없는 공부인증 글이 만들어지는 걸 막는다.
   // 공부인증/시험 회고는 전용 페이지로만 작성하므로(구조가 완전히 달라서) 일반 글쓰기 폼의
   // 카테고리 선택지에서는 뺀다 — 이 폼으로 필수 항목이 빠진 글이 만들어지는 걸 막기 위함.
-  const FORM_EXCLUDED=['studycert','examreview'];
+  const FORM_EXCLUDED=['studycert','examreview','hot'];
   if(selectEl)selectEl.innerHTML=FREE_BOARD_CATEGORIES.filter(c=>!FORM_EXCLUDED.includes(c.key)).map(c=>`<option value="${c.key}">${c.label}</option>`).join('');
   const isStudyCert=currentFreeCategory==='studycert';
   const isExamReview=currentFreeCategory==='examreview';
+  // 보기 전환은 자유 형식 글 탭에서만 의미가 있다(공부인증/시험 회고는 전용 UI).
+  const viewToggle=document.getElementById('free-view-toggle');
+  if(viewToggle){
+    viewToggle.style.display=galleryCapable(currentFreeCategory)?'flex':'none';
+    document.getElementById('free-view-feed')?.classList.toggle('active',freeView==='feed');
+    document.getElementById('free-view-gallery')?.classList.toggle('active',freeView==='gallery');
+  }
   const writeForm=document.getElementById('free-write-form');
   const scWriteBtn=document.getElementById('studycert-write-btn');
   const erWriteBtn=document.getElementById('examreview-write-btn');
   const routineBoard=document.getElementById('study-routine-board');
-  if(writeForm)writeForm.style.display=(isStudyCert||isExamReview)?'none':'';
+  if(writeForm)writeForm.style.display=(isStudyCert||isExamReview||currentFreeCategory==='hot')?'none':'';
   if(scWriteBtn)scWriteBtn.style.display=isStudyCert?'flex':'none';
   if(erWriteBtn)erWriteBtn.style.display=isExamReview?'flex':'none';
   if(routineBoard)routineBoard.style.display=isStudyCert?'block':'none';
@@ -8223,7 +8492,7 @@ function switchFreeCategory(cat){
 // 초안 키에 학번을 넣는 이유: 공용 기기에서 다음 사람이 남의 초안을 보게 되면 안 되기 때문.
 const DRAFT_TTL_MS=7*24*60*60*1000; // 일주일 지난 초안은 조용히 버린다
 const DRAFT_FORMS={
-  free:      {label:'자유게시판 글',container:'free-write-form',     ids:['free-post-category','free-content']},
+  free:      {label:'자유게시판 글',container:'free-write-form',     ids:['free-post-category','free-title','free-content']},
   qna:       {label:'질문',        container:'qna-write-form',       ids:['qna-subject','qna-content']},
   bug:       {label:'버그 제보',    container:'bug-write-form',       ids:['bug-content']},
   // 공지 "수정"은 원본이 서버에 있으므로 초안을 만들지 않는다(복구가 오히려 헷갈림).
@@ -8443,10 +8712,14 @@ async function submitPost(type){
   const {error}=await sb.from('posts').insert({
     user_id:currentUser.id,student_id:currentStudentId,
     author_name:currentName||currentStudentId+'번',
-    category,subject,content,image_url:imageUrl
+    category,subject,content,image_url:imageUrl,
+    // 제목은 자유게시판 갤러리 목록용 — 다른 게시판에는 입력칸 자체가 없다.
+    title:type==='free'?(document.getElementById('free-title')?.value.trim()||null):null
   });
   if(error){toast('게시 실패: '+error.message);submitBtn.textContent=label;submitBtn.disabled=false;return}
   contentEl.value='';clearPhoto(type);
+  const titleEl=document.getElementById('free-title');
+  if(type==='free'&&titleEl)titleEl.value='';
   finishDraft(type);
   submitBtn.textContent=label;submitBtn.disabled=false;
   toast(type==='bug'?'제보됐어요, 확인할게요 ✓':'게시되었습니다 ✓');
@@ -8587,6 +8860,7 @@ function renderPost(p,type,comments=[]){
     </div>
     <div class="post-body">
       ${likeCountHtml}
+      ${p.title?`<div style="font-weight:700;font-size:14px;color:var(--ink);margin-bottom:2px">${escHtml(p.title)}</div>`:''}
       <div class="qna-content-line"><span class="post-caption-name">${escHtml(authorName)}</span><div class="qna-content" id="post-content-${p.id}" style="display:inline">${escHtml(p.content)}</div></div>
       <button class="comment-toggle-btn" onclick="toggleComments('${p.id}')">${commentCount?`댓글 ${commentCount}개 모두 보기`:''}</button>
       <span class="post-timestamp">${formatRelativeTime(p.created_at)}</span>
@@ -9634,26 +9908,45 @@ function renderVoteButtons(postId){
 }
 
 async function loadBoardPosts(category,listElId,emptyMsg,type){
-  const {data:posts}=await sb.from('posts').select('*').eq('category',category).order('created_at',{ascending:false}).limit(30);
+  // 인기글 탭은 실제 카테고리가 아니라, 자유 형식 글들 중 추천을 많이 받은 것만 모은 것이다.
+  const isHot=category==='hot';
+  const query=isHot
+    ? sb.from('posts').select('*').in('category',GALLERY_CATEGORIES).order('created_at',{ascending:false}).limit(200)
+    : sb.from('posts').select('*').eq('category',category).order('created_at',{ascending:false}).limit(30);
+  let {data:posts}=await query;
   const el=document.getElementById(listElId);
-  if(!posts||!posts.length){el.innerHTML=`<div style="text-align:center;padding:32px;color:var(--ink-48);font-size:13px">${emptyMsg}</div>`;return}
+  const showEmpty=()=>{el.innerHTML=`<div style="text-align:center;padding:32px;color:var(--ink-48);font-size:13px">${emptyMsg}</div>`};
+  if(!posts||!posts.length){showEmpty();return}
   const ids=posts.map(p=>p.id);
   const isStudyCert=type==='studycert';
   const [{data:comments},{data:likes},{data:verifications},profileMap]=await Promise.all([
     sb.from('comments').select('*').in('post_id',ids).order('created_at'),
-    (FREE_CATEGORY_KEYS.includes(type)&&!isStudyCert)?sb.from('post_likes').select('post_id,student_id').in('post_id',ids):Promise.resolve({data:[]}),
+    (FREE_CATEGORY_KEYS.includes(type)&&!isStudyCert)?sb.from('post_likes').select('post_id,student_id,vote').in('post_id',ids):Promise.resolve({data:[]}),
     isStudyCert?sb.from('post_verifications').select('post_id,student_id,vote').in('post_id',ids):Promise.resolve({data:[]}),
     loadProfileMap()
   ]);
   boardProfileMap=profileMap;
-  boardLikesMap={};(likes||[]).forEach(l=>{(boardLikesMap[l.post_id]=boardLikesMap[l.post_id]||[]).push(l.student_id)});
+  // 옛 좋아요 행은 vote 컬럼이 없던 시절 것이라 기본값 'up'(개추)으로 본다.
+  boardLikesMap={};boardDownMap={};
+  (likes||[]).forEach(l=>{
+    const bucket=(l.vote==='down')?boardDownMap:boardLikesMap;
+    (bucket[l.post_id]=bucket[l.post_id]||[]).push(l.student_id);
+  });
+  if(isHot){
+    posts=posts.filter(p=>postScore(p.id)>=HOT_SCORE);
+    if(!posts.length){showEmpty();return}
+  }
   boardVerifyMap={};(verifications||[]).forEach(v=>{(boardVerifyMap[v.post_id]=boardVerifyMap[v.post_id]||{})[v.student_id]=v.vote});
   const commentMap={};(comments||[]).forEach(c=>{if(!commentMap[c.post_id])commentMap[c.post_id]=[];commentMap[c.post_id].push(c)});
   el.innerHTML=type==='studycert'
     ?renderStudyCertTable(posts,commentMap)
     :type==='examreview'
       ?posts.map(p=>renderExamReviewCard(p,commentMap[p.id]||[])).join('')
-      :posts.map(p=>renderPost(p,type,commentMap[p.id]||[])).join('');
+      :(galleryCapable(type)&&freeView==='gallery')
+        ?renderBoardList(posts,commentMap)
+        :posts.map(p=>renderPost(p,type,commentMap[p.id]||[])).join('');
+  // 다시 그린 뒤에도 펼쳐 보던 글은 그대로 펼쳐둔다(댓글을 달면 목록이 새로 그려지므로).
+  if(expandedPostId)openBoardRow(expandedPostId,true);
 }
 async function loadFreeBoard(){
   renderFreeCategoryTabs();

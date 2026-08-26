@@ -1028,6 +1028,20 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .sc-like-btn svg,.sc-comment-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;flex-shrink:0}
 .sc-like-btn.liked svg{fill:#ed4956;stroke:#ed4956}
 .sc-date{font-size:12px;color:var(--ink-48);white-space:nowrap}
+/* 공부인증 글쓰기 맨 위 "며칠 자 인증" 배너 */
+.sc-date-banner{background:var(--parchment);border:1px solid var(--hairline);border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:18px}
+.sc-date-banner-top{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.sc-date-banner-cal{font-size:15px}
+.sc-date-banner-date{font-size:19px;font-weight:700;letter-spacing:-.02em;color:var(--ink)}
+.sc-date-banner-rel{font-size:12.5px;font-weight:600;color:var(--ig-blue);background:rgba(0,149,246,.12);border-radius:var(--radius-pill);padding:2px 9px}
+.sc-date-banner-note{font-size:12px;color:#c47d00;margin-top:7px;line-height:1.5}
+.sc-date-banner-note:empty{display:none}
+.sc-date-banner-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:11px}
+.sc-date-load-btn{margin-left:auto;font-size:12px;white-space:nowrap;padding:7px 11px}
+@media(max-width:520px){
+  .sc-date-load-btn{margin-left:0;width:100%}
+  .sc-date-banner-row .modal-input{flex:1;max-width:none}
+}
 .sc-comments-panel{grid-column:1/-1;border-bottom:1px solid var(--hairline);padding:14px 16px;background:var(--parchment)}
 /* 공부인증 게시판 표가 모바일에서 가로 스크롤로 잘려 보이는 문제(제보: "폰에서 화면이
    짤리는 문제") — .sc-write-table의 카드형 반응형과 같은 방식으로, 834px 이하에서
@@ -2322,11 +2336,21 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
       <div class="page-title" style="margin-top:10px">공부 인증하기</div>
       <div class="page-sub">과목별 학습 내역과 인증 사진을 남겨보세요</div>
       <div class="card spacer">
-        <div class="modal-field">
-          <label class="modal-label">인증할 날짜</label>
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <input class="modal-input" type="date" id="sc-date" style="max-width:170px;flex:none">
-            <button class="btn-ghost" style="margin-left:auto;font-size:12px;white-space:nowrap;padding:6px 10px" onclick="loadStudyRecordForCert()">📥 학습 기록 불러오기</button>
+        <!-- 며칠 자 인증인지 한눈에 보이게 맨 위에 크게 띄운다(요청: "인증을 올릴때 몇일날 꺼
+             인증인지 위에 표시"). 자정을 넘겨 어제 공부를 인증하는 경우가 잦아서 날짜를
+             모르고 올리면 그대로 오늘 날짜로 박혀버린다. -->
+        <div class="sc-date-banner" id="sc-date-banner">
+          <div class="sc-date-banner-top">
+            <span class="sc-date-banner-cal">📅</span>
+            <span class="sc-date-banner-date" id="sc-date-label">—</span>
+            <span class="sc-date-banner-rel" id="sc-date-rel"></span>
+          </div>
+          <div class="sc-date-banner-note" id="sc-date-note"></div>
+          <div class="sc-date-banner-row">
+            <button class="er-type-btn" id="sc-date-btn-yday" onclick="setScCertDate(-1)">어제</button>
+            <button class="er-type-btn" id="sc-date-btn-today" onclick="setScCertDate(0)">오늘</button>
+            <input class="modal-input" type="date" id="sc-date" onchange="syncScDateLabel()" style="max-width:165px;flex:none">
+            <button class="btn-ghost sc-date-load-btn" onclick="loadStudyRecordForCert()">📥 학습 기록 불러오기</button>
           </div>
         </div>
         <div class="modal-field" id="sc-routine-hint" style="display:none"></div>
@@ -9105,6 +9129,7 @@ const DRAFT_FORMS={
                 (d.rows||[]).forEach(r=>addScLogRow(r.subject,r.task,r.seconds));
                 if(!wrap.children.length)addScLogRow();
                 recomputeScTotal();
+                syncScDateLabel(); // 복구된 날짜를 배너에도 반영
               }},
   examreview:{label:'시험 회고',    container:'page-examreview-write', barIn:'#page-examreview-write .card',
               ids:['er-name','er-subject-detail','er-score','er-grade','er-unsolved',
@@ -9814,10 +9839,57 @@ function recomputeScTotal(){
   const totalSec=scLogRowsData().reduce((a,r)=>a+r.seconds,0);
   document.getElementById('sc-total-time').textContent=fmtStudySeconds(totalSec);
 }
+// 인증 기본 날짜 — 새벽 5시 전에는 "어제" 것을 올리는 경우가 대부분이라 어제로 잡아둔다.
+// (자정을 넘기면 오늘 날짜로 박혀버린다는 제보) 배너에 왜 어제로 잡혔는지 이유도 띄운다.
+const SC_NIGHT_OWL_HOUR=5;
+function scDefaultCertDate(){
+  const now=new Date();
+  if(now.getHours()<SC_NIGHT_OWL_HOUR){
+    const y=new Date(now);y.setDate(y.getDate()-1);
+    return localDateStr(y);
+  }
+  return localDateStr();
+}
+// 오늘로부터 며칠 전인지(0=오늘, 1=어제 …). 날짜 문자열끼리 비교해 시차/서머타임에 안 흔들리게.
+function scDateOffsetFromToday(dateStr){
+  if(!dateStr)return 0;
+  const a=new Date(dateStr+'T00:00:00'), b=new Date(localDateStr()+'T00:00:00');
+  return Math.round((b-a)/86400000);
+}
+function syncScDateLabel(){
+  const dateEl=document.getElementById('sc-date');
+  if(!dateEl)return;
+  const v=dateEl.value||localDateStr();
+  const off=scDateOffsetFromToday(v);
+  document.getElementById('sc-date-label').textContent=fmtStudyDateLabel(v)+' 공부';
+  const relEl=document.getElementById('sc-date-rel');
+  relEl.textContent=off===0?'오늘':off===1?'어제':off>1?`${off}일 전`:'';
+  relEl.style.display=relEl.textContent?'':'none';
+  document.getElementById('sc-date-btn-yday')?.classList.toggle('active',off===1);
+  document.getElementById('sc-date-btn-today')?.classList.toggle('active',off===0);
+  const btn=document.getElementById('sc-submit-btn');
+  if(btn&&!btn.disabled)btn.textContent=scSubmitBtnLabel();
+  const note=document.getElementById('sc-date-note');
+  if(note)note.textContent=(off===1&&new Date().getHours()<SC_NIGHT_OWL_HOUR)
+    ? '지금은 자정이 지난 새벽이라 어제 날짜로 맞춰뒀어요. 오늘 공부한 걸 올리는 거면 "오늘"을 눌러주세요.'
+    : '';
+}
+function scSubmitBtnLabel(){
+  const v=document.getElementById('sc-date')?.value||localDateStr();
+  return `${fmtStudyDateLabel(v)} 인증하기`;
+}
+function setScCertDate(offset){
+  const d=new Date();d.setDate(d.getDate()+offset);
+  const el=document.getElementById('sc-date');
+  if(!el)return;
+  el.value=localDateStr(d);
+  syncScDateLabel();
+}
 function openStudyCertWritePage(){
   const dateEl=document.getElementById('sc-date');
-  dateEl.value=localDateStr();
+  dateEl.value=scDefaultCertDate();
   dateEl.max=localDateStr(); // 미래 날짜는 인증할 수 없음
+  syncScDateLabel();
   document.getElementById('sc-log-rows').innerHTML='';
   addScLogRow(); // 바로 입력할 수 있게 빈 줄 하나는 기본으로 둠
   document.getElementById('sc-content').value='';
@@ -9948,7 +10020,7 @@ async function submitStudyCertPost(){
   const bail=async(msg)=>{
     if(uploadedPaths.length){try{await sb.storage.from('board-photos').remove(uploadedPaths)}catch(e){}}
     errEl.textContent=msg;errEl.style.display='block';
-    submitBtn.textContent='인증하기';submitBtn.disabled=false;
+    submitBtn.textContent=scSubmitBtnLabel();submitBtn.disabled=false;
   };
   for(let i=0;i<scPhotoFiles.length;i++){
     const file=scPhotoFiles[i];
@@ -9972,7 +10044,7 @@ async function submitStudyCertPost(){
     study_seconds:studySeconds,study_date:studyDate,study_log:logRows,
     routine_id:document.getElementById('sc-routine-select')?.value||null
   }).select().single();
-  submitBtn.textContent='인증하기';submitBtn.disabled=false;
+  submitBtn.textContent=scSubmitBtnLabel();submitBtn.disabled=false;
   if(error){await bail('게시 실패: '+error.message);return}
   // 이 글쓰기 페이지는 공부인증 탭의 버튼으로만 들어올 수 있으므로,
   // closeStudyCertWritePage()의 navigate('study-board')가 알아서 새로고침해준다.

@@ -166,6 +166,9 @@
   행 + SELECT는 전체 공개 `true`, INSERT/DELETE는 `auth.uid()=user_id`)으로 교체함 —
   `like_count` 컬럼과 `toggle_post_like()` 함수는 삭제됨(더 이상 없음). 좋아요 수/좋아요
   누른 사람 목록 둘 다 이 테이블만으로 클라이언트에서 계산(`boardLikesMap`).
+- `notifications.source_id`(2026-08-26 추가) — 이 알림을 만들어낸 **원본 id**(댓글 id / DM
+  메시지 id / 글 id). `ref_id`는 "묶어서 읽음 처리"용이라 글·방 단위라서 알림 하나를 콕 집을
+  수 없어서 따로 뒀다. 원본을 지울 때 그 알림만 지우는 데 쓴다(purge_* 함수).
 - `post_polls`/`post_poll_votes`(2026-08-26 신설, **게시글 비밀 투표**) — `post_polls`는
   `post_id`(FK→posts, cascade, 유니크 = 글당 투표 하나)/`question`/`options`(jsonb 배열),
   `post_poll_votes`는 `(poll_id,student_id)` PK + `user_id`/`option_index`.
@@ -247,6 +250,23 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-08-26 (24차): **글·댓글·DM을 지우면 그 알림도 같이 지워지게**(요청: "dm이나 글
+  삭제하면 알람도 같이 지워지게 해줘"). `sw.js`의 `SW_BUILD`도 `2026-08-26-24`로 올림.
+  마이그레이션 `purge_notifications_on_delete`, 엣지 함수 **v14**.
+  - **왜 그냥 delete로 안 되나**: 알림은 받는 사람 행이고 RLS가
+    `auth.uid() = recipient_user_id`라서 **지우는 사람(글쓴이/보낸 사람)은 남의 알림을 못
+    지운다.** 그래서 security definer 함수 3개로 소유권을 확인한 뒤 대신 지운다:
+    `purge_post_notifications` / `purge_comment_notifications` /
+    `purge_dm_message_notifications`. 원본이 아직 살아있어야 소유권을 확인할 수 있으므로
+    **삭제 직전에** 부른다.
+  - **`notifications.source_id` 추가**: `ref_id`(글/방 단위)로는 알림 하나를 특정할 수 없어서
+    (같은 글의 댓글 알림이 전부 같은 ref_id) 원본 id를 따로 남긴다. 엣지 함수 v14가
+    댓글/DM/공부인증 알림에 이 값을 채운다.
+  - **채팅방 나가기**: 그 방에서 온 내 알림도 같이 지운다(내 알림이라 RLS 안에서 직접 삭제).
+  - 예전에 쌓인 알림 정리: 내용이 정확히 일치하는 원본을 찾아 `source_id`를 최선껏 채웠고
+    (댓글 30건 · DM 86건), **이미 지워진 글을 가리키던 유령 알림 16건**은 삭제했다.
+  - ⚠️ v14 이전 알림 중 원본을 못 찾은 건 `source_id`가 비어 있어서, 그 시절 DM/댓글을 지금
+    지워도 알림이 남을 수 있다(글 삭제는 `ref_id`로 잡히니 영향 없음).
 - 2026-08-26 (23차): **댓글 답장(대댓글) + "작성자" 표시 + 등록/전송 버튼 눌리기 쉽게**
   (요청: "전송 누르기가 빡세다는 의견이 있어서 수정해, 게시물에서 답장할때는 댓글 |——>답장
   이렇게 구성해주고, 댓글에 작성자가 대답할경우 익명이여도 ㅇㅇ(작성자)이렇게 보이게 해").

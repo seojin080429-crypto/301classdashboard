@@ -7989,6 +7989,9 @@ async function sendDmMessage(){
 async function deleteDmMessage(id){
   if(!confirm('이 메시지를 삭제할까요?'))return;
   const {data:msg}=await sb.from('dm_messages').select('image_url').eq('id',id).single();
+  // 상대 알림센터/푸시 기록에 지운 메시지 내용이 그대로 남아있으면 지운 의미가 없다.
+  const {error:purgeErr}=await sb.rpc('purge_dm_message_notifications',{p_message_id:id});
+  if(purgeErr)console.warn('알림 정리 실패',purgeErr);
   const {error}=await sb.from('dm_messages').delete().eq('id',id);
   if(error){toast('삭제 실패: '+error.message);return}
   if(msg?.image_url)await sb.storage.from('dm-photos').remove([msg.image_url]);
@@ -8057,8 +8060,14 @@ async function leaveDmRoom(){
     :'이 대화방에서 나갈까요? 내 목록에서만 사라지고 상대방에겐 그대로 남아요.';
   if(!confirm(msg))return;
   closeDmRoomInfo();
-  const {error}=await sb.from('dm_participants').delete().eq('room_id',dmActiveRoomId).eq('user_id',currentUser.id);
+  const leftRoomId=dmActiveRoomId;
+  const {error}=await sb.from('dm_participants').delete().eq('room_id',leftRoomId).eq('user_id',currentUser.id);
   if(error){toast('나가기 실패: '+error.message);return}
+  // 나간 방에서 온 알림이 알림센터에 남아있으면 눌러도 갈 곳이 없다 — 같이 지운다.
+  // (내 알림이라 RLS 안에서 직접 삭제 가능)
+  await sb.from('notifications').delete()
+    .eq('recipient_user_id',currentUser.id).eq('type','dm-message').eq('ref_id',leftRoomId);
+  loadNotifCount();
   toast('채팅방에서 나왔어요');
   notifyDmLeftView();
   dmActiveRoomId=null;
@@ -9275,6 +9284,10 @@ async function deletePost(id,imageUrl,type){
   const photoPaths=(postPhotos.length?postPhotos:(imageUrl?[imageUrl]:[]))
     .map(u=>(u||'').split('/board-photos/')[1]).filter(Boolean);
   if(photoPaths.length)await sb.storage.from('board-photos').remove(photoPaths);
+  // 알림은 받는 사람 것이라 RLS 때문에 내가 직접 못 지운다 — 글이 아직 살아있을 때
+  // security definer 함수로 소유권을 확인시키고 대신 지우게 한다(지운 뒤엔 확인 불가).
+  const {error:purgeErr}=await sb.rpc('purge_post_notifications',{p_post_id:id});
+  if(purgeErr)console.warn('알림 정리 실패',purgeErr);
   await sb.from('posts').delete().eq('id',id);
   toast('삭제되었습니다');
   await boardLoader(type)();
@@ -9530,6 +9543,8 @@ async function deleteComment(commentId,postId,type){
     toast('권한이 없습니다');
     return;
   }
+  const {error:purgeErr}=await sb.rpc('purge_comment_notifications',{p_comment_id:commentId});
+  if(purgeErr)console.warn('알림 정리 실패',purgeErr);
   await sb.from('comments').delete().eq('id',commentId);
   await boardLoader(type)();
 }

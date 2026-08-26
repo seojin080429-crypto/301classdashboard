@@ -166,6 +166,14 @@
   행 + SELECT는 전체 공개 `true`, INSERT/DELETE는 `auth.uid()=user_id`)으로 교체함 —
   `like_count` 컬럼과 `toggle_post_like()` 함수는 삭제됨(더 이상 없음). 좋아요 수/좋아요
   누른 사람 목록 둘 다 이 테이블만으로 클라이언트에서 계산(`boardLikesMap`).
+- `post_polls`/`post_poll_votes`(2026-08-26 신설, **게시글 비밀 투표**) — `post_polls`는
+  `post_id`(FK→posts, cascade, 유니크 = 글당 투표 하나)/`question`/`options`(jsonb 배열),
+  `post_poll_votes`는 `(poll_id,student_id)` PK + `user_id`/`option_index`.
+  ⚠️ **`notice_poll_votes`와 RLS 설계가 다르다** — 공지 투표는 SELECT가 `true`(전체 공개)라
+  프론트가 이름을 안 그려도 개발자도구로 누가 뭘 골랐는지 다 보인다. 게시글 투표는 "비밀
+  투표"가 요구사항이라 **SELECT를 `auth.uid()=user_id`(내 표만)로 잠갔고**, 선택지별 표 수는
+  security definer 함수 **`post_poll_results(pids uuid[])`** 로만 내보낸다(집계만 반환).
+  그래서 누가 뭘 골랐는지는 글쓴이도 운영자도 알 수 없다.
 - `dm_rooms`/`dm_participants`/`dm_messages`(2026-07-16 신설, 학생 간 DM 기능) — 1:1은
   `is_group=false`, 단톡방은 `is_group=true`+`name`(선택). `dm_participants`는
   (room_id,student_id) 복합 PK로 참가자를 기록하고 `last_read_at`으로 읽음 여부를 계산.
@@ -239,6 +247,25 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-08-26 (21차): **글쓰기에 투표 붙이기 — 비밀 투표**(요청: "게시물 올릴때 투표도 올릴 수
+  있게 만들어줘, 투표는 비밀 투표로"). `sw.js`의 `SW_BUILD`도 `2026-08-26-21`로 올림.
+  마이그레이션 `add_post_polls_secret_ballot`.
+  - 마이너 갤러리 글쓰기 페이지에 **🗳️ 투표 추가** 체크박스 → 질문 + 선택지(2~8개) 입력.
+    선택지 입력 헬퍼(`renderPollOptionInputs`/`addPollOptionInput`)는 공지 투표와 공용으로
+    쓰도록 목록 id를 인자로 받게 일반화했다.
+  - 표시: **피드 카드**(본문 아래)·**갤러리 상세**(본문 아래)에 투표 블록, **갤러리 목록**
+    제목 옆에 🗳️ 표시. 투표하기 전에는 선택지 버튼만 보이고, 고르면 막대 그래프 결과가 뜬다
+    (남 눈치 안 보고 고르라고 공지 투표와 동일하게 "투표 후 결과 공개").
+  - **비밀 투표를 DB로 강제**: 프론트에서 이름만 안 그리는 방식은 개발자도구로 뚫린다(익명
+    글에서 이미 겪은 문제). 그래서
+    - `post_poll_votes`의 SELECT 정책을 `auth.uid()=user_id`로 잠가 **남의 표는 받아올 수조차
+      없게** 하고,
+    - 선택지별 표 수만 돌려주는 security definer 함수 `post_poll_results(pids)`를 만들어
+      집계는 그걸로만 받는다.
+    실제로 A/B 두 표를 넣고 A 권한으로 조회해보면 A에게는 1행(자기 표)만 보이고, 집계 함수는
+    2표를 정상적으로 돌려준다.
+  - 프론트 상태: `boardPollMap`(글→투표), `boardPollCountMap`(투표→선택지별 표 수),
+    `boardMyPollVote`(투표→내 선택). **누가 뭘 골랐는지는 클라이언트에 아예 안 들어온다.**
 - 2026-08-26 (20차): **피드 카드의 액션바(하트·댓글·공유)를 글 아래로 이동**(요청: "하트와
   공유 ui가 글 밑으로 내려와야해"). `sw.js`의 `SW_BUILD`도 `2026-08-26-20`로 올림.
   - 원래는 인스타 순서 그대로 `헤더 → 미디어 → 액션바 → 본문`이었는데, 글만 있는 글(사진 없는

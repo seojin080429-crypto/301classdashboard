@@ -340,6 +340,8 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .poll-cancel-vote:hover{text-decoration:underline}
 .poll-nonvoters{display:none;font-size:11px;color:var(--ink-48);margin-top:6px;padding-top:6px;border-top:1px dashed var(--hairline);line-height:1.6}
 .poll-nonvoters.open{display:block}
+/* 갤러리 목록 줄의 투표 표시 */
+.bl-poll{font-size:11.5px;margin-left:3px}
 .poll-option-input-list{display:flex;flex-direction:column;gap:6px}
 .poll-option-input-row{display:flex;gap:6px;align-items:center}
 .poll-option-input-row .modal-input{flex:1}
@@ -2186,6 +2188,24 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
           <div class="photo-preview-wrap" id="free-photo-preview" style="display:none">
             <img id="free-photo-img" src="" alt="미리보기" class="photo-preview-img">
             <video id="free-photo-video" class="photo-preview-img" controls playsinline style="display:none"></video>
+          </div>
+        </div>
+        <div class="modal-field">
+          <label class="modal-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="free-poll-toggle" style="width:15px;height:15px;accent-color:var(--blue)" onchange="syncFreePollSection()">
+            🗳️ 투표 추가
+          </label>
+          <div style="font-size:11.5px;color:var(--ink-48);margin-top:6px">비밀 투표예요 — 선택지별 표 수만 보이고, 누가 뭘 골랐는지는 글쓴이도 운영자도 볼 수 없어요.</div>
+        </div>
+        <div id="free-poll-section" style="display:none">
+          <div class="modal-field">
+            <label class="modal-label">투표 질문</label>
+            <input class="modal-input" id="free-poll-question" type="text" placeholder="예: 이번 주 자습 몇 시까지 할까?">
+          </div>
+          <div class="modal-field">
+            <label class="modal-label">선택지</label>
+            <div id="free-poll-options-list" class="poll-option-input-list"></div>
+            <span class="section-hd-link" onclick="addPollOptionInput('free-poll-options-list')" style="display:inline-block;margin-top:8px">+ 선택지 추가</span>
           </div>
         </div>
         <div class="modal-actions">
@@ -4817,13 +4837,16 @@ function closeNoticeWritePage(){editingNoticeId=null;navigate('notice')}
 function syncPollSectionVisibility(){
   document.getElementById('notice-poll-section').style.display=document.getElementById('notice-poll-toggle').checked?'block':'none';
 }
-function renderPollOptionInputs(count){
-  const list=document.getElementById('notice-poll-options-list');
+// 선택지 입력칸 — 공지 투표와 게시글 투표가 같은 헬퍼를 쓴다(listId로 구분).
+function renderPollOptionInputs(count,listId='notice-poll-options-list'){
+  const list=document.getElementById(listId);
+  if(!list)return;
   list.innerHTML='';
-  for(let i=0;i<count;i++)addPollOptionInput();
+  for(let i=0;i<count;i++)addPollOptionInput(listId);
 }
-function addPollOptionInput(){
-  const list=document.getElementById('notice-poll-options-list');
+function addPollOptionInput(listId='notice-poll-options-list'){
+  const list=document.getElementById(listId);
+  if(!list)return;
   if(list.children.length>=8){toast('선택지는 최대 8개까지예요');return}
   const row=document.createElement('div');
   row.className='poll-option-input-row';
@@ -4831,7 +4854,8 @@ function addPollOptionInput(){
   list.appendChild(row);
 }
 function removePollOptionInput(btn){
-  const list=document.getElementById('notice-poll-options-list');
+  const list=btn.closest('.poll-option-input-list');
+  if(!list)return;
   if(list.children.length<=2){toast('선택지는 최소 2개 필요해요');return}
   btn.closest('.poll-option-input-row').remove();
 }
@@ -8324,6 +8348,100 @@ function showFirstLaunchGuide(){
 // renderPost()가 참조하는 학번→프로필 맵/좋아요 명단 — loadBoardPosts()가 게시판을 불러올
 // 때마다 최신으로 채운다.
 let boardProfileMap={}, boardLikesMap={}, boardVerifyMap={}, boardDownMap={};
+
+// ── 게시글 투표(비밀 투표) ──
+// 요청: "게시물 올릴때 투표도 올릴 수 있게 / 투표는 비밀 투표로".
+// 공지 투표(notice_poll_votes)는 select 정책이 열려 있어서 프론트가 이름을 안 그려도
+// 개발자도구로 누가 뭘 골랐는지 다 보이는데, 여기서는 그러면 안 되므로 DB에서 막았다.
+//   · post_poll_votes: RLS가 "내 표"만 select 허용 → 남의 표는 애초에 못 받아온다
+//   · 선택지별 표 수는 security definer 함수 post_poll_results()로만 받는다(집계만)
+// 그래서 boardPollCountMap(집계)과 boardMyPollVote(내 표)만 있고, 누가 뭘 골랐는지는
+// 클라이언트가 알 방법 자체가 없다.
+let boardPollMap={};        // post_id → post_polls 행
+let boardPollCountMap={};   // poll_id → [선택지별 표 수]
+let boardMyPollVote={};     // poll_id → 내가 고른 선택지 index
+function resetPostPollMaps(){boardPollMap={};boardPollCountMap={};boardMyPollVote={}}
+async function loadPostPolls(postIds){
+  if(!postIds||!postIds.length)return;
+  const {data:polls}=await sb.from('post_polls').select('*').in('post_id',postIds);
+  if(!polls||!polls.length)return;
+  polls.forEach(pl=>{boardPollMap[pl.post_id]=pl});
+  const pollIds=polls.map(pl=>pl.id);
+  const [{data:results},{data:myVotes}]=await Promise.all([
+    sb.rpc('post_poll_results',{pids:pollIds}),
+    sb.from('post_poll_votes').select('poll_id,option_index').in('poll_id',pollIds),
+  ]);
+  (results||[]).forEach(r=>{
+    const arr=boardPollCountMap[r.poll_id]=boardPollCountMap[r.poll_id]||[];
+    arr[r.option_index]=Number(r.votes)||0;
+  });
+  (myVotes||[]).forEach(v=>{boardMyPollVote[v.poll_id]=v.option_index});
+}
+// 공지 투표와 달리 참여자/미참여자 명단이 아예 없다(비밀 투표라서). 결과는 투표한 뒤에만
+// 보여준다 — 남 눈치 안 보고 고르라는 취지.
+function renderPostPollBlock(postId){
+  const poll=boardPollMap[postId];
+  if(!poll)return'';
+  const options=poll.options||[];
+  const counts=boardPollCountMap[poll.id]||[];
+  const total=options.reduce((sum,_o,i)=>sum+(counts[i]||0),0);
+  const myIdx=boardMyPollVote[poll.id];
+  const voted=myIdx!==undefined&&myIdx!==null;
+  const optionsHtml=options.map((opt,i)=>{
+    if(!voted)return`<button class="poll-option-btn" onclick="event.stopPropagation();votePostPoll('${postId}',${i})">${escHtml(opt)}</button>`;
+    const count=counts[i]||0;
+    const pct=total?Math.round(count/total*100):0;
+    const isMine=myIdx===i;
+    return`<div class="poll-result-row${isMine?' mine':''}">
+      <div class="poll-result-top"><span>${escHtml(opt)}${isMine?'<span class="poll-mine-badge">내 선택</span>':''}</span><span>${count}표 · ${pct}%</span></div>
+      <div class="poll-result-track"><div class="poll-result-fill" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join('');
+  return`<div class="poll-block" id="post-poll-${postId}" onclick="event.stopPropagation()">
+    <div class="poll-question">🗳️ ${escHtml(poll.question)}</div>
+    <div class="poll-options">${optionsHtml}</div>
+    <div class="poll-meta-row">
+      <span>🔒 비밀 투표 — 누가 뭘 골랐는지는 아무도 볼 수 없어요</span>
+      <span>참여 ${total}명</span>
+      ${voted?`<span class="poll-cancel-vote" onclick="event.stopPropagation();cancelPostPollVote('${postId}')">투표 취소</span>`:''}
+      ${!voted?'<span>고르면 결과가 보여요</span>':''}
+    </div>
+  </div>`;
+}
+async function refreshPostPollCounts(pollId){
+  const {data}=await sb.rpc('post_poll_results',{pids:[pollId]});
+  const arr=[];
+  (data||[]).forEach(r=>{arr[r.option_index]=Number(r.votes)||0});
+  boardPollCountMap[pollId]=arr;
+}
+function rerenderPostPoll(postId){
+  const el=document.getElementById(`post-poll-${postId}`);
+  if(el)el.outerHTML=renderPostPollBlock(postId);
+}
+async function votePostPoll(postId,optionIndex){
+  if(!currentUser){toast('로그인이 필요해요');return}
+  const poll=boardPollMap[postId];
+  if(!poll)return;
+  const {error}=await sb.from('post_poll_votes').upsert({
+    poll_id:poll.id,user_id:currentUser.id,student_id:currentStudentId,option_index:optionIndex
+  },{onConflict:'poll_id,student_id'});
+  if(error){toast('투표 실패: '+error.message);return}
+  boardMyPollVote[poll.id]=optionIndex;
+  await refreshPostPollCounts(poll.id);
+  rerenderPostPoll(postId);
+  toast('투표했어요 ✓');
+}
+async function cancelPostPollVote(postId){
+  const poll=boardPollMap[postId];
+  if(!poll)return;
+  if(!confirm('투표를 취소할까요?'))return;
+  const {error}=await sb.from('post_poll_votes').delete().eq('poll_id',poll.id).eq('student_id',currentStudentId);
+  if(error){toast('취소 실패: '+error.message);return}
+  delete boardMyPollVote[poll.id];
+  await refreshPostPollCounts(poll.id);
+  rerenderPostPoll(postId);
+  toast('투표를 취소했어요');
+}
 // 갤러리 보기에서 펼쳐둔 글 / 이번 세션에 조회수를 이미 올린 글
 let openPostId=null;  // 갤러리에서 열어 둔 글(목록 대신 상세를 보여주는 중)
 const viewedPosts=new Set();
@@ -8446,6 +8564,7 @@ function renderBoardRow(p,num,commentCount){
     <span class="bl-title">
       ${hot?'<span class="bl-hot">인기</span>':''}
       <span class="bl-title-text">${escHtml(postTitleOf(p))}</span>
+      ${boardPollMap[p.id]?'<span class="bl-poll" title="투표가 있는 글">🗳️</span>':''}
       ${commentCount?`<span class="bl-cmt">[${commentCount}]</span>`:''}
     </span>
     <span class="bl-author">${escHtml(authorName)}${av.revealed?`<span class="anon-badge">${p.pen_name?'필명 '+escHtml(p.pen_name):'익명글'}</span>`:''}</span>
@@ -8471,6 +8590,8 @@ async function openBoardPost(id,silent){
   const [{data:post},{data:comments}]=await Promise.all([
     sb.from('posts').select('*').eq('id',id).single(),
     sb.from('comments').select('*').eq('post_id',id).order('created_at'),
+    // 목록을 거치지 않고 바로 열린 경우(새로고침 등)에도 투표가 보이도록 한 번 더 채운다.
+    boardPollMap[id]?Promise.resolve():loadPostPolls([id]),
   ]);
   if(!post){detail.innerHTML='<div class="bl-empty">글을 찾을 수 없어요</div>';return}
   // 조회수는 한 세션에 글당 한 번만 올린다(들락날락해도 안 올라가게).
@@ -8532,6 +8653,7 @@ function renderBoardDetail(p,comments){
     </div>
     <div class="bl-detail-body" id="post-content-${p.id}">${escHtml(p.content)}</div>
     ${mediaHtml}
+    ${renderPostPollBlock(p.id)}
     <div class="bl-vote-row">
       <button class="bl-vote up${mine==='up'?' on':''}" id="bl-vote-up-${p.id}" onclick="votePost('${p.id}','up')">
         <span class="bl-vote-count" id="bl-vote-up-count-${p.id}">${postUpCount(p.id)}</span>
@@ -8745,12 +8867,19 @@ function openFreeWritePage(){
   setFreeNameMode('real');
   setFreeShowIn('both');
   clearPhoto('free');
+  document.getElementById('free-poll-toggle').checked=false;
+  document.getElementById('free-poll-question').value='';
+  renderPollOptionInputs(2,'free-poll-options-list');
+  syncFreePollSection();
   document.querySelectorAll('.page').forEach(pg=>pg.classList.remove('active'));
   document.getElementById('page-free-write').classList.add('active');
   window.scrollTo(0,0);
   offerDraftRestore('free');
 }
 function closeFreeWritePage(){navigate('free-board')}
+function syncFreePollSection(){
+  document.getElementById('free-poll-section').style.display=document.getElementById('free-poll-toggle').checked?'block':'none';
+}
 
 // 공부인증 / 시험회고 페이지 탭
 let studyTab='studycert';
@@ -9015,7 +9144,16 @@ async function submitPost(type){
     const {data:urlData}=sb.storage.from('board-photos').getPublicUrl(fileName);
     imageUrl=urlData.publicUrl;
   }
-  const {error}=await sb.from('posts').insert({
+  // 투표는 글쓰기(마이너 갤러리)에서만 붙일 수 있다. 글이 먼저 만들어져야 post_id를 알 수
+  // 있으므로 여기서 입력값만 먼저 검사해두고, insert가 끝난 뒤에 post_polls에 넣는다.
+  let pollQuestion='',pollOptions=[];
+  if(type==='free'&&document.getElementById('free-poll-toggle')?.checked){
+    pollQuestion=document.getElementById('free-poll-question').value.trim();
+    pollOptions=[...document.querySelectorAll('#free-poll-options-list [data-poll-opt]')].map(i=>i.value.trim()).filter(Boolean);
+    if(!pollQuestion){toast('투표 질문을 입력해주세요');submitBtn.textContent=label;submitBtn.disabled=false;return}
+    if(pollOptions.length<2){toast('투표 선택지를 2개 이상 입력해주세요');submitBtn.textContent=label;submitBtn.disabled=false;return}
+  }
+  const {data:newPostRow,error}=await sb.from('posts').insert({
     user_id:currentUser.id,student_id:currentStudentId,
     author_name:currentName||currentStudentId+'번',
     category,subject,content,image_url:imageUrl,
@@ -9024,9 +9162,18 @@ async function submitPost(type){
     is_anonymous:type==='free'&&freeNameMode==='anon',
     pen_name:(type==='free'&&freeNameMode==='pen')?(document.getElementById('free-pen-name')?.value.trim()||null):null,
     show_in:type==='free'?freeShowIn:'both'
-  });
+  }).select('id').single();
   if(error){toast('게시 실패: '+error.message);submitBtn.textContent=label;submitBtn.disabled=false;return}
+  if(pollQuestion){
+    const {error:pollErr}=await sb.from('post_polls').insert({
+      post_id:newPostRow.id,question:pollQuestion,options:pollOptions,
+      created_by:currentUser.id,student_id:currentStudentId
+    });
+    if(pollErr)toast('글은 올라갔지만 투표 등록에 실패했어요: '+pollErr.message);
+  }
   contentEl.value='';clearPhoto(type);
+  const pollToggle=document.getElementById('free-poll-toggle');
+  if(pollToggle){pollToggle.checked=false;syncFreePollSection()}
   const titleEl=document.getElementById('free-title');
   if(type==='free'&&titleEl)titleEl.value='';
   // 방금 쓴 필명은 계정에 기억해서 다음 글쓰기 때 기본값으로 채워준다.
@@ -9161,6 +9308,7 @@ function renderPost(p,type,comments=[]){
     <div class="post-body post-body-text">
       ${p.title?`<div style="font-weight:700;font-size:14px;color:var(--ink);margin-bottom:2px">${escHtml(p.title)}</div>`:''}
       <div class="qna-content-line"><span class="post-caption-name">${escHtml(authorName)}</span><div class="qna-content" id="post-content-${p.id}" style="display:inline">${escHtml(p.content)}</div></div>
+      ${renderPostPollBlock(p.id)}
     </div>
     <div class="post-actions">
       ${likeBtnHtml}
@@ -10208,11 +10356,13 @@ async function loadBoardPosts(category,listElId,emptyMsg,type){
   if(!posts||!posts.length){showEmpty();return}
   const ids=posts.map(p=>p.id);
   const isStudyCert=type==='studycert';
+  resetPostPollMaps();
   const [{data:comments},{data:likes},{data:verifications},profileMap]=await Promise.all([
     sb.from('comments').select('*').in('post_id',ids).order('created_at'),
     isText?sb.from('post_likes').select('post_id,student_id,vote').in('post_id',ids):Promise.resolve({data:[]}),
     isStudyCert?sb.from('post_verifications').select('post_id,student_id,vote').in('post_id',ids):Promise.resolve({data:[]}),
-    loadProfileMap()
+    loadProfileMap(),
+    isText?loadPostPolls(ids):Promise.resolve(),
   ]);
   boardProfileMap=profileMap;
   // 옛 좋아요 행은 vote 컬럼이 없던 시절 것이라 기본값 'up'(개추)으로 본다.

@@ -1386,6 +1386,10 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 @keyframes like-pop{0%{transform:scale(1)}35%{transform:scale(1.22)}100%{transform:scale(1)}}
 /* 본문(좋아요 수·캡션·댓글 보기·시간) */
 .post-body{padding:0 14px 12px}
+/* 액션바(하트/댓글/공유)가 글 위가 아니라 글 아래로 오도록 본문을 위(글)/아래(좋아요 수·
+   댓글 보기·시간) 두 덩이로 나눴다(요청: "하트와 공유 ui가 글 밑으로 내려와야해"). */
+.post-body-text{padding:11px 14px 0}
+.post-body-meta{padding:0 14px 12px}
 .board-like-count{display:block;font-size:14px;font-weight:600;color:var(--ink);cursor:pointer;margin-bottom:4px}
 .board-like-count:empty{display:none}
 .board-like-count:hover{text-decoration:underline}
@@ -9154,6 +9158,10 @@ function renderPost(p,type,comments=[]){
       ${moreMenuHtml}
     </div>
     ${mediaHtml}
+    <div class="post-body post-body-text">
+      ${p.title?`<div style="font-weight:700;font-size:14px;color:var(--ink);margin-bottom:2px">${escHtml(p.title)}</div>`:''}
+      <div class="qna-content-line"><span class="post-caption-name">${escHtml(authorName)}</span><div class="qna-content" id="post-content-${p.id}" style="display:inline">${escHtml(p.content)}</div></div>
+    </div>
     <div class="post-actions">
       ${likeBtnHtml}
       <button class="post-action-btn" onclick="toggleComments('${p.id}')" title="댓글">
@@ -9163,10 +9171,8 @@ function renderPost(p,type,comments=[]){
         <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
       </button>
     </div>
-    <div class="post-body">
+    <div class="post-body post-body-meta">
       ${likeCountHtml}
-      ${p.title?`<div style="font-weight:700;font-size:14px;color:var(--ink);margin-bottom:2px">${escHtml(p.title)}</div>`:''}
-      <div class="qna-content-line"><span class="post-caption-name">${escHtml(authorName)}</span><div class="qna-content" id="post-content-${p.id}" style="display:inline">${escHtml(p.content)}</div></div>
       <button class="comment-toggle-btn" onclick="toggleComments('${p.id}')">${commentCount?`댓글 ${commentCount}개 모두 보기`:''}</button>
       <span class="post-timestamp">${formatRelativeTime(p.created_at)}</span>
     </div>
@@ -9940,7 +9946,7 @@ function renderExamReviewCard(p,comments=[]){
         <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
       </button>
     </div>
-    <div class="post-body">
+    <div class="post-body post-body-meta">
       <span class="board-like-count" id="board-like-count-${p.id}" onclick="viewLikers('${p.id}')">${likerIds.length>0?`좋아요 ${likerIds.length}개`:''}</span>
       <button class="comment-toggle-btn" onclick="toggleComments('${p.id}')">${comments.length?`댓글 ${comments.length}개 모두 보기`:''}</button>
       <span class="post-timestamp">${formatRelativeTime(p.created_at)}</span>

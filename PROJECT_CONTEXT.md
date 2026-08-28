@@ -250,6 +250,28 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-08-27 (32차): **계정 삭제가 사실상 항상 실패하던 것 수정**(제보: "계정 삭제 기능이 잘
+  안되더라"). `index.html` 변경은 없고 **DB 마이그레이션 + 엣지 함수 v17**로만 고침.
+  - **원인**: `auth.users`를 가리키는 외래키 6개가 `ON DELETE NO ACTION`이어서
+    `auth.admin.deleteUser()`가 통째로 막혀 있었다. 특히 **로그인할 때마다 쓰여지는
+    `user_profiles`** 때문에 실질적으로 모든 계정이 삭제 불가였다. 롤백되는 트랜잭션 안에서
+    실제로 재현함 — `23503: update or delete on table "users" violates foreign key constraint
+    "user_profiles_user_id_fkey"`.
+  - **마이그레이션 `fix_account_delete_blocked_by_fks`**: 개인 데이터 5개
+    (`user_profiles.user_id`, `post_verifications.user_id`, `notice_poll_votes.user_id`,
+    `study_routines.user_id`, `dm_active_viewers.user_id`)는 `ON DELETE CASCADE`,
+    `notice_polls.created_by`는 **`ON DELETE SET NULL`**(공지 투표는 만든 사람이 지워져도
+    학급 투표 결과가 남아야 하므로). 적용 후 같은 재현 테스트에서 삭제가 통과함.
+  - **엣지 함수 v17 `delete-user` 재작성**: 외래키가 없어 CASCADE가 안 먹는, **학번만 들고 있는
+    표들**(`DELETE_BY_STUDENT_ID` = user_roles/user_devices/user_profiles/dm_participants/
+    dm_active_viewers/post_likes/post_verifications/post_poll_votes/simo_members/
+    teacher_messages/study_routines)과 `notifications`(recipient_student_id 기준)를 함께 정리한다.
+    한 표가 실패해도 나머지는 계속 진행(`Promise.allSettled`)하고 실패한 표 이름을
+    `cleanup_failed`로 돌려준다. ⚠️ **`notices`(공지)는 일부러 제외** — 선생님/운영자 계정을
+    지워도 학급 공지는 남아야 한다.
+  - 부수적으로: **본인 계정은 못 지우게** 막고, 계정이 이미 없으면 404로 끝내는 대신
+    **남은 기록만 정리하고 알려준다**(예전엔 중간에 실패해 "계정은 없는데 기록만 남은" 상태를
+    손으로 고칠 방법이 아예 없었다).
 - 2026-08-26 (31차): **타반 계정 정리 — 공부인증/시험회고 숨김 + 상관없는 알림 차단 + DM에
   3-1 학생 안 뜨게**, 그리고 **인기글 기준 3개 → 5개**.
   `sw.js`의 `SW_BUILD`도 `2026-08-26-31`로 올림. 엣지 함수 **v16**.

@@ -1760,7 +1760,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         <div class="nav-item" data-page="timer" onclick="navigate('timer')">
           <svg viewBox="0 0 24 24" style="stroke:#f59e0b"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>타이머
         </div>
-        <div class="nav-item" data-page="study-board" onclick="navigate('study-board')">
+        <div class="nav-item" data-page="study-board" id="nav-study-board" onclick="navigate('study-board')">
           <svg viewBox="0 0 24 24" style="stroke:#10b981"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>공부인증/시험회고
         </div>
         <div class="nav-item" data-page="simo" onclick="navigate('simo')" id="nav-simo" style="display:none">
@@ -4129,14 +4129,23 @@ function applyMypageRoleView(){
 // "타반(다른반)" 계정용 UI 게이팅. 개인용 도구(플래너/타이머/성적계산기/뉴스/즐겨찾기/
 // 마이페이지)만 남기고, 3-1 반 전용 기능(게시판/공지/캠스터디/시간표/급식/반 랭킹류)을
 // 숨긴다. 게시판은 이 함수와 별개로 DB RLS로도 실제 차단돼 있음(posts/comments 정책 참고).
+// 3-1 반 전용이라 타반/타학교 계정에게는 감추는 페이지들. navigate()도 이 목록을 보고
+// (알림 링크·저장된 마지막 페이지 등으로) 몰래 들어가는 걸 막는다.
+const CLASS_ONLY_PAGES=['notice','camstudy','study-board','free-board','qna-board','bug-report'];
+function isExternalAccount(){return currentIsExternal||!!currentClassId}
 function applyExternalAccountVisibility(){
   // 클래스(반)에 속한 계정은 정의상 타반/타학교 학생이므로, is_external 플래그가 어떤 이유로
   // 안 켜져 있더라도(클래스에만 넣고 플래그를 빠뜨린 경우 등) 3-1 전용 기능을 똑같이 가린다.
-  const hide=currentIsExternal||!!currentClassId;
+  const hide=isExternalAccount();
   const show=(id,visible)=>{const el=document.getElementById(id);if(el)el.style.display=visible?'':'none'};
   show('nav-notice',!hide);
   show('nav-camstudy',!hide);
   show('nav-group-board',!hide);
+  // 공부인증/시험회고는 3-1 학급끼리 서로 ㅇㅈ을 눌러주는 기능이라 타반 계정에겐 의미가 없다
+  // (요청: "타반한테는 공부인증/시험회고 없애줘").
+  show('nav-study-board',!hide);
+  // 지금 보고 있던 페이지가 방금 가려진 페이지라면 대시보드로 내보낸다.
+  if(hide&&CLASS_ONLY_PAGES.some(pg=>document.getElementById('page-'+pg)?.classList.contains('active')))navigate('dashboard');
   // 대시보드: 시간표/급식/공지 섹션(각각 자기가 속한 .spacer 전체)을 숨김 — 3-1 학교/반
   // 전용 정보라 다른 학교 소속일 수 있는 타반 계정에겐 의미가 없거나 틀린 정보임.
   document.getElementById('dash-timetable-hd')?.closest('.spacer')?.style.setProperty('display',hide?'none':'');
@@ -4355,6 +4364,9 @@ function toggleBearDecor(on){
 
 // ── NAVIGATION ──
 function navigate(page){
+  // 타반 계정이 알림 링크나 저장된 마지막 페이지로 3-1 전용 탭에 들어가는 걸 막는다
+  // (메뉴만 숨기면 그 경로들로는 그대로 열렸다).
+  if(CLASS_ONLY_PAGES.includes(page)&&isExternalAccount())page='dashboard';
   // DM 모바일 전체화면 스레드(openDmThread가 잠근 body 스크롤)를 열어둔 채 사이드바로 다른
   // 페이지에 이동하면 잠금이 풀리지 않고 남을 수 있어, 그 잠금을 우리가 건 상태일 때만 정리한다.
   if(page!=='dm'){
@@ -8390,7 +8402,10 @@ setInterval(()=>{
 async function loadDmRoster(){
   // 타반(다른반) 계정은 DM을 자신을 등록해준 멘토 1명하고만 할 수 있음 — 새 대화 상대
   // 목록 자체를 그 한 명으로 제한한다(3-1 학생들에게 노출되지 않는 것과 대칭).
-  if(currentIsExternal){
+  // ⚠️ is_external만 보면 안 된다 — **클래스에만 넣고 is_external을 안 켠 계정**은 이 분기를
+  // 그냥 지나쳐서 3-1 학생 명단이 통째로 보였다(제보: "dm에 3-1 학생들 안 뜨게 해줘").
+  // 반대쪽(3-1 학생이 보는 목록)에서도 같은 기준으로 가려야 대칭이 맞는다.
+  if(isExternalAccount()){
     if(!currentMentorStudentId){dmRosterCache=[];return dmRosterCache}
     const {data}=await sb.from('user_profiles').select('student_id,user_id,display_name,avatar_url').eq('student_id',currentMentorStudentId);
     dmRosterCache=data||[];
@@ -8398,11 +8413,15 @@ async function loadDmRoster(){
   }
   // 3-1(또는 다른 일반) 계정: 타반 계정은 원칙적으로 안 보이되, 내가 그 계정의 멘토인
   // 경우(내가 직접 등록한 학생)만 예외로 보이게 한다 — 멘토 쪽에서도 먼저 말을 걸 수 있어야 하므로.
-  const [{data},{data:hiddenExternalRows}]=await Promise.all([
+  // user_roles는 행이 적어서 조건 없이 다 받아와 클라이언트에서 거른다(.or() 문법 실수로
+  // 필터가 통째로 무력화되는 위험을 피하려는 이 파일의 기존 컨벤션).
+  const [{data},{data:roleRows}]=await Promise.all([
     sb.from('user_profiles').select('student_id,user_id,display_name,avatar_url').neq('student_id',currentStudentId),
-    sb.from('user_roles').select('student_id').eq('is_external',true).or(`mentor_student_id.is.null,mentor_student_id.neq.${currentStudentId}`)
+    sb.from('user_roles').select('student_id,is_external,class_id,mentor_student_id')
   ]);
-  const hiddenIds=new Set((hiddenExternalRows||[]).map(r=>r.student_id));
+  const hiddenIds=new Set((roleRows||[])
+    .filter(r=>(r.is_external||r.class_id)&&r.mentor_student_id!==currentStudentId)
+    .map(r=>r.student_id));
   dmRosterCache=(data||[]).filter(u=>u.display_name&&!hiddenIds.has(u.student_id)).sort((a,b)=>a.display_name.localeCompare(b.display_name,'ko'));
   return dmRosterCache;
 }
@@ -9099,7 +9118,7 @@ const TEXT_CATEGORIES=['free','brag','misc','tips'];
 function isTextBoard(type){return TEXT_CATEGORIES.includes(type)}
 // 개추 - 비추가 이 값 이상이면 인기글로 올라간다. 단, 오래된 글은 계속 상단에 남지 않도록
 // 작성 후 2주가 지나면 인기글에서 내려간다(추천 수는 그대로 남는다).
-const HOT_SCORE=3;
+const HOT_SCORE=5;
 const HOT_MAX_AGE_MS=14*24*60*60*1000;
 function isHotPost(p){
   if(postScore(p.id)<HOT_SCORE)return false;
@@ -10785,7 +10804,7 @@ async function loadBoardPosts(category,listElId,emptyMsg,type){
 async function loadFreeBoard(){
   renderFreeTabs();
   const empty=freeTab==='hot'
-    ?'아직 인기글이 없어요. 최근 2주 안에 개추를 3개 이상 받으면 올라와요!'
+    ?'아직 인기글이 없어요. 최근 2주 안에 개추를 5개 이상 받으면 올라와요!'
     :'아직 글이 없어요. 첫 글을 남겨보세요!';
   await loadBoardPosts(freeTab==='hot'?'hot':'free','free-list',empty,'free');
 }

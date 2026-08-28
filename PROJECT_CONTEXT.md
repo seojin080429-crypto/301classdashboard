@@ -257,6 +257,19 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-08-28 (34차): **리락쿠마(베이지) 테마가 사라지던 문제 해결**(제보: "리락쿠마 배경 어디감?").
+  `sw.js`의 `SW_BUILD`도 `2026-08-28-34`로 올림. `index.html`만 수정.
+  - **원인**: 테마 설정은 계정이 아니라 **기기(localStorage)** 에 저장되는데, 공용 기기에서
+    남의 테마가 그대로 보이는 걸 막으려고 `initApp()`이 **rrkm이 아닌 계정으로 로그인하면
+    저장값을 지워버리고 있었다**(`theme='light'`, `bearDecor` 삭제). 그래서 주인이 다시
+    로그인해도 테마가 꺼진 채로 남았다.
+  - **고침**: 지우는 대신 `bearThemeSaved`에 잠시 옮겨뒀다가(`syncBearThemeForAccount()`),
+    허용된 계정이 다시 로그인하면 그대로 되살린다. 본인이 마이페이지에서 직접 켜고 끄면
+    그 선택이 자동 복원에 덮이지 않도록 보관본을 버린다.
+  - **사용 계정 확대**: `BEAR_THEME_ACCOUNTS = ['rrkm', 30122]` — 제작자 계정에서도 쓸 수 있게
+    했다. 노출 조건도 `currentStudentId==='rrkm'` 하드코딩 3곳을 `canUseBearTheme()` 하나로 통일.
+  - 검증: rrkm이 켠 뒤 → 30110 로그인(꺼짐+보관) → 30122 로그인(되살아남) → 직접 끄면 유지 →
+    새로고침 후에도 유지되는 것까지 Playwright로 확인.
 - 2026-08-28 (33차): **캠스터디 복구 — Socket.IO를 걷어내고 Supabase Realtime으로 재구현**
   (요청: "슬슬 캠스터디 복구 ㄱㄱ"). `sw.js`의 `SW_BUILD`도 `2026-08-28-33`으로 올림.
   엣지 함수 **`study` 신설(v2)** + 마이그레이션 `realtime_authorization_camstudy_and_timer`.

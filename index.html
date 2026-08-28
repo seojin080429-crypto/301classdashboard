@@ -2868,7 +2868,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
             </div>
           </div>
 
-          <!-- 테마 (라이트/다크 외 선택형 커스텀 테마) — rrkm 계정 전용, populateMypage()에서 노출 여부 결정 -->
+          <!-- 테마 (라이트/다크 외 선택형 커스텀 테마) — BEAR_THEME_ACCOUNTS 전용, populateMypage()에서 노출 여부 결정 -->
           <div class="card" id="mp-theme-card" style="margin-top:14px;display:none">
             <div class="card-title" style="margin-bottom:4px">테마</div>
             <div class="card-sub">라이트/다크 말고 다른 분위기도 써볼 수 있어요</div>
@@ -4012,15 +4012,7 @@ sb.auth.onAuthStateChange((event,session)=>{
 
 async function initApp(user,sid,name){
   currentUser=user;currentStudentId=sid;currentName=name;
-  // "베이지" 테마(+ 리락쿠마 켜기)는 rrkm 계정 전용 — 공용 기기 등에서 이전 로그인 때
-  // 켜져 있던 상태가 localStorage에 남아있을 수 있어서, 다른 계정으로 로그인하면 강제로
-  // 되돌림(마이페이지에서 카드 자체를 숨기는 것만으로는 이미 켜져 있던 상태를 못 막음)
-  if(sid!=='rrkm'&&document.documentElement.dataset.theme==='bear'){
-    delete document.documentElement.dataset.theme;
-    delete document.documentElement.dataset.bearDecor;
-    localStorage.setItem('theme','light');
-    localStorage.removeItem('bearDecor');
-  }
+  syncBearThemeForAccount(sid);
   // 캠스터디 입장과 무관하게 로그인 즉시 실시간 채널에 붙어야 학습 플래너 타이머를 다른
   // 기기(폰/PC)와 동기화할 수 있다. 나머지 초기화를 막지 않도록 await하지 않음.
   connectTimerSync().catch(()=>{});
@@ -4094,16 +4086,15 @@ function populateMypage(meta,name,sid){
   if(meta.resolution)document.getElementById('mp-resolution').value=meta.resolution;
   // 학교 설정(리로스쿨 링크) — 저장된 값이 있을 때만 채움, 없으면 3-1 기본값을 그대로 씀
   if(meta.riro_url)document.getElementById('mp-riro-url').value=meta.riro_url;
-  // "테마" 카드(베이지 테마 + 리락쿠마 켜기) 전체가 rrkm 계정 전용 — 다른 학생들에게는
-  // 카드 자체가 안 보임.
+  // "테마" 카드(베이지 테마 + 리락쿠마 켜기)는 허용된 계정에게만 보인다(BEAR_THEME_ACCOUNTS).
   const themeCard=document.getElementById('mp-theme-card');
-  if(themeCard)themeCard.style.display=currentStudentId==='rrkm'?'block':'none';
+  if(themeCard)themeCard.style.display=canUseBearTheme()?'block':'none';
   // 테마 체크박스는 실제 현재 적용된 테마(로그인 시 anti-flash 스크립트가 미리 세팅함) 기준으로 표시
   const bearCheckbox=document.getElementById('mp-bear-theme');
   if(bearCheckbox)bearCheckbox.checked=document.documentElement.dataset.theme==='bear';
   const bearDecorRow=document.getElementById('mp-bear-decor-row');
   if(bearDecorRow){
-    const showDecor=currentStudentId==='rrkm';
+    const showDecor=canUseBearTheme();
     bearDecorRow.style.display=showDecor?'flex':'none';
     if(showDecor)document.getElementById('mp-bear-decor').checked=document.documentElement.dataset.bearDecor==='on';
   }
@@ -4330,9 +4321,41 @@ function toggleTheme(){
   else{document.documentElement.dataset.theme='dark';localStorage.setItem('theme','dark')}
 }
 
+// "베이지" 테마(+ 리락쿠마 장식)를 쓸 수 있는 계정 목록. 원래 rrkm 한 명 전용이었는데,
+// 제작자 계정에서도 안 보인다는 제보("리락쿠마 배경 어디감?")로 30122를 추가했다.
+const BEAR_THEME_ACCOUNTS=['rrkm',CREATOR_STUDENT_ID];
+function canUseBearTheme(sid){return BEAR_THEME_ACCOUNTS.includes(sid||currentStudentId)}
+
+// 로그인한 계정에 맞춰 베이지 테마를 켜고 끈다.
+// 테마 설정은 계정이 아니라 **기기(localStorage)** 에 저장되므로, 공용 기기에서 다른 사람이
+// 로그인하면 남의 테마가 그대로 보이는 문제가 있어 원래는 그때 설정을 지워버렸다. 그런데
+// 그러면 **주인이 다시 로그인해도 테마가 꺼진 채**라 "리락쿠마 배경 어디감?"이 된다.
+// 이제는 지우지 않고 bearThemeSaved에 잠시 옮겨뒀다가, 주인이 돌아오면 그대로 되살린다.
+function syncBearThemeForAccount(sid){
+  const root=document.documentElement;
+  try{
+    if(canUseBearTheme(sid)){
+      const saved=localStorage.getItem('bearThemeSaved');
+      if(saved&&localStorage.getItem('theme')!=='bear'){
+        root.dataset.theme='bear';localStorage.setItem('theme','bear');
+        if(saved==='decor'){root.dataset.bearDecor='on';localStorage.setItem('bearDecor','on')}
+        localStorage.removeItem('bearThemeSaved');
+      }
+      return;
+    }
+    if(root.dataset.theme==='bear'){
+      localStorage.setItem('bearThemeSaved',localStorage.getItem('bearDecor')==='on'?'decor':'theme');
+      delete root.dataset.theme;delete root.dataset.bearDecor;
+      localStorage.setItem('theme','light');localStorage.removeItem('bearDecor');
+    }
+  }catch(e){}
+}
+
 // 마이페이지의 선택형 "베이지" 테마 — 라이트/다크와 별개로 켜고 끌 수 있음(기기별로
 // localStorage에만 저장, 다크모드 버튼과 동일한 저장 키를 공유하되 값만 'bear'로 확장).
 function toggleBearTheme(on){
+  // 본인이 직접 고른 값이 나중에 자동 복원으로 덮이지 않도록 보관본은 버린다.
+  try{localStorage.removeItem('bearThemeSaved')}catch(e){}
   if(on){document.documentElement.dataset.theme='bear';localStorage.setItem('theme','bear')}
   else{
     delete document.documentElement.dataset.theme;localStorage.setItem('theme','light');
@@ -4347,6 +4370,7 @@ function toggleBearTheme(on){
 // 체크로 그 계정에게만 노출됨, populateMypage() 참고). 실제 캐릭터 원화 대신 곰 이모지로
 // 분위기만 재현(CSS의 [data-bear-decor="on"] 규칙들 참고).
 function toggleBearDecor(on){
+  try{localStorage.removeItem('bearThemeSaved')}catch(e){}
   if(on){
     // 베이지 테마가 꺼져 있으면 같이 켜준다(장식은 테마 위에서만 보이므로)
     if(document.documentElement.dataset.theme!=='bear'){

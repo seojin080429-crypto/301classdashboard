@@ -44,9 +44,16 @@
     이 함수의 정본 소스 파일이 따로 없으므로, 수정할 때는 `get_edge_function`으로 현재
     배포본을 먼저 받아온 뒤 고쳐서 다시 `deploy_edge_function`으로 올리는 식으로 작업함(2026-08-24
     세션에서 이렇게 진행 — 스크래치패드에 임시로 받아뒀다가 검증 후 배포).
-  - `SOCKET_URL = ''`로 **Socket.IO는 현재 완전히 비활성화**돼 있음 — `connectStudySocket()`이
-    `if(!SOCKET_URL)return`으로 즉시 no-op. 과거 Railway 시절엔 캠스터디 실시간 채팅/참가자수와
-    DM "보는 중" 상태 추적에 소켓을 썼는데, 지금은 그 인프라 자체가 없음.
+  - **Socket.IO는 완전히 걷어냈음(2026-08-28)** — 캠스터디 채팅/참가자 수와 기기 간 타이머
+    동기화는 **Supabase Realtime private 채널**로 다시 만들었다(`connectTimerSync()`,
+    `ensureStudyChannel()`). 토픽은 `camstudy`와 `timer:<auth uid>` 둘뿐이고, 접근 권한은
+    앱 코드가 아니라 `realtime.messages`의 RLS(`public.realtime_topic_allowed`)가 판정한다.
+    socket.io CDN 스크립트와 `SOCKET_URL` 상수도 삭제됨.
+  - **엣지 함수가 하나 더 있음: `study`** (캠스터디 전용, `verify_jwt:false`). `study/join`은
+    JaaS(8x8 Jitsi) 입장권 JWT를 RS256으로 서명해서 돌려주고, `study/config`는 영상 서버 키가
+    등록돼 있는지만 알려준다. `api` 함수(계정·알림·급식)와 분리해서 배포 사고 반경을 줄였다.
+    ⚠️ **시크릿 `JAAS_APP_ID`/`JAAS_API_KEY`/`JAAS_PRIVATE_KEY`가 등록돼야 영상이 켜진다**
+    (없으면 `study/join`이 503 `not_configured`를 주고, 앱은 "채팅 전용"으로 입장시킨다).
   - **DM "지금 이 방을 보고 있음" 상태**(어떤 방을 열어둔 사람에게는 그 방 새 메시지 알림을
     안 보내는 기능)는 예전엔 Socket.IO 이벤트(`dm:open`/`dm:close`)로 했었는데, 소켓이 죽으면서
     2026-08-24에 `dm_active_viewers` 테이블(user_id PK/student_id/room_id/updated_at) +
@@ -250,6 +257,39 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-08-28 (33차): **캠스터디 복구 — Socket.IO를 걷어내고 Supabase Realtime으로 재구현**
+  (요청: "슬슬 캠스터디 복구 ㄱㄱ"). `sw.js`의 `SW_BUILD`도 `2026-08-28-33`으로 올림.
+  엣지 함수 **`study` 신설(v2)** + 마이그레이션 `realtime_authorization_camstudy_and_timer`.
+  - **원인 정리**: 2026-08-14에 Railway가 내려가면서 상시 연결 서버가 사라졌고, 캠스터디는
+    입장 버튼이 "서버 이전 작업 중" 토스트만 띄우는 상태였다. 기기 간 타이머 동기화(폰↔PC)도
+    같은 이유로 죽어 있었다(60초 폴링만 남아 있었음).
+  - **실시간(채팅·참가자 수·타이머 동기화) → Supabase Realtime private 채널**. 새 서버가
+    필요 없고, **접근 권한을 DB가 판정**한다 — `realtime.messages`의 RLS가
+    `public.realtime_topic_allowed(topic)`로 `camstudy`(3-1 계정만)와 `timer:<auth uid>`
+    (본인만)만 열어준다. 3-1/타반/남의 타이머 토픽을 SQL 롤 전환으로 직접 검증했다
+    (3-1 camstudy ✔, 3-1 남의 timer ✘, 타반 camstudy ✘).
+    - 참가자 수는 **프레즌스**로 센다(같은 학생이 폰+PC로 붙어도 1명). 입장/퇴장 안내 문구도
+      상대가 보낸 payload를 믿지 않고 프레즌스 이벤트로 이쪽에서 만든다.
+    - 같은 계정이 다른 기기에서 나중에 입장하면 먼저 있던 쪽이 자동으로 나간다(예전
+      `force-leave-study`와 동일).
+    - ⚠️ **한계**: 채팅이 서버를 안 거치므로 닉네임 위조까지는 못 막는다(예전엔 서버가 닉네임을
+      붙여줬음). 3-1 계정만 들어올 수 있는 채널이라 감수하고, 받은 값은 길이 제한 + escHtml.
+  - **영상(JaaS) → 엣지 함수 `study`**. `study/join`이 예전 서버의 `makeJaasToken()`과 **완전히
+    같은 payload**의 JWT를 RS256으로 서명한다(`jsonwebtoken` 없이 Web Crypto로). 콘솔에서 받은
+    키가 PKCS#1이어도 되도록 PKCS#8로 감싸는 코드를 넣었고, 서명 결과를 Node에서 실제 RSA
+    키 2종(PKCS#8/PKCS#1)으로 검증했다. 권한 판정은 예전과 동일(운영자/교사 또는 `cam_allowed`)
+    + 타반 계정 차단.
+  - ⚠️ **영상은 시크릿을 넣어야 켜진다**: Supabase → Edge Functions → Secrets에
+    `JAAS_APP_ID`, `JAAS_API_KEY`(= JWT의 kid), `JAAS_PRIVATE_KEY`를 등록해야 한다
+    (https://jaas.8x8.vc → API keys). Railway가 사라지면서 예전 값이 같이 없어졌다.
+    등록 전까지는 `study/join`이 503 `not_configured`를 주고, 앱은 **"채팅 전용"으로 입장**시켜
+    채팅·참여 인원만이라도 쓰게 한다(캠스터디 페이지 상단에 안내 배너도 뜬다).
+  - 검증: Playwright로 페이지 진입 → 입장 → 프레즌스 2명 → 채팅 송수신(XSS 문자열 이스케이프
+    확인) → 퇴장 → 페이지 이탈 시 채널 정리 → 타이머 채널 브로드캐스트까지 확인했고, 폰(390px)
+    ·태블릿(820px)에서 가로 스크롤 없음을 확인했다. 엣지 함수는 `pg_net`으로 401/404/health를
+    직접 호출해 확인(에이전트 프록시가 `*.supabase.co` 직접 호출을 막아서 SQL에서 호출).
+  - 참고: 지금 캠스터디 이용이 허용된 계정은 **30101/30107/30110/30113/30114 + 선생님/운영자**
+    뿐이다(`user_roles.cam_allowed`). 더 열려면 관리자 탭에서 학생별로 허용해야 한다.
 - 2026-08-27 (32차): **계정 삭제가 사실상 항상 실패하던 것 수정**(제보: "계정 삭제 기능이 잘
   안되더라"). `index.html` 변경은 없고 **DB 마이그레이션 + 엣지 함수 v17**로만 고침.
   - **원인**: `auth.users`를 가리키는 외래키 6개가 `ON DELETE NO ACTION`이어서
@@ -1358,7 +1398,8 @@
   - 이전 완료: 계정 목록/생성/삭제/비번초기화/아이디변경, 푸시 구독·해지, 알림 6종, 급식 수집.
     포팅하면서 `listUsers`가 200명에서 조용히 잘리던 것을 페이지네이션으로 고쳤고, `web-push`는
     Deno에서 로드 실패해도 **함수 전체가 죽지 않도록** 동적 import로 감쌌다.
-  - **아직 이전 안 됨**: 뉴스 수집(네이버+Groq), 캠스터디 영상통화, 기기 간 타이머 동기화.
+  - **아직 이전 안 됨**: 뉴스 수집(네이버+Groq). (캠스터디 영상통화와 기기 간 타이머 동기화는
+    2026-08-28에 Supabase Realtime + `study` 엣지 함수로 이전 완료 — 33차 항목 참고.)
     뒤 둘은 Socket.IO 상시 연결 서버가 필요해 Edge Function으로 안 옮겨지고 Supabase Realtime
     재설계가 필요함. 그래서 소켓 주소를 `SOCKET_URL` 상수로 분리하고 **빈 값이면 연결 자체를
     안 하도록** 함(죽은 주소로 무한 재연결하면 콘솔이 에러로 뒤덮이고 배터리만 축남).

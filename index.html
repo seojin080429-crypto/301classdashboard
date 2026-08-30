@@ -998,6 +998,8 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .er-type-btn{flex:1;min-width:64px;padding:9px 6px;border:1px solid var(--hairline);border-radius:var(--radius-pill);background:var(--canvas);color:var(--ink-80);font-size:13px;transition:all var(--t)}
 .er-type-btn.active{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
 .er-grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+/* "나만 보기"로 올린 회고 — 어차피 본인 화면에만 뜨지만, 공개된 줄 알고 쓰는 일이 없도록 표시 */
+.er-private-badge{font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:var(--radius-pill);background:var(--parchment);color:var(--ink-48);border:1px solid var(--hairline);margin-left:6px;white-space:nowrap}
 .er-optional{font-weight:400;color:var(--ink-48);font-size:11px;margin-left:4px}
 /* [대분류][소분류][개수][×] — 폰에서는 대분류가 한 줄을 다 쓰고 나머지가 아랫줄로 내려간다 */
 .er-area-row{display:grid;grid-template-columns:1fr 1fr 78px 30px;gap:6px;align-items:center;margin-bottom:6px}
@@ -2535,6 +2537,14 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         <div class="modal-field">
           <label class="modal-label">한마디 <span class="er-optional">선택</span></label>
           <textarea class="form-textarea" id="er-content" placeholder="시험 전체에 대한 한마디" style="min-height:48px"></textarea>
+        </div>
+        <div class="modal-field">
+          <label class="modal-label">공개 범위</label>
+          <div class="er-type-row">
+            <button class="er-type-btn active" id="er-vis-public" onclick="setExamVisibility(false)">공개</button>
+            <button class="er-type-btn" id="er-vis-private" onclick="setExamVisibility(true)">🔒 나만 보기</button>
+          </div>
+          <div class="er-optional" id="er-vis-hint" style="display:block;margin-top:6px"></div>
         </div>
         <div class="auth-error" id="er-error"></div>
         <div class="modal-actions">
@@ -9318,18 +9328,29 @@ const DRAFT_FORMS={
                 if(!wrap.children.length)addScLogRow();
                 recomputeScTotal();
                 syncScDateLabel(); // 복구된 날짜를 배너에도 반영
+              },
+              reset:()=>{
+                const wrap=document.getElementById('sc-log-rows');
+                if(!wrap)return;
+                wrap.innerHTML='';addScLogRow();recomputeScTotal();
               }},
   examreview:{label:'시험 회고',    container:'page-examreview-write', barIn:'#page-examreview-write .card',
               ids:['er-name','er-subject-detail','er-score','er-grade','er-unsolved',
                    'er-math-unsolved','er-math-inefficient','er-math-idea','er-math-improve',
                    'er-eng-logic','er-eng-words','er-forgot','er-mistakes','er-improve','er-content'],
-              get:()=>({type:erType,time:erTimeShort,areas:erAreaRowsData()}),
+              get:()=>({type:erType,time:erTimeShort,priv:erPrivate,areas:erAreaRowsData()}),
               set:d=>{
                 if(d.type)setExamType(d.type); // 이게 영역 행을 비우므로 반드시 행 복구보다 먼저
                 setExamTime(null);
                 if(d.time)setExamTime(d.time);
+                setExamVisibility(!!d.priv);
                 const wrap=document.getElementById('er-area-rows');
                 if(wrap){wrap.innerHTML='';(d.areas||[]).forEach(a=>addExamAreaRow(a.main,a.sub,a.count))}
+              },
+              reset:()=>{
+                const wrap=document.getElementById('er-area-rows');
+                if(wrap)wrap.innerHTML='';
+                setExamTime(null);setExamVisibility(false);
               }},
 };
 const draftOffered=new Set();   // 한 세션에서 같은 폼을 반복해서 묻지 않도록
@@ -9474,7 +9495,32 @@ function offerDraftRestore(form){
   }
 }
 // 글이 실제로 등록되면 초안은 필요 없다(다음에 열 때 또 묻지 않게 세션 표시도 지운다).
-function finishDraft(form){clearDraft(form);draftOffered.delete(form);setDraftBar(form,'hidden')}
+// ⚠️ 예전엔 localStorage만 지웠는데, 그것만으로는 초안이 **되살아났다**(제보: "제출한
+// 시험회고/글인데도 자동저장 복구가 뜬다"). 제출한 뒤에도 입력칸에는 값이 그대로 남아 있어서,
+//   (1) 아직 안 터진 디바운스 타이머(scheduleDraftSave)가 뒤늦게 돌거나
+//   (2) 탭 전환·앱 종료 때 도는 즉시 저장(visibilitychange/pagehide)이
+// 방금 올린 그 내용을 다시 초안으로 저장해버렸다. 그래서 예약된 저장을 취소하고,
+// 폼 값 자체를 비운 뒤에 지운다.
+function finishDraft(form){
+  clearTimeout(draftSaveTimer);
+  if(lastDraftForm===form)lastDraftForm=null;
+  resetDraftForm(form);
+  clearDraft(form);
+  draftOffered.delete(form);
+  setDraftBar(form,'hidden');
+}
+// 제출이 끝난 폼을 비운다. 날짜/선택 칸은 기본값이 들어 있는 자리라 건드리지 않는다
+// (초안인지 판정할 때도 draftHasContent가 그 둘은 무시한다).
+function resetDraftForm(form){
+  const cfg=DRAFT_FORMS[form];
+  if(!cfg)return;
+  cfg.ids.forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el||el.tagName==='SELECT'||el.type==='date')return;
+    el.value='';
+  });
+  if(cfg.reset){try{cfg.reset()}catch(e){}}
+}
 // 어느 경로로 들어오든(사이드바 이동/탭 전환/새로고침 복원) 타이핑이 항상 저장되도록,
 // 앱이 뜨면 모든 글쓰기 폼에 리스너를 한 번씩 붙여둔다. 붙이기는 컨테이너당 1회만 실행된다.
 document.addEventListener('DOMContentLoaded',()=>Object.keys(DRAFT_FORMS).forEach(attachDraftAutosave));
@@ -10287,6 +10333,19 @@ function examAreaTree(){
 }
 let erType='korean';      // 현재 고른 과목 유형
 let erTimeShort=null;     // 'short' | 'ok' | null
+// 회고를 반 친구들에게 보일지("공개"), 나만 볼지("나만 보기"). 실제 차단은 화면이 아니라
+// posts의 RLS(읽기 정책)가 한다 — is_private이면 작성자 본인 외에는 조회 자체가 안 된다.
+let erPrivate=false;
+
+function setExamVisibility(priv){
+  erPrivate=!!priv;
+  document.getElementById('er-vis-public')?.classList.toggle('active',!erPrivate);
+  document.getElementById('er-vis-private')?.classList.toggle('active',erPrivate);
+  const hint=document.getElementById('er-vis-hint');
+  if(hint)hint.textContent=erPrivate
+    ?'나만 볼 수 있어요. 시험 회고 탭에서 다른 친구들에게는 아예 안 보입니다.'
+    :'반 친구들이 시험 회고 탭에서 볼 수 있어요.';
+}
 
 function setExamType(type){
   if(!EXAM_TYPES[type])return;
@@ -10391,6 +10450,7 @@ function openExamReviewWritePage(){
    'er-eng-logic','er-eng-words','er-forgot','er-mistakes','er-improve','er-content']
     .forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
   erTimeShort=null;setExamTime(null);
+  setExamVisibility(false); // 기본은 공개
   setExamType('korean');
   document.getElementById('er-error').style.display='none';
   document.querySelectorAll('.page').forEach(pg=>pg.classList.remove('active'));
@@ -10444,7 +10504,7 @@ async function submitExamReviewPost(){
   const {error}=await sb.from('posts').insert({
     user_id:currentUser.id,student_id:currentStudentId,
     author_name:currentName||currentStudentId+'번',
-    category:'examreview',subject,content,exam_review:review
+    category:'examreview',subject,content,exam_review:review,is_private:erPrivate
   });
   btn.textContent='회고 올리기';btn.disabled=false;
   if(error)return fail('게시 실패: '+error.message);
@@ -10471,6 +10531,14 @@ function examReviewFields(r){
   push('앞으로 개선할 점',r.improvements);
   return out;
 }
+// 이미 올린 회고의 공개 범위 바꾸기(글마다 ⋯ 메뉴). 실제 차단은 RLS가 하므로 컬럼만 바꾸면 된다.
+async function toggleExamPrivacy(id,next){
+  if(next&&!confirm('이 회고를 나만 보기로 바꿀까요?\n다른 친구들에게는 목록에서 사라집니다.'))return;
+  const {error}=await sb.from('posts').update({is_private:next}).eq('id',id);
+  if(error){toast('변경 실패: '+error.message);return}
+  toast(next?'나만 보기로 바꿨어요 🔒':'공개로 바꿨어요');
+  await loadStudyBoard();
+}
 function renderExamReviewCard(p,comments=[]){
   const r=p.exam_review||{};
   const canManagePost=p.student_id===currentStudentId||isBoardModerator();
@@ -10478,9 +10546,15 @@ function renderExamReviewCard(p,comments=[]){
   const authorName=authorProfile?.display_name||p.author_name;
   const likerIds=boardLikesMap[p.id]||[];
   const isLiked=likerIds.includes(currentStudentId);
+  // 공개/비공개 전환은 작성자 본인만 — 스태프는 애초에 남의 비공개 글을 볼 수 없고,
+  // 남의 공개 글을 대신 숨길 이유도 없다.
+  const privacyBtn=p.student_id===currentStudentId
+    ? `<button class="post-edit-btn" onclick="closeAllPostMenus();toggleExamPrivacy('${p.id}',${!p.is_private})">${p.is_private?'공개로 전환':'나만 보기로 전환'}</button>`
+    : '';
   const moreMenuHtml=canManagePost?`<div class="post-more-wrap">
       <button class="post-more-btn" onclick="togglePostMenu(event,'${p.id}')">⋯</button>
       <div class="post-more-menu" id="post-menu-${p.id}">
+        ${privacyBtn}
         <button class="post-edit-btn" onclick="closeAllPostMenus();startEditPost('${p.id}','examreview')">수정</button>
         <button class="post-delete-btn" onclick="closeAllPostMenus();deletePost('${p.id}','','examreview')">삭제</button>
       </div>
@@ -10505,6 +10579,7 @@ function renderExamReviewCard(p,comments=[]){
     <div class="qna-header">
       <div class="qna-avatar">${avatarHtmlFor(authorName,authorProfile?.avatar_url)}</div>
       <span class="qna-author">${escHtml(authorName)}</span>
+      ${p.is_private?'<span class="er-private-badge">🔒 나만 보기</span>':''}
       <div class="qna-header-spacer"></div>
       ${moreMenuHtml}
     </div>
@@ -10523,9 +10598,9 @@ function renderExamReviewCard(p,comments=[]){
       <button class="post-action-btn" onclick="toggleComments('${p.id}')" title="댓글">
         <svg viewBox="0 0 24 24"><path d="M20.656 17.008a9.993 9.993 0 1 0-3.59 3.615L21 21l-1.192-3.415z"></path></svg>
       </button>
-      <button class="post-action-btn" onclick="openSharePostModal('${p.id}')" title="DM으로 공유">
+      ${p.is_private?'':`<button class="post-action-btn" onclick="openSharePostModal('${p.id}')" title="DM으로 공유">
         <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-      </button>
+      </button>`}
     </div>
     <div class="post-body post-body-meta">
       <span class="board-like-count" id="board-like-count-${p.id}" onclick="viewLikers('${p.id}')">${likerIds.length>0?`좋아요 ${likerIds.length}개`:''}</span>

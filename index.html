@@ -1583,6 +1583,17 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .post-img{width:100%;max-height:460px;object-fit:contain;cursor:pointer;display:block;transition:opacity var(--t)}
 .post-img:hover{opacity:.92}
 .post-media video{width:100%;max-height:460px;object-fit:contain;display:block}
+/* 사진이 여러 장인 글 — 옆으로 밀어서 넘긴다(모바일은 스와이프, PC는 가로 스크롤).
+   스크롤 스냅이라 한 장씩 딱 맞게 멈추고, 오른쪽 위에 "2 / 4"가 뜬다. */
+.media-carousel-wrap{position:relative;width:100%}
+.media-carousel{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.media-carousel::-webkit-scrollbar{display:none}
+.media-carousel>img,.media-carousel>video{flex:0 0 100%;width:100%;scroll-snap-align:center;object-fit:contain}
+.media-carousel{align-items:center}
+.bl-detail-media .media-carousel>img,.bl-detail-media .media-carousel>video{max-height:70vh}
+.media-counter{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;font-weight:600;padding:3px 9px;border-radius:var(--radius-pill);pointer-events:none;z-index:1}
+.sc-photo-item video{width:100%;height:100%;object-fit:cover;display:block}
+.sc-photo-kind{position:absolute;right:4px;bottom:4px;background:rgba(0,0,0,.55);color:#fff;font-size:10px;padding:1px 5px;border-radius:6px}
 /* 이미지 라이트박스 */
 #img-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:400;cursor:pointer}
 #img-lightbox.open{display:flex}
@@ -2311,20 +2322,17 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
           <div style="font-size:11.5px;color:var(--ink-48);margin-top:6px">필명·익명으로 써도 운영자는 실제 작성자를 확인할 수 있어요.</div>
         </div>
         <div class="modal-field">
-          <label class="modal-label">사진·동영상 <span style="font-weight:400;color:var(--ink-48);font-size:11px">선택</span></label>
+          <label class="modal-label">사진·동영상 <span style="font-weight:400;color:var(--ink-48);font-size:11px">선택 · 최대 5개</span></label>
           <div class="photo-upload-row">
             <label class="photo-upload-label" for="free-photo">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
               사진/동영상 첨부
             </label>
-            <input type="file" id="free-photo" accept="image/*,video/*" style="display:none" onchange="previewPhoto('free')">
+            <input type="file" id="free-photo" accept="image/*,video/*" multiple style="display:none" onchange="previewPhoto('free')">
             <span class="photo-file-name" id="free-photo-name">파일 없음</span>
             <button class="photo-clear-btn" id="free-photo-clear" onclick="clearPhoto('free')" style="display:none">×</button>
           </div>
-          <div class="photo-preview-wrap" id="free-photo-preview" style="display:none">
-            <img id="free-photo-img" src="" alt="미리보기" class="photo-preview-img">
-            <video id="free-photo-video" class="photo-preview-img" controls playsinline style="display:none"></video>
-          </div>
+          <div class="sc-photo-grid" id="free-photo-grid"></div>
         </div>
         <div class="modal-field">
           <label class="modal-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
@@ -2591,14 +2599,11 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
             사진/동영상 첨부
           </label>
-          <input type="file" id="qna-photo" accept="image/*,video/*" style="display:none" onchange="previewPhoto('qna')">
+          <input type="file" id="qna-photo" accept="image/*,video/*" multiple style="display:none" onchange="previewPhoto('qna')">
           <span class="photo-file-name" id="qna-photo-name">파일 없음</span>
           <button class="photo-clear-btn" id="qna-photo-clear" onclick="clearPhoto('qna')" style="display:none">×</button>
         </div>
-        <div class="photo-preview-wrap" id="qna-photo-preview" style="display:none">
-          <img id="qna-photo-img" src="" alt="미리보기" class="photo-preview-img">
-          <video id="qna-photo-video" class="photo-preview-img" controls playsinline style="display:none"></video>
-        </div>
+        <div class="sc-photo-grid" id="qna-photo-grid"></div>
         <div class="form-actions">
           <button class="btn-primary" id="qna-submit-btn" onclick="submitPost('qna')">질문 올리기</button>
         </div>
@@ -2619,14 +2624,11 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
             스크린샷/화면녹화 첨부
           </label>
-          <input type="file" id="bug-photo" accept="image/*,video/*" style="display:none" onchange="previewPhoto('bug')">
+          <input type="file" id="bug-photo" accept="image/*,video/*" multiple style="display:none" onchange="previewPhoto('bug')">
           <span class="photo-file-name" id="bug-photo-name">파일 없음</span>
           <button class="photo-clear-btn" id="bug-photo-clear" onclick="clearPhoto('bug')" style="display:none">×</button>
         </div>
-        <div class="photo-preview-wrap" id="bug-photo-preview" style="display:none">
-          <img id="bug-photo-img" src="" alt="미리보기" class="photo-preview-img">
-          <video id="bug-photo-video" class="photo-preview-img" controls playsinline style="display:none"></video>
-        </div>
+        <div class="sc-photo-grid" id="bug-photo-grid"></div>
         <div class="form-actions">
           <button class="btn-primary" id="bug-submit-btn" onclick="submitPost('bug')">제보하기</button>
         </div>
@@ -4392,6 +4394,12 @@ function toggleTheme(){
 //    같은 값으로 맞춘다(그 값이 바뀌면 새 안내가 뜨는 구조라서, 빼먹으면 아무 안내도 안 뜬다).
 //    사용자가 읽을 문장으로 쓴다 — 파일명·함수명·RLS 같은 내부 용어는 넣지 않는다.
 const APP_UPDATES=[
+  {v:'2026-08-28-37', date:'2026년 8월 28일', title:'글 하나에 사진을 여러 장 올릴 수 있어요',
+   items:[
+     '갤러리·질문게시판·버그 제보에서 사진/동영상을 최대 5개까지 함께 올릴 수 있어요.',
+     '여러 장인 글은 옆으로 밀어서 넘겨보면 되고, 오른쪽 위에 몇 번째 장인지 표시돼요.',
+     '올리기 전에 미리보기에서 마음에 안 드는 사진만 골라 뺄 수도 있어요.',
+   ]},
   {v:'2026-08-28-36', date:'2026년 8월 28일', title:'업데이트 안내가 생겼어요',
    note:'앞으로 새 기능이 나가거나 고쳐진 게 있으면 이렇게 알려드릴게요.',
    items:[
@@ -9157,10 +9165,8 @@ function renderBoardDetail(p,comments){
   const canManagePost=p.student_id===currentStudentId||isBoardModerator();
   const av=postAuthorView(p);
   const authorName=av.name;
-  const isVideo=p.image_url&&(/\/vid_[^/]*$/.test(p.image_url)||(!/\/img_[^/]*$/.test(p.image_url)&&/\.(mp4|webm|mov|m4v|ogg|ogv|avi|wmv|mkv|3gp|flv|mpeg|mpg)(\?|$)/i.test(p.image_url)));
-  const mediaHtml=p.image_url?`<div class="bl-detail-media">${isVideo
-    ?`<video src="${p.image_url}" controls playsinline></video>`
-    :`<img src="${p.image_url}" alt="첨부사진" onclick="openLightbox('${p.image_url}')">`}</div>`:'';
+  const detailMedia=postMediaHtml(p,'bl-detail-img');
+  const mediaHtml=detailMedia?`<div class="bl-detail-media">${detailMedia}</div>`:'';
   const mine=myBoardVote(p.id);
   const commentsHtml=renderCommentList(comments,p.id,p.category);
   return`<div class="bl-page">
@@ -9251,44 +9257,69 @@ let routineEditingId=null; // 폼 화면에서 수정 중인 루틴 id — null�
 // 여러 번 첨부·교체하며 게시하면 조금씩 누적되므로, 새 미리보기로 갈아끼우기 전/제출 후
 // 정리할 때 항상 이전 blob URL을 revoke한다.
 function revokePreviewUrls(type){
-  const imgEl=document.getElementById(`${type}-photo-img`);
-  const videoEl=document.getElementById(`${type}-photo-video`);
-  if(imgEl?.src?.startsWith('blob:'))URL.revokeObjectURL(imgEl.src);
-  if(videoEl?.src?.startsWith('blob:'))URL.revokeObjectURL(videoEl.src);
+  (boardPhotoPreviewUrls[type]||[]).forEach(u=>URL.revokeObjectURL(u));
+  boardPhotoPreviewUrls[type]=[];
 }
+// ── 게시글 첨부(사진·동영상) ──
+// 한 글에 여러 개를 붙일 수 있다(요청: "게시물 올릴 때 사진 여러개 올릴 수 있게").
+// 공부인증(scPhotoFiles)과 같은 방식 — 고른 파일을 배열에 **누적**하고 <input>은 매번 비운다.
+// 그래야 같은 파일을 다시 고를 수도, 여러 번 나눠 고를 수도 있다.
+const BOARD_PHOTO_MAX=5;
+const BOARD_IMG_MAX_BYTES=10*1024*1024, BOARD_VID_MAX_BYTES=50*1024*1024;
+const boardPhotoFiles={free:[],qna:[],bug:[]};
+const boardPhotoPreviewUrls={free:[],qna:[],bug:[]};
+
 function previewPhoto(type){
   const input=document.getElementById(`${type}-photo`);
-  const file=input.files[0];
-  if(!file)return;
-  const isVideo=file.type.startsWith('video/');
-  const maxSize=isVideo?50*1024*1024:10*1024*1024;
-  if(file.size>maxSize){toast(isVideo?'동영상은 50MB 이하만 가능합니다':'사진은 10MB 이하만 가능합니다');input.value='';return}
-  revokePreviewUrls(type);
-  document.getElementById(`${type}-photo-name`).textContent=file.name;
-  document.getElementById(`${type}-photo-clear`).style.display='flex';
-  const imgEl=document.getElementById(`${type}-photo-img`);
-  const videoEl=document.getElementById(`${type}-photo-video`);
-  const url=URL.createObjectURL(file);
-  if(isVideo){
-    imgEl.style.display='none';imgEl.src='';
-    videoEl.src=url;videoEl.style.display='block';
-  }else{
-    videoEl.style.display='none';videoEl.removeAttribute('src');
-    imgEl.src=url;imgEl.style.display='block';
+  const picked=Array.from(input.files||[]);
+  input.value='';
+  const list=boardPhotoFiles[type]||(boardPhotoFiles[type]=[]);
+  let over=false;
+  for(const f of picked){
+    if(list.length>=BOARD_PHOTO_MAX){over=true;break}
+    const isVideo=f.type.startsWith('video/');
+    if(!isVideo&&!f.type.startsWith('image/')){toast('사진이나 동영상만 첨부할 수 있어요');continue}
+    if(f.size>(isVideo?BOARD_VID_MAX_BYTES:BOARD_IMG_MAX_BYTES)){
+      toast(`"${f.name}"은(는) ${isVideo?'50MB':'10MB'}가 넘어서 뺐어요`);continue;
+    }
+    list.push(f);
   }
-  document.getElementById(`${type}-photo-preview`).style.display='block';
+  if(over)toast(`첨부는 최대 ${BOARD_PHOTO_MAX}개까지예요`);
+  renderBoardPhotoPreviews(type);
+}
+function removeBoardPhoto(type,i){
+  (boardPhotoFiles[type]||[]).splice(i,1);
+  renderBoardPhotoPreviews(type);
+}
+function renderBoardPhotoPreviews(type){
+  const grid=document.getElementById(`${type}-photo-grid`);
+  const files=boardPhotoFiles[type]||[];
+  revokePreviewUrls(type);
+  if(grid){
+    grid.classList.toggle('has',files.length>0);
+    grid.innerHTML=files.map((f,i)=>{
+      const u=URL.createObjectURL(f);
+      boardPhotoPreviewUrls[type].push(u);
+      const isVideo=f.type.startsWith('video/');
+      return`<div class="sc-photo-item">
+        ${isVideo?`<video src="${u}" muted playsinline></video>`:`<img src="${u}" alt="첨부 ${i+1}">`}
+        <button class="sc-photo-del" onclick="removeBoardPhoto('${type}',${i})" title="빼기">×</button>
+        <span class="sc-photo-idx">${i+1}</span>
+        ${isVideo?'<span class="sc-photo-kind">동영상</span>':''}
+      </div>`;
+    }).join('');
+  }
+  const nameEl=document.getElementById(`${type}-photo-name`);
+  if(nameEl)nameEl.textContent=files.length?(files.length===1?files[0].name:`${files.length}개 선택됨`):'파일 없음';
+  const clearBtn=document.getElementById(`${type}-photo-clear`);
+  if(clearBtn)clearBtn.style.display=files.length?'flex':'none';
 }
 
 function clearPhoto(type){
-  revokePreviewUrls(type);
-  document.getElementById(`${type}-photo`).value='';
-  document.getElementById(`${type}-photo-name`).textContent='파일 없음';
-  document.getElementById(`${type}-photo-clear`).style.display='none';
-  document.getElementById(`${type}-photo-preview`).style.display='none';
-  const imgEl=document.getElementById(`${type}-photo-img`);
-  const videoEl=document.getElementById(`${type}-photo-video`);
-  imgEl.src='';imgEl.style.display='block';
-  videoEl.removeAttribute('src');videoEl.style.display='none';
+  boardPhotoFiles[type]=[];
+  const input=document.getElementById(`${type}-photo`);
+  if(input)input.value='';
+  renderBoardPhotoPreviews(type);
 }
 
 // 게시판 종류(자유/질문/버그제보)가 늘어날 때마다 곳곳의 type==='free'?A:B 삼항연산이
@@ -9697,21 +9728,29 @@ async function submitPost(type){
   const subject=type==='qna'?document.getElementById('qna-subject').value:null;
   // 마이너 갤러리 글은 전부 category='free' 하나로 저장한다(탭이 카테고리가 아니라 보기 방식이라서).
   const category=type;
-  let imageUrl=null;
-  const photoInput=document.getElementById(`${type}-photo`);
-  const file=photoInput.files[0];
-  if(file){
-    const ext=file.name.split('.').pop();
-    // 나중에 렌더링할 때(renderPost) 이미지/동영상 여부를 확장자로 추측하면 avi/wmv/mkv처럼
-    // 흔치 않은 확장자를 놓칠 수 있으므로, 업로드 시점에 브라우저가 실제로 읽은 file.type을
-    // 파일명 접두사(vid_/img_)에 그대로 새겨서 나중엔 추측 없이 파일명만 보고 판단하게 한다.
+  // 첨부는 여러 개일 수 있다. 중간에 하나라도 실패하면 이미 올라간 파일이 스토리지에
+  // 쓰레기로 남으므로, 실패 시 지금까지 올린 것들을 되돌린 뒤 중단한다(공부인증과 동일).
+  const files=boardPhotoFiles[type]||[];
+  const urls=[],uploadedPaths=[];
+  for(let i=0;i<files.length;i++){
+    const file=files[i];
+    if(files.length>1)submitBtn.textContent=`올리는 중... (${i+1}/${files.length})`;
+    const ext=(file.name.split('.').pop()||'jpg');
+    // 나중에 렌더링할 때 이미지/동영상 여부를 확장자로 추측하면 avi/wmv/mkv처럼 흔치 않은
+    // 확장자를 놓칠 수 있으므로, 업로드 시점에 브라우저가 실제로 읽은 file.type을 파일명
+    // 접두사(vid_/img_)에 새겨서 나중엔 추측 없이 파일명만 보고 판단하게 한다.
     const mediaPrefix=file.type.startsWith('video/')?'vid':'img';
     const fileName=`${mediaPrefix}_${currentStudentId}_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
     const {error:upErr}=await sb.storage.from('board-photos').upload(fileName,file);
-    if(upErr){toast('사진 업로드 실패: '+upErr.message);submitBtn.textContent=label;submitBtn.disabled=false;return}
-    const {data:urlData}=sb.storage.from('board-photos').getPublicUrl(fileName);
-    imageUrl=urlData.publicUrl;
+    if(upErr){
+      if(uploadedPaths.length)await sb.storage.from('board-photos').remove(uploadedPaths);
+      toast(`첨부 업로드 실패(${i+1}번째): `+upErr.message);
+      submitBtn.textContent=label;submitBtn.disabled=false;return;
+    }
+    uploadedPaths.push(fileName);
+    urls.push(sb.storage.from('board-photos').getPublicUrl(fileName).data.publicUrl);
   }
+  submitBtn.textContent='올리는 중...';
   // 투표는 글쓰기(마이너 갤러리)에서만 붙일 수 있다. 글이 먼저 만들어져야 post_id를 알 수
   // 있으므로 여기서 입력값만 먼저 검사해두고, insert가 끝난 뒤에 post_polls에 넣는다.
   let pollQuestion='',pollOptions=[];
@@ -9724,7 +9763,10 @@ async function submitPost(type){
   const {data:newPostRow,error}=await sb.from('posts').insert({
     user_id:currentUser.id,student_id:currentStudentId,
     author_name:currentName||currentStudentId+'번',
-    category,subject,content,image_url:imageUrl,
+    category,subject,content,
+    // image_url에는 첫 장을 그대로 넣는다 — 옛 글이나 이 컬럼만 보는 다른 화면(갤러리 썸네일,
+    // DM 공유 등)이 여러 장이 되어도 한 장짜리로 계속 정상 동작하게 하기 위함.
+    image_url:urls[0]||null,image_urls:urls.length?urls:null,
     // 제목은 자유게시판 갤러리 목록용 — 다른 게시판에는 입력칸 자체가 없다.
     title:type==='free'?(document.getElementById('free-title')?.value.trim()||null):null,
     is_anonymous:type==='free'&&freeNameMode==='anon',
@@ -9842,12 +9884,7 @@ function renderPost(p,type,comments=[]){
   const likerIds=boardLikesMap[p.id]||[];
   const isLiked=likerIds.includes(currentStudentId);
   const likeCount=likerIds.length;
-  // 업로드 시점에 파일명에 새겨둔 vid_/img_ 접두사로 우선 판단하고, 그 접두사가 없는(이
-  // 방식 도입 전에 이미 올라간) 과거 첨부파일은 예전처럼 확장자로 대신 추측한다.
-  const isVideoAttachment=p.image_url&&(/\/vid_[^/]*$/.test(p.image_url)||(!/\/img_[^/]*$/.test(p.image_url)&&/\.(mp4|webm|mov|m4v|ogg|ogv|avi|wmv|mkv|3gp|flv|mpeg|mpg)(\?|$)/i.test(p.image_url)));
-  const imgHtml=p.image_url?(isVideoAttachment
-    ?`<video class="post-img" src="${p.image_url}" controls playsinline></video>`
-    :`<img class="post-img" src="${p.image_url}" alt="첨부사진" onclick="openLightbox('${p.image_url}')">`):'';
+  const imgHtml=postMediaHtml(p,'post-img');
   const mediaHtml=imgHtml?`<div class="post-media">${imgHtml}</div>`:'';
   const subjectPill=p.subject?`<span class="qna-subject-pill">${p.subject}</span>`:'';
   // 수정/삭제 권한이 아예 없으면(남의 글, 운영자도 아님) "..." 버튼 자체를 안 보여준다.
@@ -10370,6 +10407,39 @@ function renderScPhotoPreviews(){
   grid.classList.toggle('has',scPhotoFiles.length>0);
   document.getElementById('sc-photo-name').textContent=scPhotoFiles.length?`${scPhotoFiles.length}장 선택됨`:'파일 없음';
   document.getElementById('sc-photo-clear').style.display=scPhotoFiles.length?'flex':'none';
+}
+
+// 첨부가 동영상인지 — 업로드할 때 파일명에 새겨둔 접두사(vid_/img_)로 먼저 판단하고,
+// 그 접두사가 없는(이 방식 도입 전에 올라간) 옛 첨부만 확장자로 추측한다.
+function isVideoUrl(u){
+  if(!u)return false;
+  if(/\/vid_[^/]*$/.test(u))return true;
+  if(/\/img_[^/]*$/.test(u))return false;
+  return /\.(mp4|webm|mov|m4v|ogg|ogv|avi|wmv|mkv|3gp|flv|mpeg|mpg)(\?|$)/i.test(u);
+}
+// 게시글 첨부 영역. 여러 개면 옆으로 밀어서 넘기는 캐러셀로, 하나면 예전과 똑같이 한 장으로.
+function postMediaHtml(p,cls){
+  const urls=postPhotoUrls(p);
+  if(!urls.length)return '';
+  // 라이트박스(확대 보기)는 사진만 넘긴다 — 동영상은 카드 안에서 바로 재생한다.
+  const imgs=urls.filter(u=>!isVideoUrl(u));
+  scGalleryMap[p.id]=imgs;
+  const slide=u=>isVideoUrl(u)
+    ?`<video class="${cls}" src="${u}" controls playsinline></video>`
+    :`<img class="${cls}" src="${u}" alt="첨부파일" onclick="openPostGallery('${p.id}',${imgs.indexOf(u)})">`;
+  if(urls.length===1)return slide(urls[0]);
+  return`<div class="media-carousel-wrap">
+    <div class="media-carousel" onscroll="syncMediaCounter(this)">${urls.map(slide).join('')}</div>
+    <span class="media-counter">1 / ${urls.length}</span>
+  </div>`;
+}
+// 스크롤 위치로 "몇 번째 장"인지 표시(스크롤 스냅이라 항상 한 장에 딱 맞춰 멈춘다).
+function syncMediaCounter(el){
+  const n=el.children.length;
+  if(!n||!el.clientWidth)return;
+  const i=Math.min(n,Math.round(el.scrollLeft/el.clientWidth)+1);
+  const c=el.parentElement&&el.parentElement.querySelector('.media-counter');
+  if(c)c.textContent=`${i} / ${n}`;
 }
 
 // 게시글의 사진 목록 — 새 글은 image_urls(배열), 이 기능 이전 글은 image_url(한 장)만 있다.

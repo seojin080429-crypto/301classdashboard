@@ -432,6 +432,33 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .btn-danger{padding:9px 18px;background:rgba(200,0,0,.08);color:#c00;font-size:14px;border-radius:var(--radius-pill);border:1px solid rgba(200,0,0,.2)}
 .btn-danger:hover{background:rgba(200,0,0,.14)}
 
+/* 활동 로그 — 마이페이지 "내 활동"과 학생현황 "활동" 탭이 같은 모양을 쓴다 */
+.act-list{display:flex;flex-direction:column}
+.act-row{
+  display:flex;align-items:flex-start;gap:10px;padding:12px 4px;
+  border-bottom:1px solid var(--hairline);cursor:pointer;
+  transition:background var(--t);
+}
+.act-row:last-child{border-bottom:none}
+.act-row:hover{background:var(--parchment)}
+.act-row.dead{cursor:default;opacity:.55}
+.act-row.dead:hover{background:none}
+.act-kind{
+  font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:var(--radius-pill);
+  flex-shrink:0;margin-top:2px;
+}
+.act-kind.post{background:rgba(0,102,204,.12);color:var(--blue)}
+.act-kind.comment{background:var(--parchment);color:var(--ink-48);border:1px solid var(--hairline)}
+.act-main{flex:1;min-width:0}
+.act-text{font-size:13.5px;color:var(--ink);line-height:1.45;word-break:break-word}
+.act-meta{font-size:11px;color:var(--ink-48);margin-top:3px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.act-board{color:var(--blue)}
+.act-badge{font-size:10px;padding:1px 6px;border-radius:var(--radius-pill);background:var(--parchment);border:1px solid var(--hairline);color:var(--ink-48)}
+.act-empty{text-align:center;padding:22px 0;color:var(--ink-48);font-size:13px}
+/* 글로 이동했을 때 "여기예요" 하고 잠깐 표시 */
+@keyframes act-flash{0%{box-shadow:0 0 0 3px rgba(0,102,204,.35)}100%{box-shadow:0 0 0 3px rgba(0,102,204,0)}}
+.act-flash{animation:act-flash 1.6s ease-out}
+
 /* 업데이트 안내 모달 */
 .upd-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:16px}
 .upd-icon{width:38px;height:38px;border-radius:50%;background:var(--parchment);border:1px solid var(--hairline);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
@@ -2899,6 +2926,18 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
             </div>
           </div>
 
+          <!-- 내 활동 — 내가 쓴 글/댓글 모아보기 -->
+          <div class="card" style="margin-top:14px">
+            <div class="card-title" style="margin-bottom:4px">내 활동</div>
+            <div class="card-sub">내가 쓴 글과 댓글을 모아서 볼 수 있어요. 누르면 그 게시판으로 이동해요.</div>
+            <div class="view-toggle" style="margin:12px 0 4px">
+              <button class="view-btn active" id="act-filter-all" onclick="setMyActivityFilter('all')">전체</button>
+              <button class="view-btn" id="act-filter-post" onclick="setMyActivityFilter('post')">내 글</button>
+              <button class="view-btn" id="act-filter-comment" onclick="setMyActivityFilter('comment')">내 댓글</button>
+            </div>
+            <div class="act-list" id="mp-activity-list"></div>
+          </div>
+
           <!-- 업데이트 내역 — 안내 팝업을 껐거나 지나쳐도 여기서 다시 볼 수 있게 -->
           <div class="card" style="margin-top:14px">
             <div class="card-title" style="margin-bottom:4px">업데이트 내역</div>
@@ -3558,6 +3597,8 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
       <button class="view-btn active" id="sd-tab-report" onclick="switchStudentDetailView('report')">리포트</button>
       <button class="view-btn" id="sd-tab-timetable" onclick="switchStudentDetailView('timetable')">타임테이블</button>
       <button class="view-btn" id="sd-tab-calendar" onclick="switchStudentDetailView('calendar')">캘린더</button>
+      <!-- 글·댓글 로그는 스태프(선생님/관리자)에게만 — openStudentDetail()에서 노출을 결정한다 -->
+      <button class="view-btn" id="sd-tab-activity" style="display:none" onclick="switchStudentDetailView('activity')">활동</button>
     </div>
 
     <!-- 학생 본인의 학습 리포트(page-report)와 동일한 구성 -->
@@ -3657,6 +3698,20 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         <div class="mcal-grid" id="sd-cal-grid"></div>
       </div>
       <table class="mcal-stats-table" id="sd-stats-table"></table>
+    </div>
+
+    <!-- 활동(글·댓글) 로그 -->
+    <div id="sd-activity-view" style="display:none">
+      <div class="card">
+        <div class="card-title" style="margin-bottom:4px">쓴 글과 댓글</div>
+        <div class="card-sub">최근 100건까지 보여줘요. 누르면 그 게시판의 해당 글로 이동합니다.</div>
+        <div class="view-toggle" style="margin:12px 0 4px">
+          <button class="view-btn active" id="sd-act-filter-all" onclick="setStudentActivityFilter('all')">전체</button>
+          <button class="view-btn" id="sd-act-filter-post" onclick="setStudentActivityFilter('post')">글</button>
+          <button class="view-btn" id="sd-act-filter-comment" onclick="setStudentActivityFilter('comment')">댓글</button>
+        </div>
+        <div class="act-list" id="sd-activity-list"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -4153,6 +4208,7 @@ function populateMypage(meta,name,sid){
   // 학교 설정(리로스쿨 링크) — 저장된 값이 있을 때만 채움, 없으면 3-1 기본값을 그대로 씀
   if(meta.riro_url)document.getElementById('mp-riro-url').value=meta.riro_url;
   renderUpdateHistory();
+  loadMyActivity();
   // "테마" 카드(베이지 테마 + 리락쿠마 켜기)는 허용된 계정에게만 보인다(BEAR_THEME_ACCOUNTS).
   const themeCard=document.getElementById('mp-theme-card');
   if(themeCard)themeCard.style.display=canUseBearTheme()?'block':'none';
@@ -4394,6 +4450,12 @@ function toggleTheme(){
 //    같은 값으로 맞춘다(그 값이 바뀌면 새 안내가 뜨는 구조라서, 빼먹으면 아무 안내도 안 뜬다).
 //    사용자가 읽을 문장으로 쓴다 — 파일명·함수명·RLS 같은 내부 용어는 넣지 않는다.
 const APP_UPDATES=[
+  {v:'2026-08-28-38', date:'2026년 8월 28일', title:'내가 쓴 글과 댓글을 모아볼 수 있어요',
+   items:[
+     '마이페이지 > 내 활동에서 내가 쓴 글과 단 댓글을 한눈에 볼 수 있어요. 글/댓글만 골라 볼 수도 있고요.',
+     '목록에서 누르면 그 글이 있는 게시판으로 바로 이동해요.',
+     '선생님·관리자는 학생 현황에서 학생이 쓴 글과 댓글 목록을 볼 수 있어요. 다만 "나만 보기"로 올린 시험 회고는 선생님에게도 보이지 않아요.',
+   ]},
   {v:'2026-08-28-37', date:'2026년 8월 28일', title:'글 하나에 사진을 여러 장 올릴 수 있어요',
    items:[
      '갤러리·질문게시판·버그 제보에서 사진/동영상을 최대 5개까지 함께 올릴 수 있어요.',
@@ -10442,6 +10504,142 @@ function syncMediaCounter(el){
   if(c)c.textContent=`${i} / ${n}`;
 }
 
+// ── 활동 로그(쓴 글·댓글 모아보기) ──
+// 두 곳에서 같은 코드를 쓴다: 마이페이지의 "내 활동"(본인 것)과 학생현황 상세의 "활동"
+// 탭(스태프가 학생 것을 볼 때). 데이터는 posts/comments를 학번으로 뒤져서 시간순으로 합친다.
+// ⚠️ 무엇이 보이는지는 결국 DB의 RLS가 정한다 — 예를 들어 "나만 보기"로 올린 시험 회고는
+//    작성자 본인 화면에만 나오고 선생님 로그에는 아예 안 나온다(의도한 동작).
+const ACT_BOARD={
+  free:      {label:'갤러리',     page:'free-board'},
+  qna:       {label:'질문게시판', page:'qna-board'},
+  bug:       {label:'버그 제보',   page:'bug-report'},
+  studycert: {label:'공부 인증',   page:'study-board', tab:'studycert'},
+  examreview:{label:'시험 회고',   page:'study-board', tab:'examreview'},
+};
+async function fetchActivityLog(studentId){
+  const [{data:posts},{data:comments}]=await Promise.all([
+    sb.from('posts').select('id,category,title,content,created_at,is_anonymous,is_private')
+      .eq('student_id',studentId).order('created_at',{ascending:false}).limit(100),
+    sb.from('comments').select('id,post_id,content,created_at,is_anonymous')
+      .eq('student_id',studentId).order('created_at',{ascending:false}).limit(100),
+  ]);
+  // 댓글은 그것만 봐서는 어느 게시판인지 알 수 없다 — 달린 글을 따로 조회해서 붙인다.
+  // 여기서 안 잡히는 글은 지워졌거나(또는 비공개라) 볼 수 없는 글이므로 이동도 막는다.
+  const postIds=[...new Set((comments||[]).map(c=>c.post_id).filter(Boolean))];
+  const parents={};
+  if(postIds.length){
+    const {data:rows}=await sb.from('posts').select('id,category,title,content').in('id',postIds);
+    (rows||[]).forEach(r=>{parents[r.id]=r});
+  }
+  const items=[
+    ...(posts||[]).map(p=>({
+      kind:'post',id:p.id,postId:p.id,category:p.category,
+      text:postTitleOf(p),created_at:p.created_at,anon:!!p.is_anonymous,priv:!!p.is_private,
+    })),
+    ...(comments||[]).map(c=>{
+      const par=parents[c.post_id];
+      return {
+        kind:'comment',id:c.id,postId:c.post_id,category:par?par.category:null,
+        text:(c.content||'').trim(),parentText:par?postTitleOf(par):null,
+        created_at:c.created_at,anon:!!c.is_anonymous,
+      };
+    }),
+  ];
+  items.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  return items;
+}
+function renderActivityLog(items,filter){
+  const list=items.filter(it=>filter==='all'||it.kind===filter);
+  if(!list.length){
+    const what=filter==='post'?'쓴 글이':filter==='comment'?'단 댓글이':'활동이';
+    return`<div class="act-empty">아직 ${what} 없어요</div>`;
+  }
+  return list.map(it=>{
+    const board=ACT_BOARD[it.category];
+    const dead=!board;
+    const preview=(it.text||'').replace(/\s+/g,' ').trim().slice(0,70)||'(내용 없음)';
+    const badges=[
+      it.anon?'<span class="act-badge">익명</span>':'',
+      it.priv?'<span class="act-badge">🔒 나만 보기</span>':'',
+    ].join('');
+    const where=dead
+      ? '<span class="act-board">삭제된 글</span>'
+      : `<span class="act-board">${board.label}</span>`;
+    const on=it.kind==='comment'&&it.parentText
+      ? `<span>· "${escHtml(it.parentText.slice(0,24))}"에 남김</span>`:'';
+    const click=dead?'':`onclick="goToActivity('${it.kind}','${it.postId}','${it.category}')"`;
+    return`<div class="act-row${dead?' dead':''}" ${click}>
+      <span class="act-kind ${it.kind}">${it.kind==='post'?'글':'댓글'}</span>
+      <div class="act-main">
+        <div class="act-text">${escHtml(preview)}</div>
+        <div class="act-meta">${where}${on}${badges}<span>${formatRelativeTime(it.created_at)}</span></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+// 로그의 한 줄을 누르면 그 게시판으로 가서 해당 글을 찾아 표시한다.
+async function goToActivity(kind,postId,category){
+  const board=ACT_BOARD[category];
+  if(!board||!postId){toast('원본 글을 찾을 수 없어요');return}
+  // 학생현황 상세는 전체화면 오버레이라, 먼저 닫아야 게시판이 보인다.
+  if(document.getElementById('student-detail-fullscreen')?.classList.contains('open'))closeStudentDetail();
+  navigate(board.page);
+  try{
+    if(board.tab){
+      // 공부인증/시험회고는 같은 페이지의 탭이라 탭까지 맞춰줘야 글이 목록에 뜬다.
+      studyTab=board.tab;studyPage=1;renderStudyTabs();
+      await loadStudyBoard();
+    }else if(category==='free'){
+      // 갤러리 글은 목록이 아니라 상세 페이지로 바로 연다(댓글도 거기서 보인다).
+      await openBoardPost(postId);
+      return;
+    }else{
+      await boardLoader(category)();
+    }
+  }catch(e){}
+  highlightPost(postId);
+}
+function highlightPost(postId){
+  const el=document.getElementById('post-'+postId);
+  if(!el){toast('목록에서 그 글을 찾지 못했어요 (오래돼서 밀려났을 수 있어요)');return}
+  el.scrollIntoView({block:'center',behavior:'smooth'});
+  el.classList.add('act-flash');
+  setTimeout(()=>el.classList.remove('act-flash'),1700);
+}
+
+// 마이페이지 "내 활동"
+let myActivityItems=null,myActivityFilter='all';
+async function loadMyActivity(){
+  const box=document.getElementById('mp-activity-list');
+  if(!box||!currentStudentId)return;
+  box.innerHTML='<div class="act-empty">불러오는 중…</div>';
+  myActivityItems=await fetchActivityLog(currentStudentId);
+  box.innerHTML=renderActivityLog(myActivityItems,myActivityFilter);
+}
+function setMyActivityFilter(f){
+  myActivityFilter=f;
+  ['all','post','comment'].forEach(k=>document.getElementById('act-filter-'+k)?.classList.toggle('active',k===f));
+  const box=document.getElementById('mp-activity-list');
+  if(box&&myActivityItems)box.innerHTML=renderActivityLog(myActivityItems,f);
+}
+
+// 학생현황 상세 "활동" 탭 (스태프 전용)
+let sdActivityItems=null,sdActivityFilter='all';
+async function loadStudentActivity(studentId){
+  const box=document.getElementById('sd-activity-list');
+  if(!box)return;
+  if(!isStaffRole()){box.innerHTML='<div class="act-empty">권한이 없습니다</div>';return}
+  box.innerHTML='<div class="act-empty">불러오는 중…</div>';
+  sdActivityItems=await fetchActivityLog(studentId);
+  box.innerHTML=renderActivityLog(sdActivityItems,sdActivityFilter);
+}
+function setStudentActivityFilter(f){
+  sdActivityFilter=f;
+  ['all','post','comment'].forEach(k=>document.getElementById('sd-act-filter-'+k)?.classList.toggle('active',k===f));
+  const box=document.getElementById('sd-activity-list');
+  if(box&&sdActivityItems)box.innerHTML=renderActivityLog(sdActivityItems,f);
+}
+
 // 게시글의 사진 목록 — 새 글은 image_urls(배열), 이 기능 이전 글은 image_url(한 장)만 있다.
 function postPhotoUrls(p){
   if(p&&Array.isArray(p.image_urls)&&p.image_urls.length)return p.image_urls.filter(Boolean);
@@ -11989,6 +12187,11 @@ function openStudentDetail(sid,name,userId){
   const n=new Date();
   sdState={userId,studentId:sid,year:n.getFullYear(),month:n.getMonth(),calLoaded:false,logDate:new Date()};
   document.getElementById('sd-title').textContent=`${name} (${sid}번) 학습현황`;
+  // 글·댓글 로그는 스태프만 — "내 반 보기"로 들어온 학생에게는 탭 자체를 감춘다.
+  const actTab=document.getElementById('sd-tab-activity');
+  if(actTab)actTab.style.display=isStaffRole()?'':'none';
+  sdActivityItems=null;sdActivityFilter='all';
+  ['all','post','comment'].forEach(k=>document.getElementById('sd-act-filter-'+k)?.classList.toggle('active',k==='all'));
   document.getElementById('student-detail-fullscreen').classList.add('open');
   document.body.style.overflow='hidden';
   switchStudentDetailView('report');
@@ -11998,15 +12201,19 @@ function closeStudentDetail(){
   document.body.style.overflow='';
 }
 function switchStudentDetailView(view){
+  if(view==='activity'&&!isStaffRole())return; // 학생이 "내 반 보기"에서 들어온 경우 차단
   document.getElementById('sd-report-view').style.display=view==='report'?'block':'none';
   document.getElementById('sd-timetable-view').style.display=view==='timetable'?'block':'none';
   document.getElementById('sd-calendar-view').style.display=view==='calendar'?'block':'none';
+  document.getElementById('sd-activity-view').style.display=view==='activity'?'block':'none';
   document.getElementById('sd-tab-report').classList.toggle('active',view==='report');
   document.getElementById('sd-tab-timetable').classList.toggle('active',view==='timetable');
   document.getElementById('sd-tab-calendar').classList.toggle('active',view==='calendar');
+  document.getElementById('sd-tab-activity').classList.toggle('active',view==='activity');
   if(view==='report')loadStudentReportData(sdState.userId,sdState.studentId);
   else if(view==='timetable')loadSdLogDate();
   else if(view==='calendar'&&!sdState.calLoaded){sdState.calLoaded=true;renderMonthCalendar('sd',sdState.userId,sdState.year,sdState.month)}
+  else if(view==='activity')loadStudentActivity(sdState.studentId);
 }
 
 // ── 학생현황의 "타임테이블" 탭 — 학생 본인 플래너의 일지 뷰 날짜 내비게이션과 동일한 로직을

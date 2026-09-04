@@ -2354,8 +2354,8 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
     <!-- 마이너 갤러리 글쓰기 전용 페이지 -->
     <div class="page" id="page-free-write">
       <span class="section-hd-link" onclick="closeFreeWritePage()">← 갤러리로</span>
-      <div class="page-title" style="margin-top:10px">글쓰기</div>
-      <div class="page-sub">3-1 마이너 갤러리에 올라갑니다</div>
+      <div class="page-title" style="margin-top:10px" id="free-write-title">글쓰기</div>
+      <div class="page-sub" id="free-write-sub">3-1 마이너 갤러리에 올라갑니다</div>
       <div class="card spacer" id="free-write-form">
         <div class="modal-field">
           <label class="modal-label">제목 <span style="font-weight:400;color:var(--ink-48);font-size:11px">선택 — 갤러리 목록에 보여요</span></label>
@@ -2396,7 +2396,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
           </div>
           <div class="sc-photo-grid" id="free-photo-grid"></div>
         </div>
-        <div class="modal-field">
+        <div class="modal-field" id="free-poll-field">
           <label class="modal-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
             <input type="checkbox" id="free-poll-toggle" style="width:15px;height:15px;accent-color:var(--blue)" onchange="syncFreePollSection()">
             🗳️ 투표 추가
@@ -2452,7 +2452,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
          인증 사진을 받아 posts.study_date/study_log/study_seconds(합계)에 저장한다. -->
     <div class="page" id="page-studycert-write">
       <span class="section-hd-link" onclick="closeStudyCertWritePage()">← 공부인증으로</span>
-      <div class="page-title" style="margin-top:10px">공부 인증하기</div>
+      <div class="page-title" style="margin-top:10px" id="sc-write-title">공부 인증하기</div>
       <div class="page-sub">과목별 학습 내역과 인증 사진을 남겨보세요</div>
       <div class="card spacer">
         <!-- 며칠 자 인증인지 한눈에 보이게 맨 위에 크게 띄운다(요청: "인증을 올릴때 몇일날 꺼
@@ -2516,7 +2516,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
          입력값은 posts.exam_review(jsonb) 하나에 담고, 화면에는 값이 있는 항목만 그린다. -->
     <div class="page" id="page-examreview-write">
       <span class="section-hd-link" onclick="closeExamReviewWritePage()">← 시험 회고로</span>
-      <div class="page-title" style="margin-top:10px">시험 회고 쓰기</div>
+      <div class="page-title" style="margin-top:10px" id="er-write-title">시험 회고 쓰기</div>
       <div class="page-sub">시험을 돌아보고 다음 시험에서 뭘 바꿀지 남겨보세요</div>
       <div class="card spacer">
         <div class="modal-field">
@@ -2669,6 +2669,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         </div>
         <div class="sc-photo-grid" id="qna-photo-grid"></div>
         <div class="form-actions">
+          <button class="btn-ghost" id="qna-edit-cancel" style="display:none" onclick="cancelPostEdit('qna')">수정 취소</button>
           <button class="btn-primary" id="qna-submit-btn" onclick="submitPost('qna')">질문 올리기</button>
         </div>
       </div>
@@ -2694,6 +2695,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         </div>
         <div class="sc-photo-grid" id="bug-photo-grid"></div>
         <div class="form-actions">
+          <button class="btn-ghost" id="bug-edit-cancel" style="display:none" onclick="cancelPostEdit('bug')">수정 취소</button>
           <button class="btn-primary" id="bug-submit-btn" onclick="submitPost('bug')">제보하기</button>
         </div>
       </div>
@@ -4487,6 +4489,13 @@ function toggleTheme(){
 //    같은 값으로 맞춘다(그 값이 바뀌면 새 안내가 뜨는 구조라서, 빼먹으면 아무 안내도 안 뜬다).
 //    사용자가 읽을 문장으로 쓴다 — 파일명·함수명·RLS 같은 내부 용어는 넣지 않는다.
 const APP_UPDATES=[
+  {v:'2026-09-04-41', date:'2026년 9월 4일', title:'글 수정이 글쓰기 화면 그대로 열려요',
+   items:[
+     '수정을 누르면 본문 칸만 바뀌던 게 아니라, 글을 쓸 때와 똑같은 화면이 그대로 채워진 채로 열려요.',
+     '공부 인증은 날짜·과목별 공부 시간·사진·연결한 루틴까지 고칠 수 있어요.',
+     '갤러리 글은 제목, 익명/필명, 어디에 보일지(갤러리·피드)까지 바꿀 수 있고, 사진도 빼거나 더할 수 있어요.',
+     '시험 회고도 점수·등급·영역별 오답·공개 범위까지 그대로 수정돼요.',
+   ]},
   {v:'2026-09-04-40', date:'2026년 9월 4일', title:'인터넷이 느려도 훨씬 빨리 열려요',
    items:[
      '한 번 열어둔 뒤부터는 앱 화면을 인터넷에서 다시 받지 않아요. 느린 와이파이·데이터에서도 거의 바로 열립니다.',
@@ -9380,15 +9389,20 @@ const BOARD_PHOTO_MAX=5;
 const BOARD_IMG_MAX_BYTES=10*1024*1024, BOARD_VID_MAX_BYTES=50*1024*1024;
 const boardPhotoFiles={free:[],qna:[],bug:[]};
 const boardPhotoPreviewUrls={free:[],qna:[],bug:[]};
+// 글을 수정할 때는 이미 올라가 있는 첨부도 같은 격자에 보여주고 뺄 수 있어야 한다.
+// existing = 그대로 둘 것(URL), removed = 뺀 것(저장할 때 스토리지에서도 지운다).
+const boardPhotoExisting={free:[],qna:[],bug:[]};
+const boardPhotoRemoved={free:[],qna:[],bug:[]};
 
 function previewPhoto(type){
   const input=document.getElementById(`${type}-photo`);
   const picked=Array.from(input.files||[]);
   input.value='';
   const list=boardPhotoFiles[type]||(boardPhotoFiles[type]=[]);
+  const kept=(boardPhotoExisting[type]||[]).length; // 수정 중이면 기존 첨부까지 합쳐서 센다
   let over=false;
   for(const f of picked){
-    if(list.length>=BOARD_PHOTO_MAX){over=true;break}
+    if(kept+list.length>=BOARD_PHOTO_MAX){over=true;break}
     const isVideo=f.type.startsWith('video/');
     if(!isVideo&&!f.type.startsWith('image/')){toast('사진이나 동영상만 첨부할 수 있어요');continue}
     if(f.size>(isVideo?BOARD_VID_MAX_BYTES:BOARD_IMG_MAX_BYTES)){
@@ -9403,32 +9417,60 @@ function removeBoardPhoto(type,i){
   (boardPhotoFiles[type]||[]).splice(i,1);
   renderBoardPhotoPreviews(type);
 }
+// 저장이 끝난 뒤, 수정하면서 뺀 첨부를 스토리지에서 실제로 지운다(안 지우면 쓰레기로 남는다).
+async function purgeRemovedBoardPhotos(type){
+  const removed=boardPhotoRemoved[type]||[];
+  if(!removed.length)return;
+  const paths=removed.map(u=>(u||'').split('/board-photos/')[1]).filter(Boolean);
+  if(paths.length)await sb.storage.from('board-photos').remove(paths).catch?.(()=>{});
+  boardPhotoRemoved[type]=[];
+}
+// 수정 중에 기존 첨부를 뺄 때 — 목록에서 빼고, 저장할 때 스토리지에서도 지우도록 표시해둔다.
+function removeExistingPhoto(type,i){
+  const gone=(boardPhotoExisting[type]||[]).splice(i,1)[0];
+  if(gone)boardPhotoRemoved[type].push(gone);
+  renderBoardPhotoPreviews(type);
+}
 function renderBoardPhotoPreviews(type){
   const grid=document.getElementById(`${type}-photo-grid`);
   const files=boardPhotoFiles[type]||[];
+  const existing=boardPhotoExisting[type]||[];
   revokePreviewUrls(type);
+  const total=existing.length+files.length;
   if(grid){
-    grid.classList.toggle('has',files.length>0);
-    grid.innerHTML=files.map((f,i)=>{
-      const u=URL.createObjectURL(f);
-      boardPhotoPreviewUrls[type].push(u);
-      const isVideo=f.type.startsWith('video/');
+    grid.classList.toggle('has',total>0);
+    const oldHtml=existing.map((u,i)=>{
+      const isVideo=isVideoUrl(u);
       return`<div class="sc-photo-item">
-        ${isVideo?`<video src="${u}" muted playsinline></video>`:`<img src="${u}" alt="첨부 ${i+1}">`}
-        <button class="sc-photo-del" onclick="removeBoardPhoto('${type}',${i})" title="빼기">×</button>
+        ${isVideo?`<video src="${u}" muted playsinline></video>`:`<img src="${u}" alt="기존 첨부 ${i+1}">`}
+        <button class="sc-photo-del" onclick="removeExistingPhoto('${type}',${i})" title="빼기">×</button>
         <span class="sc-photo-idx">${i+1}</span>
         ${isVideo?'<span class="sc-photo-kind">동영상</span>':''}
       </div>`;
     }).join('');
+    const newHtml=files.map((f,i)=>{
+      const u=URL.createObjectURL(f);
+      boardPhotoPreviewUrls[type].push(u);
+      const isVideo=f.type.startsWith('video/');
+      return`<div class="sc-photo-item">
+        ${isVideo?`<video src="${u}" muted playsinline></video>`:`<img src="${u}" alt="첨부 ${existing.length+i+1}">`}
+        <button class="sc-photo-del" onclick="removeBoardPhoto('${type}',${i})" title="빼기">×</button>
+        <span class="sc-photo-idx">${existing.length+i+1}</span>
+        ${isVideo?'<span class="sc-photo-kind">동영상</span>':''}
+      </div>`;
+    }).join('');
+    grid.innerHTML=oldHtml+newHtml;
   }
   const nameEl=document.getElementById(`${type}-photo-name`);
-  if(nameEl)nameEl.textContent=files.length?(files.length===1?files[0].name:`${files.length}개 선택됨`):'파일 없음';
+  if(nameEl)nameEl.textContent=total?(files.length===1&&!existing.length?files[0].name:`${total}개`):'파일 없음';
   const clearBtn=document.getElementById(`${type}-photo-clear`);
-  if(clearBtn)clearBtn.style.display=files.length?'flex':'none';
+  if(clearBtn)clearBtn.style.display=total?'flex':'none';
 }
 
 function clearPhoto(type){
   boardPhotoFiles[type]=[];
+  boardPhotoExisting[type]=[];
+  boardPhotoRemoved[type]=[];
   const input=document.getElementById(`${type}-photo`);
   if(input)input.value='';
   renderBoardPhotoPreviews(type);
@@ -9531,26 +9573,33 @@ function setFreeShowIn(v){
   scheduleDraftSave('free');
 }
 // 글쓰기는 공부인증처럼 전용 페이지로 이동한다(인라인 폼 → 페이지 전환).
-function openFreeWritePage(){
+// post를 넘기면 "수정" 모드 — 같은 화면에 그 글의 값을 그대로 채워서 연다.
+function openFreeWritePage(post){
   const form=document.getElementById('free-write-form');
   if(form)form.style.display=''; // 예전 버전에서 숨겨둔 상태가 남아있을 수 있어 항상 되돌린다
-  document.getElementById('free-title').value='';
-  document.getElementById('free-content').value='';
+  editingPost.free=post?post.id:null;
+  document.getElementById('free-title').value=post?(post.title||''):'';
+  document.getElementById('free-content').value=post?(post.content||''):'';
   const penInput=document.getElementById('free-pen-name');
-  if(penInput)penInput.value='';
-  setFreeNameMode('real');
-  setFreeShowIn('both');
+  if(penInput)penInput.value=post?(post.pen_name||''):'';
+  setFreeNameMode(post?(post.is_anonymous?'anon':(post.pen_name?'pen':'real')):'real');
+  setFreeShowIn(post?(post.show_in||'both'):'both');
   clearPhoto('free');
+  if(post){
+    boardPhotoExisting.free=postPhotoUrls(post);
+    renderBoardPhotoPreviews('free');
+  }
   document.getElementById('free-poll-toggle').checked=false;
   document.getElementById('free-poll-question').value='';
   renderPollOptionInputs(2,'free-poll-options-list');
   syncFreePollSection();
+  syncPostEditUI('free');
   document.querySelectorAll('.page').forEach(pg=>pg.classList.remove('active'));
   document.getElementById('page-free-write').classList.add('active');
   window.scrollTo(0,0);
-  offerDraftRestore('free');
+  if(!post)offerDraftRestore('free'); // 수정 중에 "임시저장 복구"를 물으면 헷갈린다
 }
-function closeFreeWritePage(){navigate('free-board')}
+function closeFreeWritePage(){editingPost.free=null;syncPostEditUI('free');navigate('free-board')}
 function syncFreePollSection(){
   document.getElementById('free-poll-section').style.display=document.getElementById('free-poll-toggle').checked?'block':'none';
 }
@@ -9591,6 +9640,7 @@ async function loadStudyBoard(){
 const DRAFT_TTL_MS=7*24*60*60*1000; // 일주일 지난 초안은 조용히 버린다
 const DRAFT_FORMS={
   free:      {label:'갤러리 글',    container:'page-free-write',      ids:['free-title','free-content'],
+              skip:()=>isEditingPost('free'),
               get:()=>({nameMode:freeNameMode,penName:document.getElementById('free-pen-name')?.value||'',showIn:freeShowIn}),
               set:d=>{
                 const pen=document.getElementById('free-pen-name');
@@ -9598,14 +9648,17 @@ const DRAFT_FORMS={
                 if(d.nameMode)setFreeNameMode(d.nameMode);
                 if(d.showIn)setFreeShowIn(d.showIn);
               }},
-  qna:       {label:'질문',        container:'qna-write-form',       ids:['qna-subject','qna-content']},
-  bug:       {label:'버그 제보',    container:'bug-write-form',       ids:['bug-content']},
+  qna:       {label:'질문',        container:'qna-write-form',       ids:['qna-subject','qna-content'],
+              skip:()=>isEditingPost('qna')},
+  bug:       {label:'버그 제보',    container:'bug-write-form',       ids:['bug-content'],
+              skip:()=>isEditingPost('bug')},
   // 공지 "수정"은 원본이 서버에 있으므로 초안을 만들지 않는다(복구가 오히려 헷갈림).
   notice:    {label:'공지',        container:'page-notice-write',    barIn:'#page-notice-write .card',
               ids:['notice-title-input','notice-content-input','notice-audience-input','notice-poll-question-input'],
               skip:()=>!!editingNoticeId},
   studycert: {label:'공부 인증',    container:'page-studycert-write', barIn:'#page-studycert-write .card',
               ids:['sc-date','sc-content'],
+              skip:()=>isEditingPost('studycert'),
               get:()=>({rows:scLogRowsData()}),
               set:d=>{
                 const wrap=document.getElementById('sc-log-rows');
@@ -9622,6 +9675,7 @@ const DRAFT_FORMS={
                 wrap.innerHTML='';addScLogRow();recomputeScTotal();
               }},
   examreview:{label:'시험 회고',    container:'page-examreview-write', barIn:'#page-examreview-write .card',
+              skip:()=>isEditingPost('examreview'),
               ids:['er-name','er-subject-detail','er-score','er-grade','er-unsolved',
                    'er-math-unsolved','er-math-inefficient','er-math-idea','er-math-improve',
                    'er-eng-logic','er-eng-words','er-forgot','er-mistakes','er-improve','er-content'],
@@ -9872,18 +9926,40 @@ async function submitPost(type){
     if(!pollQuestion){toast('투표 질문을 입력해주세요');submitBtn.textContent=label;submitBtn.disabled=false;return}
     if(pollOptions.length<2){toast('투표 선택지를 2개 이상 입력해주세요');submitBtn.textContent=label;submitBtn.disabled=false;return}
   }
-  const {data:newPostRow,error}=await sb.from('posts').insert({
-    user_id:currentUser.id,student_id:currentStudentId,
-    author_name:currentName||currentStudentId+'번',
+  // 첨부 최종 목록 = (수정 중 그대로 둔 기존 것) + (이번에 새로 올린 것)
+  const finalUrls=[...(boardPhotoExisting[type]||[]),...urls];
+  const fields={
     category,subject,content,
     // image_url에는 첫 장을 그대로 넣는다 — 옛 글이나 이 컬럼만 보는 다른 화면(갤러리 썸네일,
     // DM 공유 등)이 여러 장이 되어도 한 장짜리로 계속 정상 동작하게 하기 위함.
-    image_url:urls[0]||null,image_urls:urls.length?urls:null,
+    image_url:finalUrls[0]||null,image_urls:finalUrls.length?finalUrls:null,
     // 제목은 자유게시판 갤러리 목록용 — 다른 게시판에는 입력칸 자체가 없다.
     title:type==='free'?(document.getElementById('free-title')?.value.trim()||null):null,
     is_anonymous:type==='free'&&freeNameMode==='anon',
     pen_name:(type==='free'&&freeNameMode==='pen')?(document.getElementById('free-pen-name')?.value.trim()||null):null,
     show_in:type==='free'?freeShowIn:'both'
+  };
+  // ── 수정 모드 ──
+  if(isEditingPost(type)){
+    const editId=editingPost[type];
+    const {error:upErr}=await sb.from('posts').update(fields).eq('id',editId);
+    submitBtn.textContent=label;submitBtn.disabled=false;
+    if(upErr){toast('수정 실패: '+upErr.message);return}
+    await purgeRemovedBoardPhotos(type);
+    editingPost[type]=null;
+    contentEl.value='';clearPhoto(type);
+    const titleEl2=document.getElementById('free-title');
+    if(type==='free'&&titleEl2)titleEl2.value='';
+    syncPostEditUI(type);
+    toast('수정되었습니다 ✓');
+    if(type==='free'){freePage=1;navigate('free-board');openBoardPost(editId)}
+    else await boardLoader(type)();
+    return;
+  }
+  const {data:newPostRow,error}=await sb.from('posts').insert({
+    user_id:currentUser.id,student_id:currentStudentId,
+    author_name:currentName||currentStudentId+'번',
+    ...fields
   }).select('id').single();
   if(error){toast('게시 실패: '+error.message);submitBtn.textContent=label;submitBtn.disabled=false;return}
   if(pollQuestion){
@@ -9945,31 +10021,69 @@ async function deletePost(id,imageUrl,type){
 // 게시글 인라인 수정. 원본 텍스트는 textContent로 그대로 보관해뒀다가(escHtml() 라운드트립
 // 걱정 없이) 취소하면 그대로 복원한다 — RLS도 posts UPDATE 정책이 작성자 또는 스태프
 // (admin/owner/선생님)만 허용하도록 함께 갱신해뒀다(관리자 탭에서 남의 글도 실제로 수정 가능).
-function startEditPost(id,type){
-  const el=document.getElementById(`post-content-${id}`);
-  if(!el)return;
-  el._rawContent=el.textContent;
-  el.innerHTML=`<textarea class="inline-edit-textarea" id="post-edit-input-${id}">${escHtml(el._rawContent)}</textarea>
-    <div class="inline-edit-actions">
-      <button class="btn-ghost" onclick="cancelEditPost('${id}')">취소</button>
-      <button class="btn-primary" onclick="saveEditPost('${id}','${type}')">저장</button>
-    </div>`;
-  document.getElementById(`post-edit-input-${id}`).focus();
+// ── 글 수정 = 글쓰기 화면을 그대로 열어 값을 채워두기 ──
+// (요청: "수정을 누르면 내용만 바꾸는 게 아니라 글쓰기 화면이랑 똑같은 창으로")
+// 예전엔 본문 자리에 textarea만 끼워 넣어서 **내용 말고는 아무것도 못 고쳤다** — 공부인증의
+// 과목·시간·날짜·사진도, 갤러리 글의 제목도. 공지 수정(editingNoticeId)과 같은 방식으로,
+// 폼 종류별로 "지금 수정 중인 글 id"를 들고 있다가 각 제출 함수가 insert 대신 update를 한다.
+const editingPost={free:null,qna:null,bug:null,studycert:null,examreview:null};
+function isEditingPost(type){return !!editingPost[type]}
+
+async function startEditPost(id,type){
+  const {data:post,error}=await sb.from('posts').select('*').eq('id',id).single();
+  if(error||!post){toast('글을 찾을 수 없어요');return}
+  if(post.student_id!==currentStudentId&&!isBoardModerator()){toast('권한이 없습니다');return}
+  const cat=post.category||type;
+  if(cat==='studycert')return openStudyCertWritePage(post);
+  if(cat==='examreview')return openExamReviewWritePage(post);
+  if(cat==='free')return openFreeWritePage(post);
+  if(cat==='qna'||cat==='bug')return openInlineBoardEdit(cat,post);
+  toast('이 글은 수정할 수 없어요');
 }
-function cancelEditPost(id){
-  const el=document.getElementById(`post-content-${id}`);
-  if(!el||el._rawContent===undefined)return;
-  el.textContent=el._rawContent;
+// 질문게시판·버그 제보는 글쓰기 폼이 목록 위에 붙어 있어서, 그 폼을 채우고 거기로 스크롤한다.
+function openInlineBoardEdit(type,post){
+  navigate(type==='qna'?'qna-board':'bug-report');
+  editingPost[type]=post.id;
+  const contentEl=document.getElementById(`${type}-content`);
+  if(contentEl)contentEl.value=post.content||'';
+  const subjEl=document.getElementById('qna-subject');
+  if(type==='qna'&&subjEl&&post.subject)subjEl.value=post.subject;
+  clearPhoto(type);
+  boardPhotoExisting[type]=postPhotoUrls(post);
+  renderBoardPhotoPreviews(type);
+  syncPostEditUI(type);
+  const form=document.getElementById(`${type}-write-form`);
+  if(form)form.scrollIntoView({behavior:'smooth',block:'start'});
+  if(contentEl)contentEl.focus();
 }
-async function saveEditPost(id,type){
-  const inp=document.getElementById(`post-edit-input-${id}`);
-  const content=inp.value.trim();
-  if(!content){toast('내용을 입력하세요');return}
-  const {error}=await sb.from('posts').update({content}).eq('id',id);
-  if(error){toast('수정 실패: '+error.message);return}
-  toast('수정되었습니다 ✓');
-  await boardLoader(type)();
+// 수정 모드일 때 버튼 문구/취소 버튼을 맞춘다.
+function syncPostEditUI(type){
+  const editing=isEditingPost(type);
+  const btn=document.getElementById(`${type}-submit-btn`);
+  if(btn)btn.textContent=editing?'수정 완료':(BOARD_SUBMIT_LABEL[type]||'올리기');
+  const cancel=document.getElementById(`${type}-edit-cancel`);
+  if(cancel)cancel.style.display=editing?'':'none';
+  if(type==='free'){
+    const t=document.getElementById('free-write-title');
+    if(t)t.textContent=editing?'글 수정':'글쓰기';
+    const sub=document.getElementById('free-write-sub');
+    if(sub)sub.textContent=editing?'고친 내용으로 다시 저장돼요':'3-1 마이너 갤러리에 올라갑니다';
+    // 투표는 이미 표가 쌓여 있어 수정의 의미가 애매하므로 수정 화면에서는 아예 숨긴다(공지와 동일).
+    const pollField=document.getElementById('free-poll-field');
+    if(pollField)pollField.style.display=editing?'none':'';
+  }
 }
+// 수정 취소 — 폼을 비우고 원래(새 글) 상태로 되돌린다.
+function cancelPostEdit(type){
+  editingPost[type]=null;
+  const contentEl=document.getElementById(`${type}-content`);
+  if(contentEl)contentEl.value='';
+  clearPhoto(type);
+  syncPostEditUI(type);
+  toast('수정을 취소했어요');
+}
+
+
 
 // 인스타그램 피드처럼 "n분 전"/"n시간 전" 상대 시간으로 표시하고, 일주일이 지나면
 // 절대 날짜로 바꾼다(인스타그램 자체 동작과 동일).
@@ -10346,7 +10460,17 @@ function addScLogRow(subject,task,seconds){
     </div></td>
     <td><button class="poll-option-remove-btn" onclick="removeScLogRow(this)">×</button></td>`;
   wrap.appendChild(row);
-  if(subject)row.querySelector('.sc-log-subject').value=subject;
+  if(subject){
+    const sel=row.querySelector('.sc-log-subject');
+    sel.value=subject;
+    // 지난 인증을 수정할 때, 그 사이 과목을 지웠거나 이름을 바꿨으면 선택지에 없어서 값이
+    // 조용히 빈칸이 된다(그대로 저장하면 과목이 사라짐) — 원래 과목을 항목으로 넣어 지킨다.
+    if(sel.value!==subject){
+      const opt=document.createElement('option');
+      opt.value=subject;opt.textContent=subject;
+      sel.appendChild(opt);sel.value=subject;
+    }
+  }
   recomputeScTotal();
 }
 function removeScLogRow(btn){
@@ -10412,15 +10536,24 @@ function setScCertDate(offset){
   el.value=localDateStr(d);
   syncScDateLabel();
 }
-function openStudyCertWritePage(){
+// post를 넘기면 "수정" 모드 — 인증 날짜·과목별 기록·사진·연결 루틴까지 그대로 채워서 연다.
+function openStudyCertWritePage(post){
+  editingPost.studycert=post?post.id:null;
   const dateEl=document.getElementById('sc-date');
-  dateEl.value=scDefaultCertDate();
+  dateEl.value=post?(post.study_date||scDefaultCertDate()):scDefaultCertDate();
   dateEl.max=localDateStr(); // 미래 날짜는 인증할 수 없음
   syncScDateLabel();
   document.getElementById('sc-log-rows').innerHTML='';
-  addScLogRow(); // 바로 입력할 수 있게 빈 줄 하나는 기본으로 둠
-  document.getElementById('sc-content').value='';
+  const rows=post&&Array.isArray(post.study_log)?post.study_log:[];
+  if(rows.length)rows.forEach(r=>addScLogRow(r.subject,r.task,r.seconds));
+  else addScLogRow(); // 바로 입력할 수 있게 빈 줄 하나는 기본으로 둠
+  recomputeScTotal();
+  document.getElementById('sc-content').value=post?(post.content||''):'';
   clearScPhotos();
+  if(post){
+    scPhotoExisting=postPhotoUrls(post);
+    renderScPhotoPreviews();
+  }
   document.getElementById('sc-error').style.display='none';
   // 활성 루틴이 있으면 이 인증을 어느 루틴에 연결할지 고를 수 있게 한다(루틴이 여러 개일
   // 수 있어서 자동 연결 대신 선택형으로 — 예: 국어 루틴 인증인데 수학 루틴에 잘못 잡히는 일 방지).
@@ -10429,17 +10562,22 @@ function openStudyCertWritePage(){
     hintEl.style.display='block';
     const options=myRoutines.map(r=>`<option value="${r.id}">${escHtml(r.subject)} · ${escHtml(r.task)}</option>`).join('');
     hintEl.innerHTML=`<label class="modal-label">🔗 연결할 루틴</label><select class="modal-input" id="sc-routine-select"><option value="">연결 안 함</option>${options}</select>`;
-    document.getElementById('sc-routine-select').value=myRoutines[0].id;
+    document.getElementById('sc-routine-select').value=(post&&post.routine_id)||myRoutines[0].id;
   }else{
     hintEl.style.display='none';
     hintEl.innerHTML='';
   }
+  const t=document.getElementById('sc-write-title');
+  if(t)t.textContent=post?'공부 인증 수정':'공부 인증하기';
+  const btn=document.getElementById('sc-submit-btn');
+  if(btn)btn.textContent=post?'수정 완료':scSubmitBtnLabel();
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById('page-studycert-write').classList.add('active');
   window.scrollTo(0,0);
-  offerDraftRestore('studycert');
+  if(!post)offerDraftRestore('studycert');
 }
 function closeStudyCertWritePage(){
+  editingPost.studycert=null;
   studyTab='studycert';
   navigate('study-board'); // page-notice-write의 closeNoticeWritePage()와 동일한 패턴
 }
@@ -10477,6 +10615,8 @@ const SC_PHOTO_MAX=5;
 const SC_PHOTO_MAX_BYTES=10*1024*1024;
 let scPhotoFiles=[];
 let scPhotoPreviewUrls=[];
+// 인증을 수정할 때 이미 올라가 있는 사진(그대로 둘 것 / 뺀 것)
+let scPhotoExisting=[],scPhotoRemoved=[];
 
 function previewScPhotos(){
   const input=document.getElementById('sc-photo');
@@ -10484,7 +10624,7 @@ function previewScPhotos(){
   input.value=''; // 같은 파일을 다시 고를 수 있게 비운다(누적 방식이라 필수)
   let over=false;
   for(const f of picked){
-    if(scPhotoFiles.length>=SC_PHOTO_MAX){over=true;break}
+    if(scPhotoExisting.length+scPhotoFiles.length>=SC_PHOTO_MAX){over=true;break}
     if(!f.type.startsWith('image/')){toast('사진만 첨부할 수 있어요');continue}
     if(f.size>SC_PHOTO_MAX_BYTES){toast(`"${f.name}"은(는) 10MB가 넘어서 뺐어요`);continue}
     scPhotoFiles.push(f);
@@ -10496,8 +10636,13 @@ function removeScPhoto(i){
   scPhotoFiles.splice(i,1);
   renderScPhotoPreviews();
 }
+function removeScExistingPhoto(i){
+  const gone=scPhotoExisting.splice(i,1)[0];
+  if(gone)scPhotoRemoved.push(gone);
+  renderScPhotoPreviews();
+}
 function clearScPhotos(){
-  scPhotoFiles=[];
+  scPhotoFiles=[];scPhotoExisting=[];scPhotoRemoved=[];
   const input=document.getElementById('sc-photo');
   if(input)input.value='';
   renderScPhotoPreviews();
@@ -10507,18 +10652,25 @@ function renderScPhotoPreviews(){
   if(!grid)return;
   scPhotoPreviewUrls.forEach(u=>URL.revokeObjectURL(u));
   scPhotoPreviewUrls=[];
-  grid.innerHTML=scPhotoFiles.map((f,i)=>{
+  const oldHtml=scPhotoExisting.map((u,i)=>`<div class="sc-photo-item">
+      <img src="${u}" alt="기존 사진 ${i+1}">
+      <span class="sc-photo-idx">${i+1}</span>
+      <button class="sc-photo-del" onclick="removeScExistingPhoto(${i})" title="이 사진 빼기">×</button>
+    </div>`).join('');
+  const newHtml=scPhotoFiles.map((f,i)=>{
     const u=URL.createObjectURL(f);
     scPhotoPreviewUrls.push(u);
     return`<div class="sc-photo-item">
-      <img src="${u}" alt="첨부 사진 ${i+1}">
-      <span class="sc-photo-idx">${i+1}</span>
+      <img src="${u}" alt="첨부 사진 ${scPhotoExisting.length+i+1}">
+      <span class="sc-photo-idx">${scPhotoExisting.length+i+1}</span>
       <button class="sc-photo-del" onclick="removeScPhoto(${i})" title="이 사진 빼기">×</button>
     </div>`;
   }).join('');
-  grid.classList.toggle('has',scPhotoFiles.length>0);
-  document.getElementById('sc-photo-name').textContent=scPhotoFiles.length?`${scPhotoFiles.length}장 선택됨`:'파일 없음';
-  document.getElementById('sc-photo-clear').style.display=scPhotoFiles.length?'flex':'none';
+  grid.innerHTML=oldHtml+newHtml;
+  const total=scPhotoExisting.length+scPhotoFiles.length;
+  grid.classList.toggle('has',total>0);
+  document.getElementById('sc-photo-name').textContent=total?`${total}장`:'파일 없음';
+  document.getElementById('sc-photo-clear').style.display=total?'flex':'none';
 }
 
 // 첨부가 동영상인지 — 업로드할 때 파일명에 새겨둔 접두사(vid_/img_)로 먼저 판단하고,
@@ -10730,15 +10882,35 @@ async function submitStudyCertPost(){
   }
   submitBtn.textContent='인증하는 중...';
   const content=document.getElementById('sc-content').value.trim()||'오늘도 공부 완료!';
-  const{data:newPost,error}=await sb.from('posts').insert({
-    user_id:currentUser.id,student_id:currentStudentId,
-    author_name:currentName||currentStudentId+'번',
+  // 첨부 최종 목록 = (수정 중 그대로 둔 기존 사진) + (이번에 새로 올린 사진)
+  const finalUrls=[...scPhotoExisting,...urls];
+  const fields={
     // image_url에는 첫 장을 그대로 넣는다 — 옛 글/다른 화면(게시글 공유 등)이 이 컬럼만
     // 보고 있어서, 여러 장이 되어도 한 장짜리로는 계속 정상 동작하게 하기 위함.
     category:'studycert',subject:null,content,
-    image_url:urls[0]||null,image_urls:urls.length?urls:null,
+    image_url:finalUrls[0]||null,image_urls:finalUrls.length?finalUrls:null,
     study_seconds:studySeconds,study_date:studyDate,study_log:logRows,
     routine_id:document.getElementById('sc-routine-select')?.value||null
+  };
+  // ── 수정 모드 ── (인증 날짜·과목별 시간·사진·연결 루틴까지 전부 바뀔 수 있다)
+  if(isEditingPost('studycert')){
+    const editId=editingPost.studycert;
+    const {error:upErr}=await sb.from('posts').update(fields).eq('id',editId);
+    submitBtn.textContent=scSubmitBtnLabel();submitBtn.disabled=false;
+    if(upErr){await bail('수정 실패: '+upErr.message);return}
+    // 뺀 사진은 스토리지에서도 지운다(안 지우면 쓰레기로 남는다).
+    const paths=scPhotoRemoved.map(u=>(u||'').split('/board-photos/')[1]).filter(Boolean);
+    if(paths.length)await sb.storage.from('board-photos').remove(paths);
+    scPhotoRemoved=[];
+    finishDraft('studycert');
+    closeStudyCertWritePage();
+    toast('공부 인증이 수정되었습니다 ✓');
+    return; // 수정에는 "인증 올라왔어요" 알림을 다시 보내지 않는다
+  }
+  const{data:newPost,error}=await sb.from('posts').insert({
+    user_id:currentUser.id,student_id:currentStudentId,
+    author_name:currentName||currentStudentId+'번',
+    ...fields
   }).select().single();
   submitBtn.textContent=scSubmitBtnLabel();submitBtn.disabled=false;
   if(error){await bail('게시 실패: '+error.message);return}
@@ -10901,7 +11073,9 @@ function erAreaRowsData(){
   }).filter(a=>a.main&&Number.isFinite(a.count));
 }
 
-function openExamReviewWritePage(){
+// post를 넘기면 "수정" 모드 — 저장해둔 exam_review 값을 폼에 그대로 되돌려 놓는다.
+function openExamReviewWritePage(post){
+  editingPost.examreview=post?post.id:null;
   document.getElementById('er-name').value='';
   document.getElementById('er-subject-detail').value='';
   document.getElementById('er-score').value='';
@@ -10915,12 +11089,40 @@ function openExamReviewWritePage(){
   setExamVisibility(false); // 기본은 공개
   setExamType('korean');
   document.getElementById('er-error').style.display='none';
+  if(post)fillExamReviewForm(post);
+  const t=document.getElementById('er-write-title');
+  if(t)t.textContent=post?'시험 회고 수정':'시험 회고 쓰기';
+  const btn=document.getElementById('er-submit-btn');
+  if(btn)btn.textContent=post?'수정 완료':'회고 올리기';
   document.querySelectorAll('.page').forEach(pg=>pg.classList.remove('active'));
   document.getElementById('page-examreview-write').classList.add('active');
   window.scrollTo(0,0);
-  offerDraftRestore('examreview');
+  if(!post)offerDraftRestore('examreview');
+}
+// 저장된 회고(JSON)를 폼에 되돌려 채운다. 과목을 먼저 정해야 해당 섹션이 켜지고, 영역 줄은
+// setExamType()이 비우므로 반드시 그 뒤에 넣는다(초안 복구 로직과 같은 순서).
+function fillExamReviewForm(post){
+  const r=post.exam_review||{};
+  if(r.type)setExamType(r.type);
+  document.getElementById('er-name').value=r.name||'';
+  if(r.type==='science')document.getElementById('er-subject-detail').value=r.subject||'';
+  document.getElementById('er-score').value=(r.score??'')===null?'':(r.score??'');
+  document.getElementById('er-grade').value=(r.grade??'')===null?'':(r.grade??'');
+  document.getElementById('er-unsolved').value=(r.unsolved??'')===null?'':(r.unsolved??'');
+  setExamTime(null);
+  if(r.timeShort)setExamTime(r.timeShort);
+  const wrap=document.getElementById('er-area-rows');
+  if(wrap){wrap.innerHTML='';(r.areas||[]).forEach(a=>addExamAreaRow(a.main,a.sub,a.count))}
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||''};
+  set('er-math-unsolved',r.mathUnsolved);set('er-math-inefficient',r.mathInefficient);
+  set('er-math-idea',r.mathIdea);set('er-math-improve',r.mathImprove);
+  set('er-eng-logic',r.engLogic);set('er-eng-words',r.engWords);
+  set('er-forgot',r.forgot);set('er-mistakes',r.mistakes);set('er-improve',r.improvements);
+  set('er-content',post.content);
+  setExamVisibility(!!post.is_private);
 }
 function closeExamReviewWritePage(){
+  editingPost.examreview=null;
   studyTab='examreview'; // 돌아갔을 때 회고 탭이 열려 있도록
   navigate('study-board');
 }
@@ -10963,10 +11165,20 @@ async function submitExamReviewPost(){
   const btn=document.getElementById('er-submit-btn');
   btn.textContent='올리는 중...';btn.disabled=true;
   const content=erVal('er-content')||`${name} ${subject} 회고`;
+  const fields={category:'examreview',subject,content,exam_review:review,is_private:erPrivate};
+  if(isEditingPost('examreview')){
+    const {error:upErr}=await sb.from('posts').update(fields).eq('id',editingPost.examreview);
+    btn.textContent='회고 올리기';btn.disabled=false;
+    if(upErr)return fail('수정 실패: '+upErr.message);
+    finishDraft('examreview');
+    closeExamReviewWritePage();
+    toast('시험 회고가 수정되었습니다 ✓');
+    return;
+  }
   const {error}=await sb.from('posts').insert({
     user_id:currentUser.id,student_id:currentStudentId,
     author_name:currentName||currentStudentId+'번',
-    category:'examreview',subject,content,exam_review:review,is_private:erPrivate
+    ...fields
   });
   btn.textContent='회고 올리기';btn.disabled=false;
   if(error)return fail('게시 실패: '+error.message);

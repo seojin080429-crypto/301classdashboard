@@ -1100,7 +1100,11 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .tb-bulk-btn:hover{border-color:var(--blue);color:var(--blue);background:rgba(0,102,204,.04)}
 .tb-chapter-row{display:grid;grid-template-columns:1fr 96px 30px;gap:6px;align-items:center;margin-bottom:6px}
 .tb-chapter-row input{min-width:0}
-.tb-cover-preview{width:96px;aspect-ratio:3/4;border-radius:8px;border:1px solid var(--hairline);overflow:hidden;background:var(--parchment);display:none}
+.tb-cover-drop{border:1px dashed var(--hairline);border-radius:var(--radius-md);padding:10px;transition:all var(--t)}
+.tb-cover-drop.hot{border-color:var(--blue);background:rgba(0,102,204,.05)}
+.tb-cover-hint{font-size:11.5px;color:var(--ink-48);line-height:1.5}
+.tb-cover-hint b{color:var(--ink-80)}
+.tb-cover-preview{width:96px;margin-top:8px;aspect-ratio:3/4;border-radius:8px;border:1px solid var(--hairline);overflow:hidden;background:var(--parchment);display:none}
 .tb-cover-preview.has{display:block}
 .tb-cover-preview img{width:100%;height:100%;object-fit:cover;display:block}
 /* 업데이트 화면 — 챕터별 진도 입력 줄 */
@@ -2723,16 +2727,20 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         </div>
         <div class="modal-field">
           <label class="modal-label">표지 <span class="er-optional">선택 — 안 올리면 이름이 표지가 돼요</span></label>
-          <div class="photo-upload-row">
-            <label class="photo-upload-label" for="tb-cover">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-              표지 사진 고르기
-            </label>
-            <input type="file" id="tb-cover" accept="image/*" style="display:none" onchange="pickTextbookCover()">
-            <span class="photo-file-name" id="tb-cover-name">파일 없음</span>
-            <button class="photo-clear-btn" id="tb-cover-clear" onclick="clearTextbookCover()" style="display:none">×</button>
+          <!-- 파일 고르기 말고도 붙여넣기(Ctrl+V)·끌어다 놓기로 표지를 넣을 수 있다 -->
+          <div class="tb-cover-drop" id="tb-cover-drop">
+            <div class="photo-upload-row" style="margin-bottom:6px">
+              <label class="photo-upload-label" for="tb-cover">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                표지 사진 고르기
+              </label>
+              <input type="file" id="tb-cover" accept="image/*" style="display:none" onchange="pickTextbookCover()">
+              <span class="photo-file-name" id="tb-cover-name">파일 없음</span>
+              <button class="photo-clear-btn" id="tb-cover-clear" onclick="clearTextbookCover()" style="display:none">×</button>
+            </div>
+            <div class="tb-cover-hint">복사한 이미지를 <b>Ctrl+V</b>로 붙여넣거나, 파일을 이 영역에 끌어다 놓아도 돼요</div>
+            <div class="tb-cover-preview" id="tb-cover-preview"><img id="tb-cover-img" alt="표지 미리보기"></div>
           </div>
-          <div class="tb-cover-preview" id="tb-cover-preview"><img id="tb-cover-img" alt="표지 미리보기"></div>
         </div>
         <div class="modal-field">
           <label class="modal-label">측정 방식</label>
@@ -4660,6 +4668,11 @@ function toggleTheme(){
 //    같은 값으로 맞춘다(그 값이 바뀌면 새 안내가 뜨는 구조라서, 빼먹으면 아무 안내도 안 뜬다).
 //    사용자가 읽을 문장으로 쓴다 — 파일명·함수명·RLS 같은 내부 용어는 넣지 않는다.
 const APP_UPDATES=[
+  {v:'2026-09-04-45', date:'2026년 9월 4일', title:'교재 표지를 붙여넣기로 넣을 수 있어요',
+   items:[
+     '복사한 이미지를 교재 등록 화면에서 Ctrl+V로 바로 붙여넣으면 표지가 돼요.',
+     '파일을 표지 영역에 끌어다 놓아도 됩니다. 물론 예전처럼 파일을 골라도 돼요.',
+   ]},
   {v:'2026-09-04-44', date:'2026년 9월 4일', title:'챕터를 한 번에 만들 수 있어요',
    items:[
      '교재 등록에서 "챕터 12개 만들기"처럼 개수를 적으면 그만큼 한 번에 만들어져요. + 버튼을 여러 번 누르지 않아도 돼요.',
@@ -11651,14 +11664,53 @@ function textbookChapterRows(){
     count:parseInt(r.querySelector('.tb-ch-count').value,10)||0,
   })).filter(c=>c.count>0);
 }
+// 파일 고르기 / 붙여넣기 / 끌어다 놓기가 모두 여기로 모인다.
+function useTextbookCoverFile(f){
+  if(!f)return false;
+  if(!f.type.startsWith('image/')){toast('사진만 표지로 쓸 수 있어요');return false}
+  if(f.size>TB_COVER_MAX_BYTES){toast('표지는 5MB 이하만 가능해요');return false}
+  tbCoverFile=f;
+  tbCoverExisting=null; // 새로 넣은 표지가 기존 표지를 대신한다
+  showTextbookCoverPreview(URL.createObjectURL(f),f.name||'붙여넣은 이미지');
+  return true;
+}
 function pickTextbookCover(){
   const input=document.getElementById('tb-cover');
   const f=(input.files||[])[0];
-  if(!f)return;
-  if(!f.type.startsWith('image/')){toast('사진만 표지로 쓸 수 있어요');input.value='';return}
-  if(f.size>TB_COVER_MAX_BYTES){toast('표지는 5MB 이하만 가능해요');input.value='';return}
-  tbCoverFile=f;
-  showTextbookCoverPreview(URL.createObjectURL(f),f.name);
+  if(!useTextbookCoverFile(f))input.value='';
+}
+// 클립보드에 이미지가 있으면 꺼내온다(스크린샷, 웹에서 "이미지 복사" 등).
+function imageFileFromClipboard(e){
+  const items=(e.clipboardData||window.clipboardData||{}).items||[];
+  for(const it of items){
+    if(it.kind==='file'&&(it.type||'').startsWith('image/')){
+      const f=it.getAsFile();
+      if(f)return f;
+    }
+  }
+  return null;
+}
+// 교재 등록 화면이 열려 있을 때만 붙여넣기를 가로챈다(다른 화면의 붙여넣기는 그대로 둔다).
+document.addEventListener('paste',e=>{
+  const page=document.getElementById('page-textbook-edit');
+  if(!page||!page.classList.contains('active'))return;
+  const f=imageFileFromClipboard(e);
+  if(!f)return;                 // 글자를 붙여넣는 중이면 건드리지 않는다
+  e.preventDefault();
+  if(useTextbookCoverFile(f))toast('표지를 붙여넣었어요 ✓');
+});
+// 파일을 끌어다 놓기 — 화면이 만들어진 뒤 한 번만 연결한다.
+function initTextbookCoverDrop(){
+  const dz=document.getElementById('tb-cover-drop');
+  if(!dz||dz.dataset.bound)return;
+  dz.dataset.bound='1';
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('hot')});
+  dz.addEventListener('dragleave',()=>dz.classList.remove('hot'));
+  dz.addEventListener('drop',e=>{
+    e.preventDefault();dz.classList.remove('hot');
+    const f=(e.dataTransfer&&e.dataTransfer.files||[])[0];
+    if(useTextbookCoverFile(f))toast('표지를 넣었어요 ✓');
+  });
 }
 function showTextbookCoverPreview(url,label){
   if(tbCoverPreviewUrl)URL.revokeObjectURL(tbCoverPreviewUrl);
@@ -11698,6 +11750,7 @@ function openTextbookEditPage(t){
   }else if(tbSplit&&!document.querySelectorAll('#tb-chapter-rows .tb-chapter-row').length){
     addTextbookChapterRow();
   }
+  initTextbookCoverDrop();
   document.querySelectorAll('.page').forEach(pg=>pg.classList.remove('active'));
   document.getElementById('page-textbook-edit').classList.add('active');
   window.scrollTo(0,0);

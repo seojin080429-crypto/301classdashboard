@@ -1065,6 +1065,50 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .draft-bar.saving .draft-bar-icon,.draft-bar.saving .draft-bar-title{color:var(--ink-48)}
 @media(max-width:520px){.draft-bar{padding:9px 11px}.draft-bar-title{font-size:12px}}
 
+/* ── 교재(문제집) 진도 ── */
+.tb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:18px 14px;margin-top:4px}
+.tb-card{cursor:pointer;transition:transform .12s ease}
+.tb-card:active{transform:scale(.97)}
+.tb-cover{
+  position:relative;aspect-ratio:3/4;border-radius:10px;overflow:hidden;
+  background:var(--parchment);border:1px solid var(--hairline);
+  box-shadow:0 1px 2px rgba(0,0,0,.06),0 6px 16px -10px rgba(0,0,0,.25);
+  display:flex;align-items:center;justify-content:center;
+}
+.tb-cover img{width:100%;height:100%;object-fit:cover;display:block}
+/* 표지를 안 올린 교재 — 이름을 표지처럼 보여준다 */
+.tb-cover-text{padding:14px 10px;font-size:13px;font-weight:600;line-height:1.4;color:var(--ink-80);text-align:center;word-break:keep-all;overflow:hidden;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical}
+/* 진행률 게이지 — 표지 아래에서 위로 차오른다 */
+.tb-gauge{position:absolute;left:0;right:0;bottom:0;background:rgba(46,204,113,.32);border-top:2px solid #2ecc71;transition:height .5s ease;pointer-events:none}
+.tb-pct{position:absolute;right:6px;bottom:6px;background:rgba(0,0,0,.62);color:#fff;font-size:11px;font-weight:700;padding:2px 7px;border-radius:var(--radius-pill);pointer-events:none}
+.tb-pct.done{background:#1a9c53}
+.tb-name{margin-top:7px;font-size:12.5px;font-weight:600;color:var(--ink);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tb-meta{font-size:11px;color:var(--ink-48);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tb-mine-badge{font-size:9.5px;font-weight:600;color:var(--blue);background:rgba(0,102,204,.1);border-radius:var(--radius-pill);padding:1px 6px;margin-left:4px}
+.tb-empty{text-align:center;padding:26px 0;color:var(--ink-48);font-size:13px;line-height:1.7}
+/* 등록·수정 화면 */
+.tb-mode-row{display:flex;gap:6px;flex-wrap:wrap}
+.tb-mode-btn{flex:1;min-width:110px;padding:10px 8px;border:1px solid var(--hairline);border-radius:var(--radius-pill);background:var(--canvas);color:var(--ink-80);font-size:13px;transition:all var(--t)}
+.tb-mode-btn.active{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
+.tb-chapter-row{display:grid;grid-template-columns:1fr 96px 30px;gap:6px;align-items:center;margin-bottom:6px}
+.tb-chapter-row input{min-width:0}
+.tb-cover-preview{width:96px;aspect-ratio:3/4;border-radius:8px;border:1px solid var(--hairline);overflow:hidden;background:var(--parchment);display:none}
+.tb-cover-preview.has{display:block}
+.tb-cover-preview img{width:100%;height:100%;object-fit:cover;display:block}
+/* 업데이트 화면 */
+.tb-detail-head{display:flex;gap:16px;align-items:flex-start;margin-bottom:18px}
+.tb-detail-cover{flex:0 0 108px}
+.tb-detail-info{flex:1;min-width:0}
+.tb-detail-title{font-size:17px;font-weight:700;color:var(--ink);line-height:1.35}
+.tb-detail-sub{font-size:12.5px;color:var(--ink-48);margin-top:4px}
+.tb-bignum{font-size:34px;font-weight:700;color:#1a9c53;line-height:1.1;margin-top:10px;font-variant-numeric:tabular-nums}
+.tb-bar{height:8px;border-radius:4px;background:var(--hairline);overflow:hidden;margin-top:8px}
+.tb-bar-fill{height:100%;background:#2ecc71;border-radius:4px;transition:width .5s ease}
+@media(max-width:520px){
+  .tb-grid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:14px 10px}
+  .tb-chapter-row{grid-template-columns:1fr 80px 28px}
+}
+
 /* ── 시험 회고(examreview) ── */
 .er-type-row{display:flex;gap:6px;flex-wrap:wrap}
 .er-type-btn{flex:1;min-width:64px;padding:9px 6px;border:1px solid var(--hairline);border-radius:var(--radius-pill);background:var(--canvas);color:var(--ink-80);font-size:13px;transition:all var(--t)}
@@ -2428,6 +2472,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
       <div style="display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px">
         <div class="view-toggle" id="study-tabs" style="flex-wrap:wrap;margin-bottom:0">
           <button class="view-btn" id="study-tab-studycert" onclick="switchStudyTab('studycert')">공부인증</button>
+          <button class="view-btn" id="study-tab-textbook" onclick="switchStudyTab('textbook')">교재</button>
           <button class="view-btn" id="study-tab-examreview" onclick="switchStudyTab('examreview')">시험 회고</button>
         </div>
         <div style="margin-left:auto;flex-shrink:0;display:flex;gap:8px">
@@ -2437,6 +2482,9 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
             <button class="btn-ghost" onclick="openRoutineModal()">⏰ 루틴 설정</button>
             <button class="btn-primary" onclick="openStudyCertWritePage()">+ 인증하기</button>
           </div>
+          <div id="textbook-write-btn" style="display:none">
+            <button class="btn-primary" onclick="openTextbookEditPage()">+ 교재 등록</button>
+          </div>
           <div id="examreview-write-btn" style="display:none">
             <button class="btn-primary" onclick="openExamReviewWritePage()">+ 회고 쓰기</button>
           </div>
@@ -2444,6 +2492,8 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
       </div>
       <!-- 공부인증 탭 상단 — 반 친구들의 오늘 인증 현황을 한눈에(네모박스, 가로 스크롤) -->
       <div id="study-routine-board" style="display:none"></div>
+      <!-- 교재 탭 — 반 친구들이 등록한 문제집을 표지 + 진행률 게이지로 -->
+      <div id="textbook-board" style="display:none"></div>
       <div class="qna-list" id="study-list"></div>
     </div>
 
@@ -2641,6 +2691,98 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         <div class="modal-actions">
           <button class="btn-ghost" onclick="closeExamReviewWritePage()">취소</button>
           <button class="btn-primary" id="er-submit-btn" onclick="submitExamReviewPost()">회고 올리기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 교재 등록/수정 -->
+    <div class="page" id="page-textbook-edit">
+      <span class="section-hd-link" onclick="closeTextbookPages()">← 교재로</span>
+      <div class="page-title" style="margin-top:10px" id="tb-edit-title">교재 등록</div>
+      <div class="page-sub">문제집을 등록해두면 진도를 올릴 때마다 표지에 진행률이 차올라요</div>
+      <div class="card spacer">
+        <div class="modal-field">
+          <label class="modal-label">교재 이름</label>
+          <input class="modal-input" id="tb-title" placeholder="예: 이해원 N제 시즌1" maxlength="60">
+        </div>
+        <div class="modal-field">
+          <label class="modal-label">표지 <span class="er-optional">선택 — 안 올리면 이름이 표지가 돼요</span></label>
+          <div class="photo-upload-row">
+            <label class="photo-upload-label" for="tb-cover">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              표지 사진 고르기
+            </label>
+            <input type="file" id="tb-cover" accept="image/*" style="display:none" onchange="pickTextbookCover()">
+            <span class="photo-file-name" id="tb-cover-name">파일 없음</span>
+            <button class="photo-clear-btn" id="tb-cover-clear" onclick="clearTextbookCover()" style="display:none">×</button>
+          </div>
+          <div class="tb-cover-preview" id="tb-cover-preview"><img id="tb-cover-img" alt="표지 미리보기"></div>
+        </div>
+        <div class="modal-field">
+          <label class="modal-label">측정 방식</label>
+          <div class="tb-mode-row">
+            <button class="tb-mode-btn" id="tb-mode-lecture" onclick="setTextbookMode('lecture')">🎬 강의로 측정</button>
+            <button class="tb-mode-btn active" id="tb-mode-problem" onclick="setTextbookMode('problem')">✏️ 문제로 측정</button>
+          </div>
+        </div>
+
+        <!-- 강의로 측정 -->
+        <div class="modal-field" id="tb-lecture-field" style="display:none">
+          <label class="modal-label">총 몇 강인가요?</label>
+          <input class="modal-input" type="number" min="1" max="999" id="tb-total-lectures" placeholder="예: 40" style="max-width:140px">
+        </div>
+
+        <!-- 문제로 측정 -->
+        <div id="tb-problem-field">
+          <div class="modal-field">
+            <label class="modal-label">챕터 나누기</label>
+            <div class="tb-mode-row">
+              <button class="tb-mode-btn active" id="tb-split-on" onclick="setTextbookSplit(true)">챕터별로 나누기</button>
+              <button class="tb-mode-btn" id="tb-split-off" onclick="setTextbookSplit(false)">챕터 미분할</button>
+            </div>
+          </div>
+          <div class="modal-field" id="tb-chapters-field">
+            <label class="modal-label">챕터별 문제 수</label>
+            <div id="tb-chapter-rows"></div>
+            <button class="add-subject-btn" onclick="addTextbookChapterRow()">+ 챕터 추가</button>
+          </div>
+          <div class="modal-field" id="tb-total-q-field" style="display:none">
+            <label class="modal-label">총 몇 문제인가요?</label>
+            <input class="modal-input" type="number" min="1" max="9999" id="tb-total-questions" placeholder="예: 200" style="max-width:140px">
+          </div>
+        </div>
+
+        <div class="auth-error" id="tb-error"></div>
+        <div class="modal-actions">
+          <button class="btn-ghost" id="tb-delete-btn" style="display:none;color:#ed4956" onclick="deleteTextbook()">삭제</button>
+          <button class="btn-ghost" onclick="closeTextbookPages()">취소</button>
+          <button class="btn-primary" id="tb-save-btn" onclick="saveTextbook()">등록</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 교재 진도 업데이트 -->
+    <div class="page" id="page-textbook-update">
+      <span class="section-hd-link" onclick="closeTextbookPages()">← 교재로</span>
+      <div class="page-title" style="margin-top:10px">교재 업데이트</div>
+      <div class="page-sub" id="tb-update-sub">어디까지 했는지 적으면 진행률이 올라가요</div>
+      <div class="card spacer">
+        <div class="tb-detail-head">
+          <div class="tb-detail-cover"><div class="tb-cover" id="tb-update-cover"></div></div>
+          <div class="tb-detail-info">
+            <div class="tb-detail-title" id="tb-update-title">—</div>
+            <div class="tb-detail-sub" id="tb-update-meta"></div>
+            <div class="tb-bignum" id="tb-update-pct">0%</div>
+            <div class="tb-bar"><div class="tb-bar-fill" id="tb-update-bar" style="width:0%"></div></div>
+            <div class="tb-detail-sub" id="tb-update-count"></div>
+          </div>
+        </div>
+        <div id="tb-update-inputs"></div>
+        <div class="auth-error" id="tb-update-error"></div>
+        <div class="modal-actions" id="tb-update-actions">
+          <button class="btn-ghost" id="tb-update-edit-btn" onclick="editCurrentTextbook()">교재 정보 수정</button>
+          <button class="btn-ghost" onclick="closeTextbookPages()">닫기</button>
+          <button class="btn-primary" id="tb-update-save-btn" onclick="saveTextbookProgress()">저장</button>
         </div>
       </div>
     </div>
@@ -4489,6 +4631,13 @@ function toggleTheme(){
 //    같은 값으로 맞춘다(그 값이 바뀌면 새 안내가 뜨는 구조라서, 빼먹으면 아무 안내도 안 뜬다).
 //    사용자가 읽을 문장으로 쓴다 — 파일명·함수명·RLS 같은 내부 용어는 넣지 않는다.
 const APP_UPDATES=[
+  {v:'2026-09-04-42', date:'2026년 9월 4일', title:'교재 탭이 생겼어요',
+   items:[
+     '공부인증 옆 "교재" 탭에서 반 친구들이 푸는 문제집을 표지로 볼 수 있어요. 표지 위로 초록 게이지가 차오르며 진행률이 보여요.',
+     '오른쪽 위 "+ 교재 등록"으로 내 문제집을 올리세요. 표지는 선택이고, 안 올리면 교재 이름이 표지가 돼요.',
+     '강의로 측정(총 몇 강)과 문제로 측정(챕터별 문제 수 또는 전체 문제 수) 중에 고를 수 있어요.',
+     '내 교재 표지를 누르면 어디까지 했는지 적는 화면이 열려요. 적는 즉시 몇 %가 되는지 미리 보여줘요.',
+   ]},
   {v:'2026-09-04-41', date:'2026년 9월 4일', title:'글 수정이 글쓰기 화면 그대로 열려요',
    items:[
      '수정을 누르면 본문 칸만 바뀌던 게 아니라, 글을 쓸 때와 똑같은 화면이 그대로 채워진 채로 열려요.',
@@ -9607,14 +9756,21 @@ function syncFreePollSection(){
 // 공부인증 / 시험회고 페이지 탭
 let studyTab='studycert';
 function renderStudyTabs(){
-  ['studycert','examreview'].forEach(t=>document.getElementById('study-tab-'+t)?.classList.toggle('active',studyTab===t));
-  const isCert=studyTab==='studycert';
+  ['studycert','textbook','examreview'].forEach(t=>document.getElementById('study-tab-'+t)?.classList.toggle('active',studyTab===t));
+  const isCert=studyTab==='studycert', isBook=studyTab==='textbook';
   const scBtn=document.getElementById('studycert-write-btn');
+  const tbBtn=document.getElementById('textbook-write-btn');
   const erBtn=document.getElementById('examreview-write-btn');
   if(scBtn)scBtn.style.display=isCert?'flex':'none';
-  if(erBtn)erBtn.style.display=isCert?'none':'block';
+  if(tbBtn)tbBtn.style.display=isBook?'block':'none';
+  if(erBtn)erBtn.style.display=(!isCert&&!isBook)?'block':'none';
   const routineBoard=document.getElementById('study-routine-board');
   if(routineBoard)routineBoard.style.display=isCert?'block':'none';
+  const tbBoard=document.getElementById('textbook-board');
+  if(tbBoard)tbBoard.style.display=isBook?'block':'none';
+  // 교재 탭은 글 목록이 아니라 교재 격자를 쓰므로 글 목록은 숨긴다.
+  const list=document.getElementById('study-list');
+  if(list)list.style.display=isBook?'none':'';
   if(isCert)renderStudyRoutineBoard();
 }
 function switchStudyTab(t){
@@ -9625,6 +9781,7 @@ function switchStudyTab(t){
 }
 async function loadStudyBoard(){
   renderStudyTabs();
+  if(studyTab==='textbook'){await loadTextbookBoard();return}
   const isCert=studyTab==='studycert';
   await loadBoardPosts(
     isCert?'studycert':'examreview','study-list',
@@ -11286,6 +11443,342 @@ function renderExamReviewCard(p,comments=[]){
       ${renderCommentInputRow(p.id,'examreview')}
     </div>
   </div>`;
+}
+
+// ── 교재(문제집) 진도 ──
+// 공부인증 페이지의 "교재" 탭. 학생이 문제집을 직접 등록하고(이름·표지·측정 방식) 진도를
+// 올리면, 반 전체가 서로의 진행률을 표지 위로 차오르는 초록 게이지로 본다.
+// 측정 방식은 두 가지 —
+//   강의로 측정: 총 몇 강 중 몇 강까지 들었나
+//   문제로 측정: 챕터를 나눴으면 "끝낸 챕터 + 진행 중 챕터에서 푼 문제", 안 나눴으면 총 문제 중 몇 문제
+let textbooks=[];                 // 반 전체 교재 목록(진행률 계산용 원본)
+let tbProfileMap={};              // 학번 → 프로필(이름) — 교재 탭은 게시판을 안 거쳐서 따로 둔다
+let tbEditingId=null;             // 등록/수정 화면에서 수정 중인 교재 id
+let tbOpenId=null;                // 업데이트 화면에서 보고 있는 교재 id
+let tbMode='problem', tbSplit=true;
+let tbCoverFile=null, tbCoverPreviewUrl=null, tbCoverExisting=null;
+const TB_COVER_MAX_BYTES=5*1024*1024;
+
+// 총량/진행량 — 화면 여러 곳에서 같은 계산을 쓰므로 한 곳에 모아둔다.
+function tbTotal(t){
+  if(!t)return 0;
+  if(t.mode==='lecture')return Math.max(0,parseInt(t.total_lectures,10)||0);
+  if(t.split_chapters)return (t.chapters||[]).reduce((a,c)=>a+(parseInt(c.count,10)||0),0);
+  return Math.max(0,parseInt(t.total_questions,10)||0);
+}
+function tbDone(t){
+  if(!t)return 0;
+  const total=tbTotal(t);
+  if(t.mode==='lecture')return Math.min(Math.max(0,parseInt(t.done_lectures,10)||0),total);
+  if(t.split_chapters){
+    const ch=t.chapters||[];
+    const n=Math.min(Math.max(0,parseInt(t.done_chapters,10)||0),ch.length);
+    const base=ch.slice(0,n).reduce((a,c)=>a+(parseInt(c.count,10)||0),0);
+    const partial=n<ch.length?Math.min(Math.max(0,parseInt(t.done_questions,10)||0),parseInt(ch[n].count,10)||0):0;
+    return Math.min(base+partial,total);
+  }
+  return Math.min(Math.max(0,parseInt(t.done_questions,10)||0),total);
+}
+function tbPercent(t){const total=tbTotal(t);return total?Math.round(tbDone(t)/total*100):0}
+function tbUnit(t){return t&&t.mode==='lecture'?'강':'문제'}
+
+// ── 목록 ──
+async function loadTextbookBoard(){
+  const wrap=document.getElementById('textbook-board');
+  if(!wrap)return;
+  const [{data,error},profileMap]=await Promise.all([
+    sb.from('textbooks').select('*').eq('is_active',true).order('created_at',{ascending:false}),
+    loadProfileMap(),
+  ]);
+  if(error){wrap.innerHTML='<div class="tb-empty">교재를 불러오지 못했어요</div>';return}
+  textbooks=data||[];
+  tbProfileMap=profileMap||{};
+  if(!textbooks.length){
+    wrap.innerHTML='<div class="tb-empty">아직 등록된 교재가 없어요.<br>오른쪽 위 <b>+ 교재 등록</b>으로 내 문제집을 올려보세요!</div>';
+    return;
+  }
+  wrap.innerHTML=`<div class="tb-grid">${textbooks.map(t=>{
+    const profile=profileMap[t.student_id];
+    const name=profile?.display_name||t.student_id+'번';
+    const pct=tbPercent(t);
+    const mine=t.student_id===currentStudentId;
+    const cover=t.cover_url
+      ?`<img src="${t.cover_url}" alt="${escAttr(t.title)} 표지" loading="lazy">`
+      :`<div class="tb-cover-text">${escHtml(t.title)}</div>`;
+    return`<div class="tb-card" onclick="openTextbook('${t.id}')">
+      <div class="tb-cover">
+        ${cover}
+        <div class="tb-gauge" style="height:${pct}%"></div>
+        <span class="tb-pct${pct>=100?' done':''}">${pct}%</span>
+      </div>
+      <div class="tb-name">${escHtml(t.title)}</div>
+      <div class="tb-meta">${escHtml(name)}${mine?'<span class="tb-mine-badge">내 교재</span>':''}</div>
+      <div class="tb-meta">${tbDone(t)} / ${tbTotal(t)}${tbUnit(t)}</div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+// ── 등록/수정 화면 ──
+function setTextbookMode(mode){
+  tbMode=mode;
+  document.getElementById('tb-mode-lecture').classList.toggle('active',mode==='lecture');
+  document.getElementById('tb-mode-problem').classList.toggle('active',mode==='problem');
+  document.getElementById('tb-lecture-field').style.display=mode==='lecture'?'block':'none';
+  document.getElementById('tb-problem-field').style.display=mode==='problem'?'block':'none';
+}
+function setTextbookSplit(on){
+  tbSplit=!!on;
+  document.getElementById('tb-split-on').classList.toggle('active',tbSplit);
+  document.getElementById('tb-split-off').classList.toggle('active',!tbSplit);
+  document.getElementById('tb-chapters-field').style.display=tbSplit?'block':'none';
+  document.getElementById('tb-total-q-field').style.display=tbSplit?'none':'block';
+  if(tbSplit&&!document.querySelectorAll('#tb-chapter-rows .tb-chapter-row').length)addTextbookChapterRow();
+}
+function addTextbookChapterRow(name,count){
+  const wrap=document.getElementById('tb-chapter-rows');
+  if(!wrap)return;
+  const idx=wrap.children.length+1;
+  const row=document.createElement('div');
+  row.className='tb-chapter-row';
+  row.innerHTML=`
+    <input class="modal-input tb-ch-name" placeholder="${idx}단원" value="${escAttr(name||'')}" maxlength="40">
+    <input class="modal-input tb-ch-count" type="number" min="1" max="999" placeholder="문제 수" value="${count!=null?count:''}">
+    <button class="poll-option-remove-btn" onclick="this.parentElement.remove()">×</button>`;
+  wrap.appendChild(row);
+}
+function textbookChapterRows(){
+  return Array.from(document.querySelectorAll('#tb-chapter-rows .tb-chapter-row')).map((r,i)=>({
+    name:r.querySelector('.tb-ch-name').value.trim()||`${i+1}단원`,
+    count:parseInt(r.querySelector('.tb-ch-count').value,10)||0,
+  })).filter(c=>c.count>0);
+}
+function pickTextbookCover(){
+  const input=document.getElementById('tb-cover');
+  const f=(input.files||[])[0];
+  if(!f)return;
+  if(!f.type.startsWith('image/')){toast('사진만 표지로 쓸 수 있어요');input.value='';return}
+  if(f.size>TB_COVER_MAX_BYTES){toast('표지는 5MB 이하만 가능해요');input.value='';return}
+  tbCoverFile=f;
+  showTextbookCoverPreview(URL.createObjectURL(f),f.name);
+}
+function showTextbookCoverPreview(url,label){
+  if(tbCoverPreviewUrl)URL.revokeObjectURL(tbCoverPreviewUrl);
+  tbCoverPreviewUrl=url&&url.startsWith('blob:')?url:null;
+  const box=document.getElementById('tb-cover-preview');
+  document.getElementById('tb-cover-img').src=url||'';
+  box.classList.toggle('has',!!url);
+  document.getElementById('tb-cover-name').textContent=label||'파일 없음';
+  document.getElementById('tb-cover-clear').style.display=url?'flex':'none';
+}
+function clearTextbookCover(){
+  tbCoverFile=null;tbCoverExisting=null;
+  const input=document.getElementById('tb-cover');
+  if(input)input.value='';
+  showTextbookCoverPreview('','파일 없음');
+}
+// t를 넘기면 수정 모드
+function openTextbookEditPage(t){
+  tbEditingId=t?t.id:null;
+  document.getElementById('tb-edit-title').textContent=t?'교재 수정':'교재 등록';
+  document.getElementById('tb-save-btn').textContent=t?'수정 완료':'등록';
+  document.getElementById('tb-delete-btn').style.display=t?'':'none';
+  document.getElementById('tb-title').value=t?(t.title||''):'';
+  document.getElementById('tb-total-lectures').value=t&&t.total_lectures?t.total_lectures:'';
+  document.getElementById('tb-total-questions').value=t&&t.total_questions?t.total_questions:'';
+  document.getElementById('tb-chapter-rows').innerHTML='';
+  document.getElementById('tb-error').style.display='none';
+  clearTextbookCover();
+  if(t&&t.cover_url){tbCoverExisting=t.cover_url;showTextbookCoverPreview(t.cover_url,'등록된 표지')}
+  setTextbookMode(t?(t.mode||'problem'):'problem');
+  setTextbookSplit(t?!!t.split_chapters:true);
+  if(t&&t.split_chapters&&(t.chapters||[]).length){
+    document.getElementById('tb-chapter-rows').innerHTML='';
+    t.chapters.forEach(c=>addTextbookChapterRow(c.name,c.count));
+  }else if(tbSplit&&!document.querySelectorAll('#tb-chapter-rows .tb-chapter-row').length){
+    addTextbookChapterRow();
+  }
+  document.querySelectorAll('.page').forEach(pg=>pg.classList.remove('active'));
+  document.getElementById('page-textbook-edit').classList.add('active');
+  window.scrollTo(0,0);
+}
+function closeTextbookPages(){
+  tbEditingId=null;tbOpenId=null;
+  studyTab='textbook';
+  navigate('study-board');
+}
+async function saveTextbook(){
+  const errEl=document.getElementById('tb-error');
+  errEl.style.display='none';
+  const fail=m=>{errEl.textContent=m;errEl.style.display='block'};
+  const title=document.getElementById('tb-title').value.trim();
+  if(!title)return fail('교재 이름을 입력해주세요');
+  const row={title,mode:tbMode,student_id:currentStudentId,user_id:currentUser.id};
+  if(tbMode==='lecture'){
+    const n=parseInt(document.getElementById('tb-total-lectures').value,10)||0;
+    if(n<1)return fail('총 강의 수를 입력해주세요');
+    row.total_lectures=n;row.split_chapters=false;row.chapters=[];row.total_questions=null;
+  }else{
+    row.total_lectures=null;
+    row.split_chapters=tbSplit;
+    if(tbSplit){
+      const chapters=textbookChapterRows();
+      if(!chapters.length)return fail('챕터를 최소 1개 이상, 문제 수와 함께 입력해주세요');
+      row.chapters=chapters;row.total_questions=null;
+    }else{
+      const n=parseInt(document.getElementById('tb-total-questions').value,10)||0;
+      if(n<1)return fail('총 문제 수를 입력해주세요');
+      row.chapters=[];row.total_questions=n;
+    }
+  }
+  const btn=document.getElementById('tb-save-btn');
+  const label=btn.textContent;
+  btn.textContent='저장 중…';btn.disabled=true;
+  // 표지 업로드 — 게시판 사진과 같은 버킷을 쓰고 파일명 앞에 book_을 붙여 구분한다.
+  let coverUrl=tbCoverExisting||null;
+  if(tbCoverFile){
+    const ext=(tbCoverFile.name.split('.').pop()||'jpg');
+    const fileName=`book_${currentStudentId}_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+    const {error:upErr}=await sb.storage.from('board-photos').upload(fileName,tbCoverFile);
+    if(upErr){btn.textContent=label;btn.disabled=false;return fail('표지 업로드 실패: '+upErr.message)}
+    coverUrl=sb.storage.from('board-photos').getPublicUrl(fileName).data.publicUrl;
+  }
+  row.cover_url=coverUrl;
+  let error;
+  if(tbEditingId){
+    // 진도(done_*)는 건드리지 않는다 — 구성만 바꾼다.
+    ({error}=await sb.from('textbooks').update(row).eq('id',tbEditingId));
+  }else{
+    ({error}=await sb.from('textbooks').insert(row));
+  }
+  btn.textContent=label;btn.disabled=false;
+  if(error)return fail('저장 실패: '+error.message);
+  toast(tbEditingId?'교재를 수정했어요 ✓':'교재를 등록했어요 ✓');
+  closeTextbookPages();
+}
+async function deleteTextbook(){
+  if(!tbEditingId)return;
+  if(!confirm('이 교재를 삭제할까요?\n기록한 진도도 함께 사라져요.'))return;
+  const {error}=await sb.from('textbooks').delete().eq('id',tbEditingId);
+  if(error){toast('삭제 실패: '+error.message);return}
+  toast('교재를 삭제했어요');
+  closeTextbookPages();
+}
+
+// ── 진도 업데이트 화면 ──
+function openTextbook(id){
+  const t=textbooks.find(x=>x.id===id);
+  if(!t){toast('교재를 찾을 수 없어요');return}
+  tbOpenId=id;
+  const mine=t.student_id===currentStudentId;
+  const cover=document.getElementById('tb-update-cover');
+  const pct=tbPercent(t);
+  cover.innerHTML=(t.cover_url
+      ?`<img src="${t.cover_url}" alt="표지">`
+      :`<div class="tb-cover-text">${escHtml(t.title)}</div>`)
+    +`<div class="tb-gauge" style="height:${pct}%"></div>`;
+  document.getElementById('tb-update-title').textContent=t.title;
+  const owner=tbProfileMap[t.student_id]?.display_name||boardProfileMap[t.student_id]?.display_name||t.student_id+'번';
+  document.getElementById('tb-update-meta').textContent=
+    `${owner} · ${t.mode==='lecture'?'강의로 측정':(t.split_chapters?`문제로 측정 · ${(t.chapters||[]).length}챕터`:'문제로 측정')}`;
+  document.getElementById('tb-update-pct').textContent=pct+'%';
+  document.getElementById('tb-update-bar').style.width=pct+'%';
+  document.getElementById('tb-update-count').textContent=`${tbDone(t)} / ${tbTotal(t)}${tbUnit(t)} 완료`;
+  document.getElementById('tb-update-sub').textContent=mine
+    ?'어디까지 했는지 적으면 진행률이 올라가요'
+    :`${owner}님의 교재예요 (진행 상황만 볼 수 있어요)`;
+  document.getElementById('tb-update-inputs').innerHTML=mine?textbookUpdateInputsHtml(t):'';
+  document.getElementById('tb-update-error').style.display='none';
+  document.getElementById('tb-update-save-btn').style.display=mine?'':'none';
+  document.getElementById('tb-update-edit-btn').style.display=mine?'':'none';
+  document.querySelectorAll('.page').forEach(pg=>pg.classList.remove('active'));
+  document.getElementById('page-textbook-update').classList.add('active');
+  window.scrollTo(0,0);
+}
+function textbookUpdateInputsHtml(t){
+  if(t.mode==='lecture'){
+    return`<div class="modal-field">
+      <label class="modal-label">몇 강까지 들었나요?</label>
+      <input class="modal-input" type="number" min="0" max="${tbTotal(t)}" id="tb-in-lectures" value="${parseInt(t.done_lectures,10)||0}" style="max-width:140px" oninput="previewTextbookProgress()">
+      <div class="tb-detail-sub">총 ${tbTotal(t)}강</div>
+    </div>`;
+  }
+  if(!t.split_chapters){
+    return`<div class="modal-field">
+      <label class="modal-label">몇 번까지 풀었나요?</label>
+      <input class="modal-input" type="number" min="0" max="${tbTotal(t)}" id="tb-in-questions" value="${parseInt(t.done_questions,10)||0}" style="max-width:140px" oninput="previewTextbookProgress()">
+      <div class="tb-detail-sub">총 ${tbTotal(t)}문제</div>
+    </div>`;
+  }
+  const ch=t.chapters||[];
+  const doneN=Math.min(parseInt(t.done_chapters,10)||0,ch.length);
+  const opts=['<option value="0">아직 없음</option>']
+    .concat(ch.map((c,i)=>`<option value="${i+1}">${escHtml(c.name)}까지 (${i+1}/${ch.length})</option>`)).join('');
+  return`<div class="modal-field">
+      <label class="modal-label">어느 챕터까지 끝냈나요?</label>
+      <select class="modal-input" id="tb-in-chapters" onchange="previewTextbookProgress()">${opts}</select>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label">진행 중인 챕터에서 몇 문제 풀었나요? <span class="er-optional">선택</span></label>
+      <input class="modal-input" type="number" min="0" id="tb-in-partial" value="${parseInt(t.done_questions,10)||0}" style="max-width:140px" oninput="previewTextbookProgress()">
+      <div class="tb-detail-sub" id="tb-partial-hint"></div>
+    </div>`
+    .replace('<option value="'+doneN+'">','<option value="'+doneN+'" selected>');
+}
+// 입력하는 즉시 위쪽 퍼센트/게이지에 반영해서 얼마나 오르는지 바로 보이게 한다.
+function collectTextbookProgress(t){
+  const out={};
+  if(t.mode==='lecture')out.done_lectures=Math.max(0,parseInt(document.getElementById('tb-in-lectures')?.value,10)||0);
+  else if(!t.split_chapters)out.done_questions=Math.max(0,parseInt(document.getElementById('tb-in-questions')?.value,10)||0);
+  else{
+    out.done_chapters=Math.max(0,parseInt(document.getElementById('tb-in-chapters')?.value,10)||0);
+    out.done_questions=Math.max(0,parseInt(document.getElementById('tb-in-partial')?.value,10)||0);
+  }
+  return out;
+}
+function previewTextbookProgress(){
+  const t=textbooks.find(x=>x.id===tbOpenId);
+  if(!t)return;
+  const merged={...t,...collectTextbookProgress(t)};
+  const pct=tbPercent(merged);
+  document.getElementById('tb-update-pct').textContent=pct+'%';
+  document.getElementById('tb-update-bar').style.width=pct+'%';
+  document.getElementById('tb-update-count').textContent=`${tbDone(merged)} / ${tbTotal(merged)}${tbUnit(merged)} 완료`;
+  const gauge=document.querySelector('#tb-update-cover .tb-gauge');
+  if(gauge)gauge.style.height=pct+'%';
+  const hint=document.getElementById('tb-partial-hint');
+  if(hint&&t.split_chapters){
+    const ch=t.chapters||[];
+    const n=Math.min(merged.done_chapters||0,ch.length);
+    hint.textContent=n<ch.length?`"${ch[n].name}" (${ch[n].count}문제) 진행 중`:'모든 챕터를 끝냈어요 🎉';
+  }
+}
+async function saveTextbookProgress(){
+  const t=textbooks.find(x=>x.id===tbOpenId);
+  if(!t)return;
+  if(t.student_id!==currentStudentId){toast('내 교재만 업데이트할 수 있어요');return}
+  const errEl=document.getElementById('tb-update-error');
+  errEl.style.display='none';
+  const patch=collectTextbookProgress(t);
+  const merged={...t,...patch};
+  if(t.mode==='lecture'&&merged.done_lectures>tbTotal(t)){
+    errEl.textContent=`총 ${tbTotal(t)}강보다 많이 들을 수는 없어요`;errEl.style.display='block';return;
+  }
+  if(t.mode==='problem'&&!t.split_chapters&&merged.done_questions>tbTotal(t)){
+    errEl.textContent=`총 ${tbTotal(t)}문제보다 많이 풀 수는 없어요`;errEl.style.display='block';return;
+  }
+  const btn=document.getElementById('tb-update-save-btn');
+  btn.disabled=true;
+  patch.updated_at=new Date().toISOString();
+  const {error}=await sb.from('textbooks').update(patch).eq('id',t.id);
+  btn.disabled=false;
+  if(error){errEl.textContent='저장 실패: '+error.message;errEl.style.display='block';return}
+  Object.assign(t,patch);
+  toast(`진행률 ${tbPercent(t)}%로 업데이트했어요 ✓`);
+  closeTextbookPages();
+}
+function editCurrentTextbook(){
+  const t=textbooks.find(x=>x.id===tbOpenId);
+  if(t)openTextbookEditPage(t);
 }
 
 // ── 공부 루틴(설정 + 상단 현황판) ──

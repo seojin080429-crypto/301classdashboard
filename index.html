@@ -1095,6 +1095,14 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .tb-cover-preview{width:96px;aspect-ratio:3/4;border-radius:8px;border:1px solid var(--hairline);overflow:hidden;background:var(--parchment);display:none}
 .tb-cover-preview.has{display:block}
 .tb-cover-preview img{width:100%;height:100%;object-fit:cover;display:block}
+/* 업데이트 화면 — 챕터별 진도 입력 줄 */
+.tb-prog-row{display:grid;grid-template-columns:1fr 92px auto 30px;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--hairline)}
+.tb-prog-row:last-child{border-bottom:none}
+.tb-prog-name{font-size:13px;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tb-prog-input{text-align:center}
+.tb-prog-total{font-size:12px;color:var(--ink-48);white-space:nowrap}
+.tb-prog-all{width:26px;height:26px;border-radius:50%;border:1px solid var(--hairline);background:var(--canvas);color:var(--ink-48);font-size:12px;line-height:1;padding:0;cursor:pointer;transition:all var(--t)}
+.tb-prog-all:hover{border-color:#2ecc71;color:#1a9c53;background:rgba(46,204,113,.08)}
 /* 업데이트 화면 */
 .tb-detail-head{display:flex;gap:16px;align-items:flex-start;margin-bottom:18px}
 .tb-detail-cover{flex:0 0 108px}
@@ -4631,6 +4639,11 @@ function toggleTheme(){
 //    같은 값으로 맞춘다(그 값이 바뀌면 새 안내가 뜨는 구조라서, 빼먹으면 아무 안내도 안 뜬다).
 //    사용자가 읽을 문장으로 쓴다 — 파일명·함수명·RLS 같은 내부 용어는 넣지 않는다.
 const APP_UPDATES=[
+  {v:'2026-09-04-43', date:'2026년 9월 4일', title:'교재 진도를 챕터별로 적어요',
+   items:[
+     '챕터 중간까지 푼 것도 그대로 적을 수 있어요 — 1단원 40문제 중 15번까지 풀었으면 15만 적으면 돼요.',
+     '챕터마다 칸이 따로 있어서 순서대로 풀지 않아도 되고, 다 푼 챕터는 ✓ 한 번이면 채워져요.',
+   ]},
   {v:'2026-09-04-42', date:'2026년 9월 4일', title:'교재 탭이 생겼어요',
    items:[
      '공부인증 옆 "교재" 탭에서 반 친구들이 푸는 문제집을 표지로 볼 수 있어요. 표지 위로 초록 게이지가 차오르며 진행률이 보여요.',
@@ -11466,17 +11479,26 @@ function tbTotal(t){
   if(t.split_chapters)return (t.chapters||[]).reduce((a,c)=>a+(parseInt(c.count,10)||0),0);
   return Math.max(0,parseInt(t.total_questions,10)||0);
 }
+// 챕터별 푼 문제 수 배열 — 챕터 개수에 맞춰 길이를 맞추고, 각 챕터의 문제 수를 넘지 않게 자른다.
+// 예전 방식(끝낸 챕터 수 + 진행 중 챕터 문제 수)으로 저장된 교재는 여기서 배열로 환산해준다.
+function tbChapterProgress(t){
+  const ch=(t&&t.chapters)||[];
+  let arr=Array.isArray(t&&t.chapter_progress)?t.chapter_progress.slice(0,ch.length):[];
+  if(!arr.length&&ch.length){
+    // 옛 데이터 환산: 앞에서부터 n개 챕터는 다 푼 것으로, 그 다음 챕터는 남은 수만큼.
+    const n=Math.min(Math.max(0,parseInt(t.done_chapters,10)||0),ch.length);
+    arr=ch.map((c,i)=>i<n?(parseInt(c.count,10)||0):(i===n?(parseInt(t.done_questions,10)||0):0));
+  }
+  return ch.map((c,i)=>{
+    const max=Math.max(0,parseInt(c.count,10)||0);
+    return Math.min(Math.max(0,parseInt(arr[i],10)||0),max);
+  });
+}
 function tbDone(t){
   if(!t)return 0;
   const total=tbTotal(t);
   if(t.mode==='lecture')return Math.min(Math.max(0,parseInt(t.done_lectures,10)||0),total);
-  if(t.split_chapters){
-    const ch=t.chapters||[];
-    const n=Math.min(Math.max(0,parseInt(t.done_chapters,10)||0),ch.length);
-    const base=ch.slice(0,n).reduce((a,c)=>a+(parseInt(c.count,10)||0),0);
-    const partial=n<ch.length?Math.min(Math.max(0,parseInt(t.done_questions,10)||0),parseInt(ch[n].count,10)||0):0;
-    return Math.min(base+partial,total);
-  }
+  if(t.split_chapters)return Math.min(tbChapterProgress(t).reduce((a,n)=>a+n,0),total);
   return Math.min(Math.max(0,parseInt(t.done_questions,10)||0),total);
 }
 function tbPercent(t){const total=tbTotal(t);return total?Math.round(tbDone(t)/total*100):0}
@@ -11645,7 +11667,15 @@ async function saveTextbook(){
   row.cover_url=coverUrl;
   let error;
   if(tbEditingId){
-    // 진도(done_*)는 건드리지 않는다 — 구성만 바꾼다.
+    // 진도 자체는 건드리지 않되, 챕터를 더하거나 뺐으면 챕터별 진도 배열의 길이를 맞춰준다
+    // (안 맞으면 새 챕터의 진도가 엉뚱한 칸으로 밀린다).
+    if(row.split_chapters){
+      const before=textbooks.find(x=>x.id===tbEditingId);
+      const prev=before?tbChapterProgress(before):[];
+      row.chapter_progress=row.chapters.map((c,i)=>Math.min(prev[i]||0,parseInt(c.count,10)||0));
+    }else{
+      row.chapter_progress=[];
+    }
     ({error}=await sb.from('textbooks').update(row).eq('id',tbEditingId));
   }else{
     ({error}=await sb.from('textbooks').insert(row));
@@ -11709,20 +11739,21 @@ function textbookUpdateInputsHtml(t){
       <div class="tb-detail-sub">총 ${tbTotal(t)}문제</div>
     </div>`;
   }
+  // 챕터마다 따로 적는다 — "1단원은 15번까지, 3단원은 다 풀었다"처럼 순서와 상관없이 기록된다.
   const ch=t.chapters||[];
-  const doneN=Math.min(parseInt(t.done_chapters,10)||0,ch.length);
-  const opts=['<option value="0">아직 없음</option>']
-    .concat(ch.map((c,i)=>`<option value="${i+1}">${escHtml(c.name)}까지 (${i+1}/${ch.length})</option>`)).join('');
+  const prog=tbChapterProgress(t);
+  const rows=ch.map((c,i)=>`<div class="tb-prog-row">
+      <span class="tb-prog-name">${escHtml(c.name)}</span>
+      <input class="modal-input tb-prog-input" type="number" min="0" max="${c.count}" value="${prog[i]}"
+             data-idx="${i}" oninput="previewTextbookProgress()">
+      <span class="tb-prog-total">/ ${c.count}</span>
+      <button class="tb-prog-all" onclick="fillTextbookChapter(${i},${c.count})" title="이 챕터 다 풀었어요">✓</button>
+    </div>`).join('');
   return`<div class="modal-field">
-      <label class="modal-label">어느 챕터까지 끝냈나요?</label>
-      <select class="modal-input" id="tb-in-chapters" onchange="previewTextbookProgress()">${opts}</select>
-    </div>
-    <div class="modal-field">
-      <label class="modal-label">진행 중인 챕터에서 몇 문제 풀었나요? <span class="er-optional">선택</span></label>
-      <input class="modal-input" type="number" min="0" id="tb-in-partial" value="${parseInt(t.done_questions,10)||0}" style="max-width:140px" oninput="previewTextbookProgress()">
-      <div class="tb-detail-sub" id="tb-partial-hint"></div>
-    </div>`
-    .replace('<option value="'+doneN+'">','<option value="'+doneN+'" selected>');
+      <label class="modal-label">챕터별로 어디까지 풀었나요?</label>
+      <div class="tb-detail-sub" style="margin-bottom:8px">번호 기준으로 적으면 돼요 — 1단원 15번까지 풀었으면 15. 다 풀었으면 ✓를 누르세요.</div>
+      <div id="tb-prog-rows">${rows}</div>
+    </div>`;
 }
 // 입력하는 즉시 위쪽 퍼센트/게이지에 반영해서 얼마나 오르는지 바로 보이게 한다.
 function collectTextbookProgress(t){
@@ -11730,10 +11761,27 @@ function collectTextbookProgress(t){
   if(t.mode==='lecture')out.done_lectures=Math.max(0,parseInt(document.getElementById('tb-in-lectures')?.value,10)||0);
   else if(!t.split_chapters)out.done_questions=Math.max(0,parseInt(document.getElementById('tb-in-questions')?.value,10)||0);
   else{
-    out.done_chapters=Math.max(0,parseInt(document.getElementById('tb-in-chapters')?.value,10)||0);
-    out.done_questions=Math.max(0,parseInt(document.getElementById('tb-in-partial')?.value,10)||0);
+    const ch=t.chapters||[];
+    const arr=ch.map(()=>0);
+    document.querySelectorAll('#tb-prog-rows .tb-prog-input').forEach(inp=>{
+      const i=parseInt(inp.dataset.idx,10);
+      if(i>=0&&i<arr.length)arr[i]=Math.max(0,parseInt(inp.value,10)||0);
+    });
+    out.chapter_progress=arr;
+    // 옛 화면/기록과 어긋나지 않게, 앞에서부터 다 푼 챕터 수도 같이 맞춰둔다.
+    let doneN=0;
+    while(doneN<ch.length&&arr[doneN]>=(parseInt(ch[doneN].count,10)||0))doneN++;
+    out.done_chapters=doneN;
+    out.done_questions=doneN<ch.length?arr[doneN]:0;
   }
   return out;
+}
+// "다 풀었어요" ✓ — 그 챕터 칸을 문제 수로 채운다.
+function fillTextbookChapter(i,count){
+  const inp=document.querySelector(`#tb-prog-rows .tb-prog-input[data-idx="${i}"]`);
+  if(!inp)return;
+  inp.value=count;
+  previewTextbookProgress();
 }
 function previewTextbookProgress(){
   const t=textbooks.find(x=>x.id===tbOpenId);
@@ -11745,12 +11793,7 @@ function previewTextbookProgress(){
   document.getElementById('tb-update-count').textContent=`${tbDone(merged)} / ${tbTotal(merged)}${tbUnit(merged)} 완료`;
   const gauge=document.querySelector('#tb-update-cover .tb-gauge');
   if(gauge)gauge.style.height=pct+'%';
-  const hint=document.getElementById('tb-partial-hint');
-  if(hint&&t.split_chapters){
-    const ch=t.chapters||[];
-    const n=Math.min(merged.done_chapters||0,ch.length);
-    hint.textContent=n<ch.length?`"${ch[n].name}" (${ch[n].count}문제) 진행 중`:'모든 챕터를 끝냈어요 🎉';
-  }
+
 }
 async function saveTextbookProgress(){
   const t=textbooks.find(x=>x.id===tbOpenId);

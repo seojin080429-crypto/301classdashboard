@@ -1164,9 +1164,16 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .sc-log-summary-time{flex-shrink:0;color:var(--ig-blue);font-weight:600;font-variant-numeric:tabular-nums}
 /* 공부인증 탭 상단 현황판 — 반 친구들의 오늘 루틴 인증 여부를 네모박스로 한눈에 보여줌 */
 .routine-board{display:flex;gap:10px;overflow-x:auto;padding:2px 2px 10px}
-.routine-tile{flex:0 0 132px;background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--radius-lg);padding:12px 10px;text-align:center;cursor:pointer;transition:border-color var(--t)}
+.routine-tile{position:relative;flex:0 0 132px;background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--radius-lg);padding:12px 10px;text-align:center;cursor:pointer;transition:border-color var(--t)}
 .routine-tile:hover{border-color:var(--ig-blue)}
-.routine-tile.at-risk{border-color:rgba(237,73,86,.35);background:rgba(237,73,86,.05)}
+/* 미인증 경고 3단계 — 1회부터 노랑, 벌칙 기준의 절반을 넘기면 주황, 기준에 닿으면 빨강.
+   라이트/다크 어느 쪽에서도 읽히도록 중간 톤 색만 쓴다(연한 노랑은 흰 배경에서 안 보인다). */
+.routine-tile.lv1{border-color:rgba(201,147,26,.45);background:rgba(201,147,26,.07)}
+.routine-tile.lv2{border-color:rgba(232,120,32,.5);background:rgba(232,120,32,.08)}
+.routine-tile.lv3{border-color:rgba(237,73,86,.45);background:rgba(237,73,86,.06)}
+.routine-tile-reset{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;border:1px solid var(--hairline);background:var(--canvas);color:var(--ink-48);font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer;transition:all var(--t)}
+.routine-tile-reset:hover{border-color:var(--blue);color:var(--blue)}
+.routine-tile-reset-note{font-size:9.5px;color:var(--ink-48);margin-top:2px}
 .routine-tile-avatar{width:36px;height:36px;border-radius:50%;background:#1d1d1f;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;margin:0 auto 6px;overflow:hidden}
 .routine-tile-avatar img{width:100%;height:100%;object-fit:cover}
 .routine-tile-name{font-size:12px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -1174,7 +1181,9 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .routine-tile-task{font-size:11px;color:var(--ink-48);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:2px 0 6px}
 .routine-tile-status{font-size:20px;line-height:1}
 .routine-tile-week{font-size:10px;color:var(--ink-48);margin-top:4px}
-.routine-tile-week.warn{color:#ed4956;font-weight:600}
+.routine-tile-week.lv1{color:#c9931a;font-weight:600}
+.routine-tile-week.lv2{color:#e8781f;font-weight:600}
+.routine-tile-week.lv3{color:#ed4956;font-weight:700}
 .routine-list-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--hairline);border-radius:var(--radius-md);margin-bottom:8px}
 .routine-list-item-info{flex:1;min-width:0}
 .routine-list-item-subject{font-size:13px;font-weight:600;color:var(--ink)}
@@ -2397,6 +2406,8 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         </div>
         <div style="margin-left:auto;flex-shrink:0;display:flex;gap:8px">
           <div id="studycert-write-btn" style="display:none;gap:8px">
+            <!-- 이번 주 미인증 초기화 — 선생님/관리자에게만 보인다(renderStudyRoutineBoard에서 결정) -->
+            <button class="btn-ghost" id="routine-reset-all-btn" style="display:none" onclick="resetRoutineMisses()">↺ 미인증 초기화</button>
             <button class="btn-ghost" onclick="openRoutineModal()">⏰ 루틴 설정</button>
             <button class="btn-primary" onclick="openStudyCertWritePage()">+ 인증하기</button>
           </div>
@@ -4450,6 +4461,11 @@ function toggleTheme(){
 //    같은 값으로 맞춘다(그 값이 바뀌면 새 안내가 뜨는 구조라서, 빼먹으면 아무 안내도 안 뜬다).
 //    사용자가 읽을 문장으로 쓴다 — 파일명·함수명·RLS 같은 내부 용어는 넣지 않는다.
 const APP_UPDATES=[
+  {v:'2026-09-04-39', date:'2026년 9월 4일', title:'미인증이 쌓이면 색으로 알려줘요',
+   items:[
+     '공부 루틴 현황판에서 이번 주 미인증이 1회부터 노란색, 벌칙 기준의 절반을 넘기면 주황색, 기준에 닿으면 빨간색으로 표시돼요.',
+     '선생님·관리자는 "↺ 미인증 초기화"로 이번 주 미인증을 0으로 되돌릴 수 있어요(학생별로도 가능). 다음 주가 되면 자동으로 원래대로 돌아가요.',
+   ]},
   {v:'2026-08-28-38', date:'2026년 8월 28일', title:'내가 쓴 글과 댓글을 모아볼 수 있어요',
    items:[
      '마이페이지 > 내 활동에서 내가 쓴 글과 단 댓글을 한눈에 볼 수 있어요. 글/댓글만 골라 볼 수도 있고요.',
@@ -11169,6 +11185,29 @@ function clampPenaltyThreshold(n){
   if(!Number.isFinite(v))return 1;
   return Math.min(ROUTINE_THRESHOLD_MAX,Math.max(1,v));
 }
+// 미인증 경고 단계(0=없음, 1=노랑, 2=주황, 3=빨강).
+// 요청: "미인증이 1번 쌓이면 노란색, 50%를 넘기면 주황색, 초과하면 빨간색".
+// 여기서 100%는 그 루틴의 벌칙 기준(penalty_threshold)이다 — 기준에 닿으면 곧 벌칙이므로 빨강.
+function routineMissLevel(missCount,threshold){
+  if(missCount<=0)return 0;
+  if(missCount>=threshold)return 3;
+  return (missCount/threshold)>0.5?2:1;
+}
+
+// "이번 주 미인증 초기화" — 선생님/관리자 전용.
+// 미인증은 저장된 숫자가 아니라 매번 계산되는 값이라, 지우는 대신 **세기 시작하는 날**을
+// 오늘로 미룬다(DB의 reset_routine_misses 함수). 다음 주 월요일이 되면 저절로 원래대로 돌아간다.
+// routineId를 안 넘기면 활성 루틴 전체가 대상.
+async function resetRoutineMisses(routineId,name){
+  if(!isStaffRole()){toast('선생님/관리자만 초기화할 수 있어요');return}
+  const who=routineId?`${name||'이 학생'}님의`:'모든 학생의';
+  if(!confirm(`${who} 이번 주 미인증을 0으로 초기화할까요?\n다음 주가 되면 자동으로 원래대로 돌아가요.`))return;
+  const {data,error}=await sb.rpc('reset_routine_misses',{p_routine_id:routineId||null});
+  if(error){toast('초기화 실패: '+error.message);return}
+  toast(routineId?`${name||'해당 학생'}님의 이번 주 미인증을 초기화했어요`:`이번 주 미인증을 초기화했어요 (루틴 ${data ?? 0}개)`);
+  await renderStudyRoutineBoard();
+}
+
 // 상단 현황판 — 활성 루틴이 있는 학생들의 오늘 인증 여부 + 이번 주 미인증 횟수를 네모박스로
 // 보여준다. myRoutines 캐시도 여기서 함께 최신화한다(루틴 관리 모달/글쓰기 페이지의 연결 선택용).
 async function renderStudyRoutineBoard(){
@@ -11176,6 +11215,9 @@ async function renderStudyRoutineBoard(){
   if(!wrap)return;
   const {data:routines}=await sb.from('study_routines').select('*').eq('is_active',true);
   myRoutines=(routines||[]).filter(r=>r.student_id===currentStudentId);
+  const staff=isStaffRole();
+  const resetAllBtn=document.getElementById('routine-reset-all-btn');
+  if(resetAllBtn)resetAllBtn.style.display=staff&&(routines||[]).length?'':'none';
   if(!routines||!routines.length){wrap.innerHTML='<div style="text-align:center;padding:16px;color:var(--ink-48);font-size:12px">아직 설정된 공부 루틴이 없어요. "⏰ 루틴 설정"으로 먼저 만들어보세요!</div>';return}
   const profileMap=await loadProfileMap();
   const today=localDateStr();
@@ -11188,26 +11230,33 @@ async function renderStudyRoutineBoard(){
   const certDatesByRoutine={};
   (certs||[]).forEach(c=>{(certDatesByRoutine[c.routine_id]=certDatesByRoutine[c.routine_id]||new Set()).add(c.study_date)});
   // 오늘은 아직 안 끝난 하루라 "미인증"으로 안 세고, 오늘 이전(이미 다 지난 날)만 놓친 횟수로 센다.
-  const daysBeforeToday=Math.floor((new Date(today)-new Date(weekStart))/86400000);
   wrap.innerHTML=`<div class="routine-board">${routines.slice().sort((a,b)=>a.student_id.localeCompare(b.student_id)).map(r=>{
     const profile=profileMap[r.student_id];
     const name=profile?.display_name||r.student_id+'번';
     const allCertDates=certDatesByRoutine[r.id]||new Set();
-    const weekCertDates=new Set([...allCertDates].filter(d=>d>=weekStart));
     const doneToday=allCertDates.has(today);
-    const pastCertCount=[...weekCertDates].filter(d=>d!==today).length;
-    const missCount=Math.max(0,daysBeforeToday-pastCertCount);
-    const atRisk=missCount>=clampPenaltyThreshold(r.penalty_threshold);
+    // 선생님이 초기화를 눌렀으면 그 날부터만 센다. 이번 주 안의 날짜일 때만 유효해서,
+    // 지난주에 눌러둔 초기화는 새 주가 시작되면 저절로 무시된다.
+    const reset=(r.miss_reset_date&&r.miss_reset_date>weekStart&&r.miss_reset_date<=today)?r.miss_reset_date:null;
+    const countStart=reset||weekStart;
+    const daysBefore=Math.floor((new Date(today)-new Date(countStart))/86400000);
+    const pastCertCount=[...allCertDates].filter(d=>d>=countStart&&d<today).length;
+    const missCount=Math.max(0,daysBefore-pastCertCount);
+    const threshold=clampPenaltyThreshold(r.penalty_threshold);
+    const lv=routineMissLevel(missCount,threshold);
     const deadlineLabel=fmtDeadlineLabel(r.deadline_time,r.deadline_next_day);
     const streak=computeStudyStreak(allCertDates,today);
-    return`<div class="routine-tile${atRisk?' at-risk':''}" title="${escHtml(r.penalty_desc||'')}">
+    const resetBtn=staff?`<button class="routine-tile-reset" title="${escAttr(name)} 미인증 초기화" onclick="event.stopPropagation();resetRoutineMisses('${r.id}','${escAttr(name)}')">↺</button>`:'';
+    return`<div class="routine-tile${lv?' lv'+lv:''}" title="${escHtml(r.penalty_desc||'')}">
+      ${resetBtn}
       ${streak>0?`<div class="routine-tile-streak">🔥 ${streak}일 연속</div>`:''}
       <div class="routine-tile-avatar">${avatarHtmlFor(name,profile?.avatar_url)}</div>
       <div class="routine-tile-name">${escHtml(name)}</div>
       <div class="routine-tile-task">${escHtml(r.subject)} · ${escHtml(r.task)}</div>
       <div class="routine-tile-task">${deadlineLabel}</div>
       <div class="routine-tile-status">${doneToday?'✅':'❌'}</div>
-      <div class="routine-tile-week${atRisk?' warn':''}">이번주 미인증 ${missCount}/${clampPenaltyThreshold(r.penalty_threshold)}</div>
+      <div class="routine-tile-week${lv?' lv'+lv:''}">이번주 미인증 ${missCount}/${threshold}</div>
+      ${reset?'<div class="routine-tile-reset-note">↺ 초기화됨</div>':''}
     </div>`;
   }).join('')}</div>`;
 }

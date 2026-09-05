@@ -257,6 +257,26 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-09-05 (46차): **강의 진도를 순서 상관없이 번호로 체크** + **교재 탭을 문제집/강의로
+  분리**(요청: "강의도 3강 먼저 듣고 1강 들을 수 있잖아", "강의랑 교재는 따로 분리해줘").
+  `sw.js`의 `SW_BUILD`도 `2026-09-05-46`으로 올림.
+  - **DB 마이그레이션 `textbooks_lecture_done`**:
+    `alter table public.textbooks add column if not exists lecture_done jsonb not null default '[]'::jsonb;`
+    — 들은 강의 번호 배열을 그대로 저장한다(예: `[1,3,5]`). 기존 `done_lectures`(개수) 컬럼은
+    호환을 위해 계속 같이 갱신한다.
+  - `tbLectureDone(t)`가 옛 데이터를 변환한다: `lecture_done`이 비어 있으면 `done_lectures`
+    개수만큼 1..n을 채운 Set을 돌려준다. 그래서 예전 교재도 그대로 열리고, 저장하는 순간
+    새 형식으로 바뀐다. `tbDone()`의 강의 분기는 이 Set의 크기를 쓴다.
+  - 강의 업데이트 화면이 숫자 버튼 격자(`.tb-lec-grid` / `.tb-lec-btn.on`)로 바뀌었다.
+    `toggleTextbookLecture()`로 한 개씩 켜고 끄고, `fillTextbookLecturesUpTo()`("1 ~ n강까지
+    체크")와 `clearTextbookLectures()`("전체 해제")로 한 번에 처리한다. 선택 상태는
+    `tbLecSet`에 들고 있다가 `collectTextbookProgress()`에서
+    `{lecture_done:[...], done_lectures:길이}`로 보낸다.
+  - `loadTextbookBoard()`가 `mode`로 갈라 **📕 문제집 / 🎬 강의** 두 구역으로 렌더한다
+    (구역 제목 옆에 개수 뱃지). 카드 렌더는 `tbCardHtml(t)`로 빼서 두 구역이 같이 쓴다.
+    강의 쪽은 화면 제목·수정 버튼·등록 제목도 "강의 …"로 바뀐다(`setTextbookMode()`).
+  - 검증: 옛 데이터 변환(4/10=40%), 순서 무관 체크(1·3만 켜서 17%), 토글 해제, 일괄 체크
+    (1~8 → 67%), 저장 payload(`lecture_done:[1..8]`), 문제집 모드 영향 없음까지 확인.
 - 2026-09-04 (45차): **교재 표지를 붙여넣기·끌어다 놓기로도 넣을 수 있게**(요청: "교재 사진
   넣을 때 붙여넣기는 안 되나?"). `sw.js`의 `SW_BUILD`도 `2026-09-04-45`로 올림. DB 변경 없음.
   - 파일 고르기/붙여넣기/끌어다 놓기가 전부 `useTextbookCoverFile()` 하나로 모인다

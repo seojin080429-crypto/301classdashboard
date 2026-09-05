@@ -1107,6 +1107,15 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .tb-cover-preview{width:96px;margin-top:8px;aspect-ratio:3/4;border-radius:8px;border:1px solid var(--hairline);overflow:hidden;background:var(--parchment);display:none}
 .tb-cover-preview.has{display:block}
 .tb-cover-preview img{width:100%;height:100%;object-fit:cover;display:block}
+/* 강의 번호 격자 — 들은 강의를 눌러서 체크 */
+.tb-lec-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:6px;margin-top:10px;max-height:280px;overflow-y:auto;padding:2px}
+.tb-lec-btn{aspect-ratio:1;border:1px solid var(--hairline);border-radius:8px;background:var(--canvas);color:var(--ink-48);font-size:13px;font-weight:600;padding:0;cursor:pointer;transition:all .12s ease;font-variant-numeric:tabular-nums}
+.tb-lec-btn:hover{border-color:#2ecc71;color:#1a9c53}
+.tb-lec-btn.on{background:#2ecc71;border-color:#2ecc71;color:#fff}
+/* 교재 격자 안의 구분(문제집 / 강의) */
+.tb-section-title{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--ink-80);margin:18px 2px 10px}
+.tb-section-title:first-child{margin-top:2px}
+.tb-section-count{font-size:11px;font-weight:600;color:var(--ink-48);background:var(--parchment);border:1px solid var(--hairline);border-radius:var(--radius-pill);padding:1px 8px}
 /* 업데이트 화면 — 챕터별 진도 입력 줄 */
 .tb-prog-row{display:grid;grid-template-columns:1fr 92px auto 30px;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--hairline)}
 .tb-prog-row:last-child{border-bottom:none}
@@ -2801,7 +2810,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
     <!-- 교재 진도 업데이트 -->
     <div class="page" id="page-textbook-update">
       <span class="section-hd-link" onclick="closeTextbookPages()">← 교재로</span>
-      <div class="page-title" style="margin-top:10px">교재 업데이트</div>
+      <div class="page-title" style="margin-top:10px" id="tb-update-page-title">교재 업데이트</div>
       <div class="page-sub" id="tb-update-sub">어디까지 했는지 적으면 진행률이 올라가요</div>
       <div class="card spacer">
         <div class="tb-detail-head">
@@ -4668,6 +4677,12 @@ function toggleTheme(){
 //    같은 값으로 맞춘다(그 값이 바뀌면 새 안내가 뜨는 구조라서, 빼먹으면 아무 안내도 안 뜬다).
 //    사용자가 읽을 문장으로 쓴다 — 파일명·함수명·RLS 같은 내부 용어는 넣지 않는다.
 const APP_UPDATES=[
+  {v:'2026-09-05-46', date:'2026년 9월 5일', title:'강의는 들은 순서대로 체크, 강의와 문제집은 따로 보여요',
+   items:[
+     '강의를 순서대로 듣지 않아도 돼요. 3강 먼저 듣고 1강을 들었으면 3번과 1번만 눌러 두면 그대로 기록돼요.',
+     '"1 ~ 8강까지 체크"처럼 한 번에 채우는 칸도 있고, 전체 해제도 한 번이면 돼요.',
+     '교재 탭이 📕 문제집과 🎬 강의로 나뉘어서 찾기 쉬워졌어요.',
+   ]},
   {v:'2026-09-04-45', date:'2026년 9월 4일', title:'교재 표지를 붙여넣기로 넣을 수 있어요',
    items:[
      '복사한 이미지를 교재 등록 화면에서 Ctrl+V로 바로 붙여넣으면 표지가 돼요.',
@@ -11534,6 +11549,7 @@ let tbProfileMap={};              // 학번 → 프로필(이름) — 교재 탭
 let tbEditingId=null;             // 등록/수정 화면에서 수정 중인 교재 id
 let tbOpenId=null;                // 업데이트 화면에서 보고 있는 교재 id
 let tbMode='problem', tbSplit=true;
+let tbLecSet=new Set();           // 업데이트 화면에서 체크한 강의 번호들
 let tbCoverFile=null, tbCoverPreviewUrl=null, tbCoverExisting=null;
 const TB_COVER_MAX_BYTES=5*1024*1024;
 
@@ -11559,10 +11575,24 @@ function tbChapterProgress(t){
     return Math.min(Math.max(0,parseInt(arr[i],10)||0),max);
   });
 }
+// 들은 강의 번호 집합 — 순서대로 안 듣는 학생이 있어서(3강 먼저, 1강 나중) 번호로 관리한다.
+// 예전 방식(몇 강까지 들었나)으로 저장된 교재는 1..n을 들은 것으로 환산해준다.
+function tbLectureDone(t){
+  const total=tbTotal(t);
+  const arr=Array.isArray(t&&t.lecture_done)?t.lecture_done:[];
+  const set=new Set();
+  if(arr.length){
+    arr.forEach(v=>{const n=parseInt(v,10);if(n>=1&&n<=total)set.add(n)});
+  }else{
+    const n=Math.min(Math.max(0,parseInt(t&&t.done_lectures,10)||0),total);
+    for(let i=1;i<=n;i++)set.add(i);
+  }
+  return set;
+}
 function tbDone(t){
   if(!t)return 0;
   const total=tbTotal(t);
-  if(t.mode==='lecture')return Math.min(Math.max(0,parseInt(t.done_lectures,10)||0),total);
+  if(t.mode==='lecture')return Math.min(tbLectureDone(t).size,total);
   if(t.split_chapters)return Math.min(tbChapterProgress(t).reduce((a,n)=>a+n,0),total);
   return Math.min(Math.max(0,parseInt(t.done_questions,10)||0),total);
 }
@@ -11581,10 +11611,17 @@ async function loadTextbookBoard(){
   textbooks=data||[];
   tbProfileMap=profileMap||{};
   if(!textbooks.length){
-    wrap.innerHTML='<div class="tb-empty">아직 등록된 교재가 없어요.<br>오른쪽 위 <b>+ 교재 등록</b>으로 내 문제집을 올려보세요!</div>';
+    wrap.innerHTML='<div class="tb-empty">아직 등록된 교재가 없어요.<br>오른쪽 위 <b>+ 교재 등록</b>으로 내 문제집이나 인강을 올려보세요!</div>';
     return;
   }
-  wrap.innerHTML=`<div class="tb-grid">${textbooks.map(t=>{
+  // 문제집과 강의는 성격이 달라서 따로 묶어서 보여준다(요청: "강의랑 교재는 따로 분리").
+  const books=textbooks.filter(t=>t.mode!=='lecture');
+  const lectures=textbooks.filter(t=>t.mode==='lecture');
+  const section=(label,list)=>list.length?`
+    <div class="tb-section-title">${label}<span class="tb-section-count">${list.length}</span></div>
+    <div class="tb-grid">${list.map(tbCardHtml).join('')}</div>`:'';
+  wrap.innerHTML=section('📕 문제집',books)+section('🎬 강의',lectures);
+  function tbCardHtml(t){
     const profile=profileMap[t.student_id];
     const name=profile?.display_name||t.student_id+'번';
     const pct=tbPercent(t);
@@ -11599,15 +11636,19 @@ async function loadTextbookBoard(){
         <span class="tb-pct${pct>=100?' done':''}">${pct}%</span>
       </div>
       <div class="tb-name">${escHtml(t.title)}</div>
-      <div class="tb-meta">${escHtml(name)}${mine?'<span class="tb-mine-badge">내 교재</span>':''}</div>
+      <div class="tb-meta">${escHtml(name)}${mine?'<span class="tb-mine-badge">내 것</span>':''}</div>
       <div class="tb-meta">${tbDone(t)} / ${tbTotal(t)}${tbUnit(t)}</div>
     </div>`;
-  }).join('')}</div>`;
+  }
 }
 
 // ── 등록/수정 화면 ──
 function setTextbookMode(mode){
   tbMode=mode;
+  const t=document.getElementById('tb-edit-title');
+  if(t&&!tbEditingId)t.textContent=mode==='lecture'?'강의 등록':'교재 등록';
+  const btn=document.getElementById('tb-save-btn');
+  if(btn&&!tbEditingId)btn.textContent='등록';
   document.getElementById('tb-mode-lecture').classList.toggle('active',mode==='lecture');
   document.getElementById('tb-mode-problem').classList.toggle('active',mode==='problem');
   document.getElementById('tb-lecture-field').style.display=mode==='lecture'?'block':'none';
@@ -11838,6 +11879,11 @@ function openTextbook(id){
       ?`<img src="${t.cover_url}" alt="표지">`
       :`<div class="tb-cover-text">${escHtml(t.title)}</div>`)
     +`<div class="tb-gauge" style="height:${pct}%"></div>`;
+  const isLec=t.mode==='lecture';
+  const pageTitle=document.getElementById('tb-update-page-title');
+  if(pageTitle)pageTitle.textContent=isLec?'강의 업데이트':'교재 업데이트';
+  const editBtn=document.getElementById('tb-update-edit-btn');
+  if(editBtn)editBtn.textContent=isLec?'강의 정보 수정':'교재 정보 수정';
   document.getElementById('tb-update-title').textContent=t.title;
   const owner=tbProfileMap[t.student_id]?.display_name||boardProfileMap[t.student_id]?.display_name||t.student_id+'번';
   document.getElementById('tb-update-meta').textContent=
@@ -11846,8 +11892,8 @@ function openTextbook(id){
   document.getElementById('tb-update-bar').style.width=pct+'%';
   document.getElementById('tb-update-count').textContent=`${tbDone(t)} / ${tbTotal(t)}${tbUnit(t)} 완료`;
   document.getElementById('tb-update-sub').textContent=mine
-    ?'어디까지 했는지 적으면 진행률이 올라가요'
-    :`${owner}님의 교재예요 (진행 상황만 볼 수 있어요)`;
+    ?(isLec?'들은 강의를 체크하면 진행률이 올라가요':'어디까지 했는지 적으면 진행률이 올라가요')
+    :`${owner}님의 ${isLec?'강의':'교재'}예요 (진행 상황만 볼 수 있어요)`;
   document.getElementById('tb-update-inputs').innerHTML=mine?textbookUpdateInputsHtml(t):'';
   document.getElementById('tb-update-error').style.display='none';
   document.getElementById('tb-update-save-btn').style.display=mine?'':'none';
@@ -11858,10 +11904,19 @@ function openTextbook(id){
 }
 function textbookUpdateInputsHtml(t){
   if(t.mode==='lecture'){
+    // 강의도 순서대로 듣지 않는 경우가 많아서(3강 먼저, 1강 나중) 번호를 눌러 체크한다.
+    tbLecSet=tbLectureDone(t);
     return`<div class="modal-field">
-      <label class="modal-label">몇 강까지 들었나요?</label>
-      <input class="modal-input" type="number" min="0" max="${tbTotal(t)}" id="tb-in-lectures" value="${parseInt(t.done_lectures,10)||0}" style="max-width:140px" oninput="previewTextbookProgress()">
-      <div class="tb-detail-sub">총 ${tbTotal(t)}강</div>
+      <label class="modal-label">들은 강의를 눌러주세요</label>
+      <div class="tb-detail-sub" style="margin-bottom:8px">순서와 상관없이 들은 것만 누르면 돼요. 앞에서부터 쭉 들었으면 아래로 한 번에 체크할 수 있어요.</div>
+      <div class="tb-bulk-row">
+        <span class="tb-bulk-label">1 ~</span>
+        <input class="modal-input tb-bulk-input" type="number" min="1" max="${tbTotal(t)}" id="tb-lec-upto" placeholder="10">
+        <span class="tb-bulk-label">강까지</span>
+        <button class="tb-bulk-btn" onclick="fillTextbookLecturesUpTo()">체크</button>
+        <button class="tb-bulk-btn" onclick="clearTextbookLectures()">전체 해제</button>
+      </div>
+      <div class="tb-lec-grid" id="tb-lec-grid">${textbookLectureGridHtml(tbTotal(t))}</div>
     </div>`;
   }
   if(!t.split_chapters){
@@ -11890,7 +11945,11 @@ function textbookUpdateInputsHtml(t){
 // 입력하는 즉시 위쪽 퍼센트/게이지에 반영해서 얼마나 오르는지 바로 보이게 한다.
 function collectTextbookProgress(t){
   const out={};
-  if(t.mode==='lecture')out.done_lectures=Math.max(0,parseInt(document.getElementById('tb-in-lectures')?.value,10)||0);
+  if(t.mode==='lecture'){
+    const list=[...tbLecSet].sort((a,b)=>a-b);
+    out.lecture_done=list;
+    out.done_lectures=list.length; // 옛 화면/기록과 어긋나지 않게 개수도 같이 맞춰둔다
+  }
   else if(!t.split_chapters)out.done_questions=Math.max(0,parseInt(document.getElementById('tb-in-questions')?.value,10)||0);
   else{
     const ch=t.chapters||[];
@@ -11907,6 +11966,41 @@ function collectTextbookProgress(t){
     out.done_questions=doneN<ch.length?arr[doneN]:0;
   }
   return out;
+}
+// 강의 번호 격자 — 들은 강의는 초록으로 채워진다.
+function textbookLectureGridHtml(total){
+  let out='';
+  for(let i=1;i<=total;i++){
+    out+=`<button type="button" class="tb-lec-btn${tbLecSet.has(i)?' on':''}" data-n="${i}" onclick="toggleTextbookLecture(${i})">${i}</button>`;
+  }
+  return out;
+}
+function refreshTextbookLectureGrid(){
+  document.querySelectorAll('#tb-lec-grid .tb-lec-btn').forEach(b=>{
+    b.classList.toggle('on',tbLecSet.has(parseInt(b.dataset.n,10)));
+  });
+  previewTextbookProgress();
+}
+function toggleTextbookLecture(n){
+  if(tbLecSet.has(n))tbLecSet.delete(n);else tbLecSet.add(n);
+  refreshTextbookLectureGrid();
+}
+// 앞에서부터 쭉 들은 사람을 위해 1~n강을 한 번에 체크(이미 체크한 뒷 강의는 그대로 둔다).
+function fillTextbookLecturesUpTo(){
+  const t=textbooks.find(x=>x.id===tbOpenId);
+  if(!t)return;
+  const upto=parseInt(document.getElementById('tb-lec-upto').value,10)||0;
+  if(upto<1){toast('몇 강까지 들었는지 적어주세요');return}
+  const total=tbTotal(t);
+  for(let i=1;i<=Math.min(upto,total);i++)tbLecSet.add(i);
+  refreshTextbookLectureGrid();
+  toast(`1~${Math.min(upto,total)}강을 체크했어요`);
+}
+function clearTextbookLectures(){
+  if(!tbLecSet.size)return;
+  if(!confirm('체크한 강의를 전부 해제할까요?'))return;
+  tbLecSet=new Set();
+  refreshTextbookLectureGrid();
 }
 // "다 풀었어요" ✓ — 그 챕터 칸을 문제 수로 채운다.
 function fillTextbookChapter(i,count){

@@ -4765,6 +4765,11 @@ function toggleTheme(){
 //    같은 값으로 맞춘다(그 값이 바뀌면 새 안내가 뜨는 구조라서, 빼먹으면 아무 안내도 안 뜬다).
 //    사용자가 읽을 문장으로 쓴다 — 파일명·함수명·RLS 같은 내부 용어는 넣지 않는다.
 const APP_UPDATES=[
+  {v:'2026-09-05-51', date:'2026년 9월 5일', title:'같은 사람과 채팅방이 여러 개 생기던 문제를 고쳤어요',
+   items:[
+     '한 사람과 대화방이 여러 개 열리던 문제를 고쳤어요. 이제 "새 대화"를 몇 번 눌러도 원래 쓰던 방으로 들어가요.',
+     '이미 갈라져 있던 방들은 하나로 합쳤어요. 주고받은 메시지는 그대로 남아 있어요.',
+   ]},
   {v:'2026-09-05-50', date:'2026년 9월 5일', title:'단톡방 이름 바꾸기, 마이페이지 정리',
    items:[
      '단톡방 이름을 바꿀 수 있어요. 채팅방에서 위쪽 이름을 누르면 나오는 정보 창에서 "✏️ 단톡방 이름 바꾸기"를 누르세요. 참여자면 누구나 바꿀 수 있고, 비우면 참여자 이름으로 되돌아가요.',
@@ -9521,23 +9526,43 @@ async function createDmRoom(){
   const participantIds=Array.from(dmSelectedParticipants);
   const isGroup=participantIds.length>1;
   if(!isGroup){
-    const existing=dmRooms.find(r=>!r.is_group&&r.participants.some(p=>p.student_id===participantIds[0]));
-    if(existing){closeNewDmModal();openDmThread(existing.id);return}
+    // 1:1 방은 서버에서 찾거나 만든다.
+    // 예전엔 여기서 dmRooms(내 브라우저에 들고 있는 목록)만 뒤져서 중복을 막았는데,
+    // 목록이 오래됐거나 · 상대가 다른 기기에서 먼저 만들었거나 · 둘이 동시에 눌렀을 때
+    // 그대로 뚫려서 같은 사람과의 방이 여러 개 생겼다. get_or_create_dm_room()은 참가자
+    // 조합으로 실제 방을 찾고, 같은 쌍에 대한 동시 호출은 잠금으로 막는다.
+    const {data:roomId,error}=await sb.rpc('get_or_create_dm_room',{p_other:participantIds[0]});
+    if(error){errEl.textContent='대화방 열기 실패: '+error.message;errEl.style.display='block';return}
+    closeNewDmModal();
+    // 이미 있던 방을 찾아온 경우 메시지도 참가자도 그대로라 변경 감지 지문이 안 바뀐다.
+    // 그러면 목록을 다시 안 그려서 방금 연 방이 목록에 없을 수 있다 — 지문을 비워 강제로 그린다.
+    dmRoomsFingerprint='';
+    await loadDmRooms();
+    openDmThread(roomId);
+    return;
   }
-  const groupName=isGroup?(document.getElementById('dm-group-name-input').value.trim()||null):null;
+  const groupName=document.getElementById('dm-group-name-input').value.trim()||null;
   // dm_rooms의 SELECT RLS("참가자만 조회")는 dm_participants에 내 행이 있어야 통과하는데,
   // 방을 막 만든 시점엔 아직 참가자 행이 하나도 없다 — .insert().select()로 새로 만든 행을
   // 돌려받으려 하면(RETURNING과 동일) Postgres가 SELECT 정책까지 같이 통과해야 한다고 보고
   // "new row violates row-level security policy"로 막아버린다(INSERT 자체는 허용했는데도).
   // id를 클라이언트에서 미리 만들어 두고 결과를 안 돌려받는 방식으로 이 순서 문제를 피한다.
   const roomId=crypto.randomUUID();
-  const {error}=await sb.from('dm_rooms').insert({id:roomId,is_group:isGroup,name:groupName,created_by:currentStudentId});
+  const {error}=await sb.from('dm_rooms').insert({id:roomId,is_group:true,name:groupName,created_by:currentStudentId});
   if(error){errEl.textContent='대화방 생성 실패: '+error.message;errEl.style.display='block';return}
   const rows=[{room_id:roomId,student_id:currentStudentId,user_id:currentUser.id}];
+  const missing=[];
   participantIds.forEach(sid=>{
     const u=(dmRosterCache||[]).find(r=>r.student_id===sid);
-    if(u)rows.push({room_id:roomId,student_id:sid,user_id:u.user_id});
+    // 예전엔 명단에서 못 찾은 사람을 조용히 건너뛰어서, 초대한 줄 알았는데 빠진 단톡방이
+    // 만들어질 수 있었다. 이제는 만들지 않고 알려준다.
+    u?rows.push({room_id:roomId,student_id:sid,user_id:u.user_id}):missing.push(sid);
   });
+  if(missing.length){
+    await sb.from('dm_rooms').delete().eq('id',roomId);
+    errEl.textContent=`계정을 찾지 못한 사람이 있어요 (${missing.join(', ')}번). 새로고침 후 다시 시도해주세요.`;
+    errEl.style.display='block';return;
+  }
   const {error:pErr}=await sb.from('dm_participants').insert(rows);
   if(pErr){errEl.textContent='참가자 추가 실패: '+pErr.message;errEl.style.display='block';return}
   closeNewDmModal();

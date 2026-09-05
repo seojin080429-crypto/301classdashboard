@@ -257,6 +257,20 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-09-05 (53차): **DM 메시지를 꾹 누를 때 글씨가 파랗게 선택되던 것 해결**(제보: "모바일에서
+  꾹 누르면 글씨가 파란색으로 선택되네"). `SW_BUILD`도 `2026-09-05-53`으로 올림. DB 변경 없음.
+  - `.dm-msg-row`에 `-webkit-touch-callout:none`만 있고 `user-select`가 없어서, 길게 누르면
+    브라우저 기본 텍스트 선택(파란 하이라이트 + 확대경)이 그대로 떴다.
+  - 꾹 누르기 메뉴가 붙는 건 **내 메시지뿐**이라 `.dm-msg-row.mine`에만
+    `user-select:none`을 준다. 남이 보낸 메시지는 그대로 드래그 복사가 된다.
+  - 내 메시지도 복사는 할 수 있어야 하므로 메뉴에 **📋 복사**를 추가(`copyDmMessage()` —
+    `navigator.clipboard.writeText`, 막힌 브라우저용 `execCommand` 예비 수단).
+  - 수정 중에는 입력칸 안에서 선택이 돼야 해서 `.dm-msg-row.mine .inline-edit-textarea`는
+    `user-select:text`로 되돌린다.
+  - 메뉴 위치 보정이 `menuH=msg.content?86:44`처럼 손으로 계산한 높이를 쓰고 있었다 —
+    항목이 늘면 어긋나므로 `getBoundingClientRect()`로 실제 크기를 재서 보정하게 바꿨다.
+  - 검증: 내 메시지 `user-select:none` / 남의 메시지 `auto`, 메뉴 3항목, 화면 오른쪽 아래
+    구석에서도 안 잘림, 사진 메시지는 삭제만, 복사 동작과 토스트, 수정 중 입력칸은 선택 가능.
 - 2026-09-05 (52차): **구간을 줄여도 공부 시간이 안 줄어들던 버그 수정**(제보 + 스크린샷:
   구간은 6:40~8:15인데 표시는 2:05:04). `SW_BUILD`도 `2026-09-05-52`로 올림.
   - **원인**: `loadTodaySessions()`의 `task.seconds=Math.max(task.seconds,dbSec)`.

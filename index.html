@@ -1802,7 +1802,13 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .dm-msg-menu button{display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:13px;color:var(--ink);background:none;border:none;text-align:left;cursor:pointer;white-space:nowrap}
 .dm-msg-menu button:hover{background:var(--parchment)}
 .dm-msg-menu button.danger{color:#c00}
+/* 꾹 누르기(수정·삭제 메뉴)가 붙어 있는 건 내 메시지뿐이라, 글자 선택도 거기서만 막는다.
+   이걸 안 막으면 모바일에서 꾹 누를 때 글씨가 파랗게 선택되면서 확대경까지 뜬다.
+   남이 보낸 메시지는 그대로 선택·복사할 수 있게 두고, 내 메시지는 메뉴의 "복사"로 복사한다. */
 .dm-msg-row{-webkit-touch-callout:none}
+.dm-msg-row.mine{-webkit-user-select:none;user-select:none}
+/* 수정 중일 때는 입력칸 안에서 다시 선택할 수 있어야 한다 */
+.dm-msg-row.mine .inline-edit-textarea{-webkit-user-select:text;user-select:text}
 
 /* 알림센터 (종모양 버튼 + 드롭다운) */
 .notif-badge{position:absolute;top:-2px;right:-2px;min-width:15px;height:15px;padding:0 3px;border-radius:8px;background:#e2205b;color:#fff;font-size:9px;font-weight:700;display:none;align-items:center;justify-content:center;line-height:1;box-shadow:0 0 0 2px var(--canvas)}
@@ -4765,6 +4771,11 @@ function toggleTheme(){
 //    같은 값으로 맞춘다(그 값이 바뀌면 새 안내가 뜨는 구조라서, 빼먹으면 아무 안내도 안 뜬다).
 //    사용자가 읽을 문장으로 쓴다 — 파일명·함수명·RLS 같은 내부 용어는 넣지 않는다.
 const APP_UPDATES=[
+  {v:'2026-09-05-53', date:'2026년 9월 5일', title:'DM 꾹 누를 때 글씨가 파랗게 선택되지 않아요',
+   items:[
+     '내 메시지를 꾹 눌러 수정·삭제 메뉴를 열 때 글씨가 파랗게 선택되던 걸 없앴어요.',
+     '대신 메뉴에 "📋 복사"가 생겼어요. 상대가 보낸 메시지는 예전처럼 드래그해서 복사할 수 있어요.',
+   ]},
   {v:'2026-09-05-52', date:'2026년 9월 5일', title:'공부 시간을 줄여도 안 줄어들던 문제를 고쳤어요',
    items:[
      '"공부 시간 수정"에서 구간을 줄이거나 지워도 과목/할 일의 시간이 그대로였던 문제를 고쳤어요. 이제 고친 대로 바로 반영돼요.',
@@ -9151,13 +9162,16 @@ function showDmMsgMenu(event,id,touchX,touchY){
   dmMsgMenuTargetId=id;
   const x=event?event.clientX:touchX, y=event?event.clientY:touchY;
   const menu=document.getElementById('dm-msg-menu');
-  menu.innerHTML=(msg.content?`<button onclick="dmMsgMenuAction('edit')">✏️ 수정</button>`:'')
+  menu.innerHTML=(msg.content?`<button onclick="dmMsgMenuAction('copy')">📋 복사</button>`
+                              +`<button onclick="dmMsgMenuAction('edit')">✏️ 수정</button>`:'')
     +`<button class="danger" onclick="dmMsgMenuAction('delete')">🗑 삭제</button>`;
   menu.style.display='flex';
-  // 메뉴가 화면 밖으로 나가지 않도록 위치 보정
-  const menuW=130,menuH=msg.content?86:44;
-  menu.style.left=`${Math.max(8,Math.min(x,window.innerWidth-menuW-8))}px`;
-  menu.style.top=`${Math.max(8,Math.min(y,window.innerHeight-menuH-8))}px`;
+  // 메뉴가 화면 밖으로 나가지 않도록 위치 보정.
+  // 높이를 손으로 계산하면 항목이 늘 때마다 어긋나므로 그려진 크기를 그대로 잰다.
+  menu.style.left='0px';menu.style.top='0px';
+  const box=menu.getBoundingClientRect();
+  menu.style.left=`${Math.max(8,Math.min(x,window.innerWidth-box.width-8))}px`;
+  menu.style.top=`${Math.max(8,Math.min(y,window.innerHeight-box.height-8))}px`;
 }
 function closeDmMsgMenu(){
   const menu=document.getElementById('dm-msg-menu');
@@ -9176,6 +9190,24 @@ function dmMsgMenuAction(action){
   if(!id)return;
   if(action==='delete')deleteDmMessage(id);
   else if(action==='edit')startEditDmMessage(id);
+  else if(action==='copy')copyDmMessage(id);
+}
+// 내 메시지는 글자 선택을 막아놨으므로(꾹 누를 때 파랗게 선택되는 걸 없애려고) 복사는 여기서.
+async function copyDmMessage(id){
+  const msg=dmCurrentMessages.find(m=>m.id===id);
+  if(!msg||!msg.content)return;
+  try{
+    await navigator.clipboard.writeText(msg.content);
+    toast('복사했어요 ✓');
+  }catch(e){
+    // clipboard API가 막힌 브라우저용 예비 수단
+    const ta=document.createElement('textarea');
+    ta.value=msg.content;ta.style.position='fixed';ta.style.opacity='0';
+    document.body.appendChild(ta);ta.select();
+    const ok=document.execCommand&&document.execCommand('copy');
+    ta.remove();
+    toast(ok?'복사했어요 ✓':'복사하지 못했어요');
+  }
 }
 
 function startEditDmMessage(id){

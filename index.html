@@ -4765,6 +4765,11 @@ function toggleTheme(){
 //    같은 값으로 맞춘다(그 값이 바뀌면 새 안내가 뜨는 구조라서, 빼먹으면 아무 안내도 안 뜬다).
 //    사용자가 읽을 문장으로 쓴다 — 파일명·함수명·RLS 같은 내부 용어는 넣지 않는다.
 const APP_UPDATES=[
+  {v:'2026-09-05-52', date:'2026년 9월 5일', title:'공부 시간을 줄여도 안 줄어들던 문제를 고쳤어요',
+   items:[
+     '"공부 시간 수정"에서 구간을 줄이거나 지워도 과목/할 일의 시간이 그대로였던 문제를 고쳤어요. 이제 고친 대로 바로 반영돼요.',
+     '타이머를 켜 둔 채로 지난 구간을 고쳐도 제대로 계산돼요.',
+   ]},
   {v:'2026-09-05-51', date:'2026년 9월 5일', title:'같은 사람과 채팅방이 여러 개 생기던 문제를 고쳤어요',
    items:[
      '한 사람과 대화방이 여러 개 열리던 문제를 고쳤어요. 이제 "새 대화"를 몇 번 눌러도 원래 쓰던 방으로 들어가요.',
@@ -6301,11 +6306,21 @@ async function loadTodaySessions(){
     const key=`${s.subject}::${s.task_name}`;
     taskTotals[key]=(taskTotals[key]||0)+s.duration_seconds;
   });
-  // subjects에 반영 (메모리 값이 DB보다 크면 메모리 우선)
-  subjects.forEach(sub=>{
-    sub.tasks.forEach(task=>{
+  // subjects에 반영.
+  // 예전엔 모든 태스크에 `Math.max(task.seconds, dbSec)`를 걸었다. 진행 중인 타이머가 아직
+  // DB에 안 써진 시간을 화면에서 잃지 않게 하려던 것인데, **구간을 줄이거나 지워도 화면
+  // 숫자가 절대 안 내려가는** 버그가 됐다(제보: 구간은 6:40~8:15인데 표시는 2:05:04).
+  // 그래서 메모리 우선은 "지금 타이머가 도는 그 태스크"에만 적용한다.
+  subjects.forEach((sub,si)=>{
+    sub.tasks.forEach((task,ti)=>{
       const key=`${sub.name}::${task.name}`;
       const dbSec=taskTotals[key]||0;
+      const running=!!activeTimer&&activeTimer.subjectIdx===si&&activeTimer.taskIdx===ti;
+      if(!running){task.seconds=dbSec;return}
+      // 진행 중인 구간은 DB에 0으로 들어가 있으므로, 나머지 구간 합을 "이전까지 누적"으로 다시
+      // 잡아둔다 — 이래야 타이머를 켠 채로 지난 구간을 고쳐도 다음 tick에 반영된다.
+      const runningRow=todaySessions.find(x=>x.id===activeTimer.sessionId);
+      activeTimer.prevSeconds=dbSec-((runningRow&&runningRow.duration_seconds)||0);
       task.seconds=Math.max(task.seconds,dbSec);
     });
   });
@@ -6611,12 +6626,16 @@ async function saveRecordRow(id,btnEl){
   if(id==='new'){
     const {error}=await sb.from('study_sessions').insert({
       user_id:currentUser.id,student_id:currentStudentId,subject:sub.name,task_name:task.name,
-      duration_seconds:durationSec,started_at:start.toISOString(),ended_at:end.toISOString(),date:today
+      duration_seconds:durationSec,started_at:start.toISOString(),ended_at:end.toISOString(),
+      accumulated_seconds:durationSec,start_timestamp:null,date:today
     });
     if(error){toast('추가 실패: '+error.message);return}
   }else{
     const {error}=await sb.from('study_sessions').update({
-      started_at:start.toISOString(),ended_at:end.toISOString(),duration_seconds:durationSec
+      started_at:start.toISOString(),ended_at:end.toISOString(),duration_seconds:durationSec,
+      // accumulated_seconds를 안 맞추면 옛 값이 그대로 남는다. 그 행이 나중에 이어받기
+      // 대상이 되면 그 옛 값이 기록 시간으로 다시 쓰여서 없던 시간이 살아난다.
+      accumulated_seconds:durationSec,start_timestamp:null
     }).eq('id',id);
     if(error){toast('수정 실패: '+error.message);return}
   }

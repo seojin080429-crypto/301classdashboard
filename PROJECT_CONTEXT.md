@@ -257,6 +257,31 @@
 - 별도의 패키지 매니저/빌드 도구 없음 (node_modules, package.json 없음)
 
 ## 최근 변경사항 (최신순)
+- 2026-09-05 (48차): **투표 선택지 10개 + 복수 선택 투표**(요청: "투표 선택지 10개까지로
+  늘려주고, 투표를 여러 개 할 수 있도록"). `sw.js`의 `SW_BUILD`도 `2026-09-05-48`로 올림.
+  - **DB 마이그레이션 `poll_multi_select`**. 표를 선택지마다 한 행씩 쪼개면 "1인 1행"
+    unique/PK를 버려야 해서 동시 클릭 때 중복 표가 생길 수 있다. 그래서 **행은 한 사람당
+    하나로 두고 고른 선택지를 배열로 담는 방식**을 골랐다 — upsert의 onConflict가 그대로라
+    경합이 없다.
+    - `notice_polls.allow_multi`, `post_polls.allow_multi` (boolean, 기본 false)
+    - `notice_poll_votes.option_indexes`, `post_poll_votes.option_indexes` (int[], 기본 '{}')
+    - 기존 74표(공지 33 + 게시글 41)를 `array[option_index]`로 옮겼다. `option_index`는
+      첫 번째 선택지로 계속 채워서 옛 코드/옛 화면과 호환된다.
+    - `post_poll_results()`는 배열을 `unnest`해서 센다(배열이 빈 옛 행은 `option_index`로).
+    - `post_poll_voters()` 신설 — 복수 선택이면 표 수 합계 != 사람 수라서 참여 인원을 따로
+      센다. 비밀 투표라 `post_poll_votes`는 "내 표"만 select되므로 security definer로만 준다.
+  - 프론트: `POLL_OPTION_MAX=10`(8 → 10), `voteIndexes(v)`가 옛 표(`option_index`만 있는
+    행)를 배열로 환산하고, `toggleIndex()`가 켜고 끈 목록을 돌려준다.
+  - 복수 선택 UX: 선택지에 ☐/☑가 붙고, **투표한 뒤에도 결과 줄을 눌러 추가·해제**할 수 있다
+    (`.poll-result-toggle`). 마지막 하나까지 해제하면 표 자체가 지워진다(참여 취소와 동일).
+    퍼센트 분모는 표 수 합계가 아니라 **참여 인원**이라 합이 100%를 넘을 수 있다.
+  - 작성 폼(공지·자유게시판) 양쪽에 "복수 선택 허용" 체크박스를 넣었다.
+  - 테스트 스텁(`sb-stub.js`)도 손봤다: upsert가 `__rows`에 실제로 반영되고, delete가
+    행을 지우며, `__rpcResults`로 RPC 결과를 흉내내고, `__rlsSelfOnly`로 "내 행만 select"
+    RLS를 흉내낸다(이게 없어서 처음엔 비밀 투표 테스트에 남의 표가 새어 들어왔다).
+  - 검증: 공지 투표(복수 체크/해제/전부 해제 시 삭제/단일은 갈아타기/옛 표 환산/실명 명단),
+    게시글 비밀 투표(같은 흐름 + 이름 비노출 + 참여 인원 집계), 선택지 10개 상한과 최소 2개
+    제한, 실제 DB에서 `post_poll_results`·`post_poll_voters` 합계 일치까지 확인.
 - 2026-09-05 (47차): **모바일에서 교재 표지 붙여넣기**(제보: "표지 붙여넣기는 모바일에서는
   어떻게 하냐"). `sw.js`의 `SW_BUILD`도 `2026-09-05-47`로 올림. DB 변경 없음.
   - 45차에 넣은 붙여넣기는 **폰에서 아예 안 됐다**. 모바일엔 Ctrl+V가 없고, `document`의

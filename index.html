@@ -348,6 +348,14 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .poll-block{white-space:normal;margin-top:14px;padding:14px;background:var(--parchment);border-radius:var(--radius-md);border:1px solid var(--hairline)}
 .poll-question{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:10px}
 .poll-options{display:flex;flex-direction:column;gap:6px}
+.poll-multi-hint{font-size:11.5px;color:var(--ink-48);margin:-2px 0 8px}
+.poll-check{font-size:13px;color:var(--ink-48)}
+/* 복수 선택은 투표한 뒤에도 결과 줄을 눌러 켜고 끌 수 있다 */
+.poll-result-toggle{cursor:pointer;transition:background var(--t)}
+.poll-result-toggle:hover{background:rgba(0,102,204,.04)}
+.poll-result-toggle:active{transform:scale(.99)}
+.poll-result-toggle.on .poll-check{color:var(--blue)}
+.poll-multi-label{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink-80);cursor:pointer}
 .poll-option-btn{width:100%;text-align:left;padding:10px 12px;border:1px solid var(--hairline);border-radius:var(--radius-sm);background:var(--canvas);color:var(--ink-80);font-size:13px;transition:border-color var(--t),background var(--t),transform .1s ease}
 .poll-option-btn:hover{border-color:var(--blue);color:var(--blue);background:rgba(0,102,204,.04)}
 .poll-option-btn:active{transform:scale(.98)}
@@ -2102,6 +2110,12 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
             <span class="section-hd-link" onclick="addPollOptionInput()" style="display:inline-block;margin-top:8px">+ 선택지 추가</span>
           </div>
           <div class="modal-field">
+            <label class="poll-multi-label">
+              <input type="checkbox" id="notice-poll-multi-input" style="width:15px;height:15px;accent-color:var(--blue)">
+              복수 선택 허용 — 한 사람이 여러 개 고를 수 있어요
+            </label>
+          </div>
+          <div class="modal-field">
             <label class="modal-label">공개 방식</label>
             <select class="modal-input" id="notice-poll-anon-input">
               <option value="false">실명 — 누가 어떤 선택지를 골랐는지 서로 볼 수 있어요</option>
@@ -2488,6 +2502,12 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
             <label class="modal-label">선택지</label>
             <div id="free-poll-options-list" class="poll-option-input-list"></div>
             <span class="section-hd-link" onclick="addPollOptionInput('free-poll-options-list')" style="display:inline-block;margin-top:8px">+ 선택지 추가</span>
+          </div>
+          <div class="modal-field">
+            <label class="poll-multi-label">
+              <input type="checkbox" id="free-poll-multi" style="width:15px;height:15px;accent-color:var(--blue)">
+              복수 선택 허용 — 한 사람이 여러 개 고를 수 있어요
+            </label>
           </div>
         </div>
         <div class="modal-actions">
@@ -4685,6 +4705,12 @@ function toggleTheme(){
 //    같은 값으로 맞춘다(그 값이 바뀌면 새 안내가 뜨는 구조라서, 빼먹으면 아무 안내도 안 뜬다).
 //    사용자가 읽을 문장으로 쓴다 — 파일명·함수명·RLS 같은 내부 용어는 넣지 않는다.
 const APP_UPDATES=[
+  {v:'2026-09-05-48', date:'2026년 9월 5일', title:'투표 선택지 10개, 복수 선택도 돼요',
+   items:[
+     '투표 선택지를 10개까지 만들 수 있어요 (전에는 8개).',
+     '투표를 만들 때 "복수 선택 허용"을 켜면 한 사람이 여러 개 고를 수 있어요. "가능한 요일 다 골라주세요" 같은 데 쓰세요.',
+     '복수 선택 투표는 결과 줄을 눌러서 나중에 더 고르거나 뺄 수도 있어요.',
+   ]},
   {v:'2026-09-05-47', date:'2026년 9월 5일', title:'폰에서도 표지를 붙여넣을 수 있어요',
    items:[
      '교재 등록 화면에 "붙여넣기" 버튼이 생겼어요. 사진을 복사한 뒤 이 버튼만 누르면 표지가 돼요.',
@@ -5385,11 +5411,16 @@ async function loadNotices(){
   const pollsByNotice={};
   const votesByPoll={};
   const {data:polls}=await sb.from('notice_polls').select('*').in('notice_id',noticeIds);
-  (polls||[]).forEach(p=>pollsByNotice[p.notice_id]=p);
+  noticePollMap={};noticeMyVote={};
+  (polls||[]).forEach(p=>{pollsByNotice[p.notice_id]=p;noticePollMap[p.id]=p});
   const pollIds=(polls||[]).map(p=>p.id);
   if(pollIds.length){
     const {data:votes}=await sb.from('notice_poll_votes').select('*').in('poll_id',pollIds);
-    (votes||[]).forEach(v=>{(votesByPoll[v.poll_id]=votesByPoll[v.poll_id]||[]).push(v)});
+    (votes||[]).forEach(v=>{
+      (votesByPoll[v.poll_id]=votesByPoll[v.poll_id]||[]).push(v);
+      // 복수 선택에서 "지금 내가 뭘 골라놨는지"를 알아야 켜고 끌 수 있다.
+      if(v.student_id===currentStudentId)noticeMyVote[v.poll_id]=v;
+    });
     await loadClassRoster();
   }
 
@@ -5427,28 +5458,40 @@ function toggleNotice(id){
 }
 
 // ── 공지 투표 렌더링/투표 ──
+// 복수 선택은 누를 때마다 "지금 고른 목록"에 더하고 빼는 방식이라, 렌더링 때 받은 값을
+// 여기에 남겨둬야 클릭 핸들러가 현재 상태를 알 수 있다(loadNotices가 매번 새로 채운다).
+let noticePollMap={};   // poll_id → notice_polls 행
+let noticeMyVote={};    // poll_id → 내 표(행)
 function renderPollBlock(poll,votes,uid){
   const options=poll.options||[];
-  const totalVotes=votes.length;
+  const multi=!!poll.allow_multi;
+  // 사람 수 기준이다. 복수 선택이면 표 수 합계가 사람 수보다 많아질 수 있어서, 퍼센트도
+  // "참여한 사람 중 몇 %가 이걸 골랐나"로 읽힌다(합이 100%를 넘을 수 있음).
+  const totalVoters=votes.length;
   const myVote=votes.find(v=>v.student_id===currentStudentId);
-  const hasVoted=!!myVote;
+  const myIdx=voteIndexes(myVote);
+  const hasVoted=!!myVote&&myIdx.length>0;
   const roster=classRosterCache||[];
   const voterIds=new Set(votes.map(v=>v.student_id));
   const nonVoters=roster.filter(u=>!voterIds.has(u.student_id));
 
   const optionsHtml=options.map((opt,i)=>{
-    const count=votes.filter(v=>v.option_index===i).length;
-    const pct=totalVotes?Math.round(count/totalVotes*100):0;
-    const isMine=hasVoted&&myVote.option_index===i;
+    const picked=votes.filter(v=>voteIndexes(v).includes(i));
+    const count=picked.length;
+    const pct=totalVoters?Math.round(count/totalVoters*100):0;
+    const isMine=myIdx.includes(i);
     if(hasVoted){
-      const namesHtml=!poll.is_anonymous?`<div class="poll-voter-names">${votes.filter(v=>v.option_index===i).map(v=>escHtml(v.voter_name)).join(', ')||'—'}</div>`:'';
-      return`<div class="poll-result-row${isMine?' mine':''}">
-        <div class="poll-result-top"><span>${escHtml(opt)}${isMine?'<span class="poll-mine-badge">내 선택</span>':''}</span><span>${count}표 · ${pct}%</span></div>
+      const namesHtml=!poll.is_anonymous?`<div class="poll-voter-names">${picked.map(v=>escHtml(v.voter_name)).join(', ')||'—'}</div>`:'';
+      // 복수 선택은 투표한 뒤에도 결과 줄을 눌러 선택지를 더하거나 뺄 수 있다.
+      const cls=`poll-result-row${isMine?' mine':''}${multi?' poll-result-toggle':''}${multi&&isMine?' on':''}`;
+      const onclick=multi?` onclick="event.stopPropagation();voteOnPoll('${poll.id}',${i})"`:'';
+      return`<div class="${cls}"${onclick}>
+        <div class="poll-result-top"><span>${multi?`<span class="poll-check">${isMine?'☑':'☐'}</span> `:''}${escHtml(opt)}${isMine&&!multi?'<span class="poll-mine-badge">내 선택</span>':''}</span><span>${count}표 · ${pct}%</span></div>
         <div class="poll-result-track"><div class="poll-result-fill" style="width:${pct}%"></div></div>
         ${namesHtml}
       </div>`;
     }
-    return`<button class="poll-option-btn" onclick="event.stopPropagation();voteOnPoll('${poll.id}',${i})">${escHtml(opt)}</button>`;
+    return`<button class="poll-option-btn" onclick="event.stopPropagation();voteOnPoll('${poll.id}',${i})">${multi?'<span class="poll-check">☐</span> ':''}${escHtml(opt)}</button>`;
   }).join('');
 
   const nonVoterHtml=nonVoters.length?nonVoters.map(u=>escHtml(u.name||u.student_id)).join(', '):'전원 참여 완료 🎉';
@@ -5456,10 +5499,11 @@ function renderPollBlock(poll,votes,uid){
 
   return`<div class="poll-block" onclick="event.stopPropagation()">
     <div class="poll-question">🗳️ ${escHtml(poll.question)}</div>
+    ${multi?`<div class="poll-multi-hint">✅ 복수 선택 — 여러 개 고를 수 있어요${hasVoted?' (결과 줄을 누르면 추가·해제돼요)':''}</div>`:''}
     <div class="poll-options">${optionsHtml}</div>
     <div class="poll-meta-row">
       <span>${poll.is_anonymous?'🙈 익명 투표':'😎 실명 투표'}</span>
-      <span>참여 ${totalVotes}${roster.length?`/${roster.length}명`:'명'}</span>
+      <span>참여 ${totalVoters}${roster.length?`/${roster.length}명`:'명'}</span>
       ${roster.length?`<span class="poll-nonvoters-toggle" onclick="toggleNonVoters('${uid}')">미참여자 보기</span>`:''}
       ${cancelHtml}
     </div>
@@ -5472,21 +5516,28 @@ function toggleNonVoters(uid){
 }
 
 async function voteOnPoll(pollId,optionIndex){
+  const poll=noticePollMap[pollId];
+  const multi=!!(poll&&poll.allow_multi);
+  const mine=noticeMyVote[pollId];
+  // 복수 선택은 누를 때마다 켜고 끈다. 단일 선택은 예전처럼 고른 것 하나로 갈아치운다.
+  const next=multi?toggleIndex(voteIndexes(mine),optionIndex):[optionIndex];
+  if(multi&&!next.length){await cancelPollVote(pollId,true);return}
   const {error}=await sb.from('notice_poll_votes').upsert({
     poll_id:pollId,user_id:currentUser.id,student_id:currentStudentId,
-    voter_name:currentName||currentStudentId+'번',option_index:optionIndex
+    voter_name:currentName||currentStudentId+'번',
+    option_index:next[0],option_indexes:next
   },{onConflict:'poll_id,student_id'});
   if(error){toast('투표 실패: '+error.message);return}
-  toast('투표했습니다 ✓');
+  toast(multi?`${next.length}개 선택했어요 ✓`:'투표했습니다 ✓');
   await loadNotices();
   triggerNotify('poll-vote',{poll_id:pollId});
 }
 
-async function cancelPollVote(pollId){
-  if(!confirm('투표를 취소할까요?'))return;
+async function cancelPollVote(pollId,silent){
+  if(!silent&&!confirm('투표를 취소할까요?'))return;
   const {error}=await sb.from('notice_poll_votes').delete().eq('poll_id',pollId).eq('student_id',currentStudentId);
   if(error){toast('취소 실패: '+error.message);return}
-  toast('투표를 취소했습니다');
+  toast(silent?'선택을 모두 해제했어요':'투표를 취소했습니다');
   await loadNotices();
 }
 
@@ -5507,6 +5558,7 @@ function openNoticeWritePage(){
   document.getElementById('notice-poll-section').style.display='none';
   document.getElementById('notice-poll-question-input').value='';
   document.getElementById('notice-poll-anon-input').value='false';
+  document.getElementById('notice-poll-multi-input').checked=false;
   renderPollOptionInputs(2);
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById('page-notice-write').classList.add('active');
@@ -5540,6 +5592,21 @@ function closeNoticeWritePage(){editingNoticeId=null;navigate('notice')}
 function syncPollSectionVisibility(){
   document.getElementById('notice-poll-section').style.display=document.getElementById('notice-poll-toggle').checked?'block':'none';
 }
+const POLL_OPTION_MAX=10;
+// 한 사람이 고른 선택지 목록을 꺼낸다. 복수 선택이 생기기 전 표는 option_indexes가 비어
+// 있고 option_index(한 개)만 있어서, 그런 옛 표도 여기서 배열로 맞춰준다.
+function voteIndexes(v){
+  if(!v)return[];
+  const arr=Array.isArray(v.option_indexes)?v.option_indexes:[];
+  if(arr.length)return arr.map(Number).filter(n=>!isNaN(n));
+  return (v.option_index===undefined||v.option_index===null)?[]:[Number(v.option_index)];
+}
+// 복수 선택에서 선택지를 켜고 끈 결과를 돌려준다(정렬해서 저장 — 화면 순서와 맞추려고).
+function toggleIndex(list,i){
+  const set=new Set(list);
+  set.has(i)?set.delete(i):set.add(i);
+  return [...set].sort((a,b)=>a-b);
+}
 // 선택지 입력칸 — 공지 투표와 게시글 투표가 같은 헬퍼를 쓴다(listId로 구분).
 function renderPollOptionInputs(count,listId='notice-poll-options-list'){
   const list=document.getElementById(listId);
@@ -5550,7 +5617,7 @@ function renderPollOptionInputs(count,listId='notice-poll-options-list'){
 function addPollOptionInput(listId='notice-poll-options-list'){
   const list=document.getElementById(listId);
   if(!list)return;
-  if(list.children.length>=8){toast('선택지는 최대 8개까지예요');return}
+  if(list.children.length>=POLL_OPTION_MAX){toast(`선택지는 최대 ${POLL_OPTION_MAX}개까지예요`);return}
   const row=document.createElement('div');
   row.className='poll-option-input-row';
   row.innerHTML=`<input class="modal-input" data-poll-opt placeholder="선택지 ${list.children.length+1}"><button type="button" class="poll-option-remove-btn" onclick="removePollOptionInput(this)">✕</button>`;
@@ -5589,11 +5656,12 @@ async function submitNotice(){
   }
 
   const addPoll=document.getElementById('notice-poll-toggle').checked;
-  let pollQuestion='',pollOptions=[],pollAnon=false;
+  let pollQuestion='',pollOptions=[],pollAnon=false,pollMulti=false;
   if(addPoll){
     pollQuestion=document.getElementById('notice-poll-question-input').value.trim();
     pollOptions=[...document.querySelectorAll('#notice-poll-options-list [data-poll-opt]')].map(i=>i.value.trim()).filter(Boolean);
     pollAnon=document.getElementById('notice-poll-anon-input').value==='true';
+    pollMulti=document.getElementById('notice-poll-multi-input').checked;
     if(!pollQuestion){errEl.textContent='투표 질문을 입력하세요.';errEl.style.display='block';return}
     if(pollOptions.length<2){errEl.textContent='투표 선택지를 2개 이상 입력하세요.';errEl.style.display='block';return}
   }
@@ -5607,7 +5675,7 @@ async function submitNotice(){
   if(addPoll){
     const {error:pollErr}=await sb.from('notice_polls').insert({
       notice_id:noticeRow.id,question:pollQuestion,options:pollOptions,
-      is_anonymous:pollAnon,created_by:currentUser.id
+      is_anonymous:pollAnon,allow_multi:pollMulti,created_by:currentUser.id
     });
     if(pollErr)toast('공지는 게시됐지만 투표 등록에 실패했어요: '+pollErr.message);
   }
@@ -9227,23 +9295,26 @@ let boardPostMap={};
 // 클라이언트가 알 방법 자체가 없다.
 let boardPollMap={};        // post_id → post_polls 행
 let boardPollCountMap={};   // poll_id → [선택지별 표 수]
-let boardMyPollVote={};     // poll_id → 내가 고른 선택지 index
-function resetPostPollMaps(){boardPollMap={};boardPollCountMap={};boardMyPollVote={}}
+let boardMyPollVote={};     // poll_id → 내가 고른 선택지 index 배열
+let boardPollVoterMap={};   // poll_id → 참여 인원(사람 수)
+function resetPostPollMaps(){boardPollMap={};boardPollCountMap={};boardMyPollVote={};boardPollVoterMap={}}
 async function loadPostPolls(postIds){
   if(!postIds||!postIds.length)return;
   const {data:polls}=await sb.from('post_polls').select('*').in('post_id',postIds);
   if(!polls||!polls.length)return;
   polls.forEach(pl=>{boardPollMap[pl.post_id]=pl});
   const pollIds=polls.map(pl=>pl.id);
-  const [{data:results},{data:myVotes}]=await Promise.all([
+  const [{data:results},{data:voters},{data:myVotes}]=await Promise.all([
     sb.rpc('post_poll_results',{pids:pollIds}),
-    sb.from('post_poll_votes').select('poll_id,option_index').in('poll_id',pollIds),
+    sb.rpc('post_poll_voters',{pids:pollIds}),
+    sb.from('post_poll_votes').select('poll_id,option_index,option_indexes').in('poll_id',pollIds),
   ]);
   (results||[]).forEach(r=>{
     const arr=boardPollCountMap[r.poll_id]=boardPollCountMap[r.poll_id]||[];
     arr[r.option_index]=Number(r.votes)||0;
   });
-  (myVotes||[]).forEach(v=>{boardMyPollVote[v.poll_id]=v.option_index});
+  (voters||[]).forEach(r=>{boardPollVoterMap[r.poll_id]=Number(r.voters)||0});
+  (myVotes||[]).forEach(v=>{boardMyPollVote[v.poll_id]=voteIndexes(v)});
 }
 // 공지 투표와 달리 참여자/미참여자 명단이 아예 없다(비밀 투표라서). 결과는 투표한 뒤에만
 // 보여준다 — 남 눈치 안 보고 고르라는 취지.
@@ -9251,36 +9322,45 @@ function renderPostPollBlock(postId){
   const poll=boardPollMap[postId];
   if(!poll)return'';
   const options=poll.options||[];
+  const multi=!!poll.allow_multi;
   const counts=boardPollCountMap[poll.id]||[];
-  const total=options.reduce((sum,_o,i)=>sum+(counts[i]||0),0);
-  const myIdx=boardMyPollVote[poll.id];
-  const voted=myIdx!==undefined&&myIdx!==null;
+  // 참여 인원은 사람 수다. 복수 선택이면 표 수를 다 더한 값과 다르기 때문에 따로 받아온다.
+  const voters=boardPollVoterMap[poll.id]||0;
+  const myIdx=boardMyPollVote[poll.id]||[];
+  const voted=myIdx.length>0;
   const optionsHtml=options.map((opt,i)=>{
-    if(!voted)return`<button class="poll-option-btn" onclick="event.stopPropagation();votePostPoll('${postId}',${i})">${escHtml(opt)}</button>`;
+    if(!voted)return`<button class="poll-option-btn" onclick="event.stopPropagation();votePostPoll('${postId}',${i})">${multi?'<span class="poll-check">☐</span> ':''}${escHtml(opt)}</button>`;
     const count=counts[i]||0;
-    const pct=total?Math.round(count/total*100):0;
-    const isMine=myIdx===i;
-    return`<div class="poll-result-row${isMine?' mine':''}">
-      <div class="poll-result-top"><span>${escHtml(opt)}${isMine?'<span class="poll-mine-badge">내 선택</span>':''}</span><span>${count}표 · ${pct}%</span></div>
+    const pct=voters?Math.round(count/voters*100):0;
+    const isMine=myIdx.includes(i);
+    const cls=`poll-result-row${isMine?' mine':''}${multi?' poll-result-toggle':''}${multi&&isMine?' on':''}`;
+    const onclick=multi?` onclick="event.stopPropagation();votePostPoll('${postId}',${i})"`:'';
+    return`<div class="${cls}"${onclick}>
+      <div class="poll-result-top"><span>${multi?`<span class="poll-check">${isMine?'☑':'☐'}</span> `:''}${escHtml(opt)}${isMine&&!multi?'<span class="poll-mine-badge">내 선택</span>':''}</span><span>${count}표 · ${pct}%</span></div>
       <div class="poll-result-track"><div class="poll-result-fill" style="width:${pct}%"></div></div>
     </div>`;
   }).join('');
   return`<div class="poll-block" id="post-poll-${postId}" onclick="event.stopPropagation()">
     <div class="poll-question">🗳️ ${escHtml(poll.question)}</div>
+    ${multi?`<div class="poll-multi-hint">✅ 복수 선택 — 여러 개 고를 수 있어요${voted?' (결과 줄을 누르면 추가·해제돼요)':''}</div>`:''}
     <div class="poll-options">${optionsHtml}</div>
     <div class="poll-meta-row">
       <span>🔒 비밀 투표 — 누가 뭘 골랐는지는 아무도 볼 수 없어요</span>
-      <span>참여 ${total}명</span>
+      <span>참여 ${voters}명</span>
       ${voted?`<span class="poll-cancel-vote" onclick="event.stopPropagation();cancelPostPollVote('${postId}')">투표 취소</span>`:''}
       ${!voted?'<span>고르면 결과가 보여요</span>':''}
     </div>
   </div>`;
 }
 async function refreshPostPollCounts(pollId){
-  const {data}=await sb.rpc('post_poll_results',{pids:[pollId]});
+  const [{data},{data:voters}]=await Promise.all([
+    sb.rpc('post_poll_results',{pids:[pollId]}),
+    sb.rpc('post_poll_voters',{pids:[pollId]}),
+  ]);
   const arr=[];
   (data||[]).forEach(r=>{arr[r.option_index]=Number(r.votes)||0});
   boardPollCountMap[pollId]=arr;
+  boardPollVoterMap[pollId]=Number((voters||[])[0]?.voters)||0;
 }
 function rerenderPostPoll(postId){
   const el=document.getElementById(`post-poll-${postId}`);
@@ -9290,19 +9370,23 @@ async function votePostPoll(postId,optionIndex){
   if(!currentUser){toast('로그인이 필요해요');return}
   const poll=boardPollMap[postId];
   if(!poll)return;
+  const multi=!!poll.allow_multi;
+  const next=multi?toggleIndex(boardMyPollVote[poll.id]||[],optionIndex):[optionIndex];
+  if(multi&&!next.length){await cancelPostPollVote(postId,true);return}
   const {error}=await sb.from('post_poll_votes').upsert({
-    poll_id:poll.id,user_id:currentUser.id,student_id:currentStudentId,option_index:optionIndex
+    poll_id:poll.id,user_id:currentUser.id,student_id:currentStudentId,
+    option_index:next[0],option_indexes:next
   },{onConflict:'poll_id,student_id'});
   if(error){toast('투표 실패: '+error.message);return}
-  boardMyPollVote[poll.id]=optionIndex;
+  boardMyPollVote[poll.id]=next;
   await refreshPostPollCounts(poll.id);
   rerenderPostPoll(postId);
-  toast('투표했어요 ✓');
+  toast(multi?`${next.length}개 선택했어요 ✓`:'투표했어요 ✓');
 }
-async function cancelPostPollVote(postId){
+async function cancelPostPollVote(postId,silent){
   const poll=boardPollMap[postId];
   if(!poll)return;
-  if(!confirm('투표를 취소할까요?'))return;
+  if(!silent&&!confirm('투표를 취소할까요?'))return;
   const {error}=await sb.from('post_poll_votes').delete().eq('poll_id',poll.id).eq('student_id',currentStudentId);
   if(error){toast('취소 실패: '+error.message);return}
   delete boardMyPollVote[poll.id];
@@ -9846,6 +9930,7 @@ function openFreeWritePage(post){
   }
   document.getElementById('free-poll-toggle').checked=false;
   document.getElementById('free-poll-question').value='';
+  document.getElementById('free-poll-multi').checked=false;
   renderPollOptionInputs(2,'free-poll-options-list');
   syncFreePollSection();
   syncPostEditUI('free');
@@ -10182,10 +10267,11 @@ async function submitPost(type){
   submitBtn.textContent='올리는 중...';
   // 투표는 글쓰기(마이너 갤러리)에서만 붙일 수 있다. 글이 먼저 만들어져야 post_id를 알 수
   // 있으므로 여기서 입력값만 먼저 검사해두고, insert가 끝난 뒤에 post_polls에 넣는다.
-  let pollQuestion='',pollOptions=[];
+  let pollQuestion='',pollOptions=[],pollMulti=false;
   if(type==='free'&&document.getElementById('free-poll-toggle')?.checked){
     pollQuestion=document.getElementById('free-poll-question').value.trim();
     pollOptions=[...document.querySelectorAll('#free-poll-options-list [data-poll-opt]')].map(i=>i.value.trim()).filter(Boolean);
+    pollMulti=document.getElementById('free-poll-multi').checked;
     if(!pollQuestion){toast('투표 질문을 입력해주세요');submitBtn.textContent=label;submitBtn.disabled=false;return}
     if(pollOptions.length<2){toast('투표 선택지를 2개 이상 입력해주세요');submitBtn.textContent=label;submitBtn.disabled=false;return}
   }
@@ -10228,7 +10314,7 @@ async function submitPost(type){
   if(pollQuestion){
     const {error:pollErr}=await sb.from('post_polls').insert({
       post_id:newPostRow.id,question:pollQuestion,options:pollOptions,
-      created_by:currentUser.id,student_id:currentStudentId
+      allow_multi:pollMulti,created_by:currentUser.id,student_id:currentStudentId
     });
     if(pollErr)toast('글은 올라갔지만 투표 등록에 실패했어요: '+pollErr.message);
   }

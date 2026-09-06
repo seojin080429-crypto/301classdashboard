@@ -375,6 +375,21 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .simo-tally-chip.zero{color:var(--ink-48);opacity:.6}
 .simo-tally-chip b{color:var(--blue)}
 .simo-name-sub{color:var(--ink-48);margin-left:2px}
+/* 교재 가져오기 목록 */
+.tb-pick-list{max-height:52vh;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.tb-pick-group{font-size:11.5px;font-weight:600;color:var(--ink-48);padding:8px 2px 2px}
+.tb-pick-row{display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid var(--hairline);border-radius:var(--radius-sm);background:var(--canvas);cursor:pointer;transition:all var(--t);text-align:left;width:100%}
+.tb-pick-row:hover{border-color:var(--blue);background:rgba(0,102,204,.04)}
+.tb-pick-row:active{transform:scale(.99)}
+.tb-pick-cover{width:34px;height:46px;flex-shrink:0;border-radius:4px;overflow:hidden;background:var(--parchment);display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--ink-48);text-align:center;line-height:1.2;padding:2px}
+.tb-pick-cover img{width:100%;height:100%;object-fit:cover}
+.tb-pick-body{flex:1;min-width:0}
+.tb-pick-name{font-size:13px;font-weight:600;color:var(--ink);word-break:break-word}
+.tb-pick-desc{font-size:11.5px;color:var(--ink-48);margin-top:2px}
+.tb-pick-have{font-size:11px;color:var(--green-dark);flex-shrink:0}
+.tb-pick-del{flex-shrink:0;border:none;background:none;color:var(--ink-48);font-size:14px;cursor:pointer;padding:4px}
+.tb-pick-del:hover{color:#c00}
+.tb-preset-star{margin-left:auto}
 /* 공지 의견내기 */
 .notice-comment-section{margin-top:12px;padding-top:12px;border-top:1px solid var(--hairline)}
 .notice-comment-title{font-size:12.5px;font-weight:600;color:var(--ink-48);margin-bottom:8px;display:flex;align-items:center;gap:5px}
@@ -2587,6 +2602,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
             <button class="btn-primary" onclick="openStudyCertWritePage()">+ 인증하기</button>
           </div>
           <div id="textbook-write-btn" style="display:none">
+            <button class="btn-ghost" onclick="openTextbookPickModal()">📚 가져오기</button>
             <button class="btn-primary" onclick="openTextbookEditPage()">+ 교재 등록</button>
           </div>
           <div id="examreview-write-btn" style="display:none">
@@ -2881,6 +2897,8 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
         <div class="auth-error" id="tb-error"></div>
         <div class="modal-actions">
           <button class="btn-ghost" id="tb-delete-btn" style="display:none;color:#ed4956" onclick="deleteTextbook()">삭제</button>
+          <!-- 운영자만 — 지금 입력한 설정을 "자주 쓰는 교재"에 넣어 학생들이 골라 쓰게 한다 -->
+          <button class="btn-ghost" id="tb-preset-btn" style="display:none" onclick="addTextbookPreset()">⭐ 자주 쓰는 교재에 넣기</button>
           <button class="btn-ghost" onclick="closeTextbookPages()">취소</button>
           <button class="btn-primary" id="tb-save-btn" onclick="saveTextbook()">등록</button>
         </div>
@@ -3847,6 +3865,17 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 </div>
 
 
+<!-- 교재 가져오기 — 미리 등록된 목록이나 친구가 등록한 교재를 그대로 따온다 -->
+<div class="modal-overlay" id="tb-pick-modal" onclick="if(event.target===this)closeTextbookPickModal()">
+  <div class="modal" style="max-width:460px">
+    <button class="modal-close" onclick="closeTextbookPickModal()">×</button>
+    <div class="modal-title">교재 가져오기</div>
+    <div class="modal-sub">챕터 수까지 그대로 따와요. 진도는 0부터 새로 시작해요.</div>
+    <input class="modal-input" id="tb-pick-search" placeholder="교재 이름으로 찾기" oninput="renderTextbookPickList()" style="margin:12px 0 4px">
+    <div id="tb-pick-list" class="tb-pick-list"></div>
+  </div>
+</div>
+
 <!-- 실모반 자료 업로드 모달 -->
 <div class="modal-overlay" id="simo-material-modal">
   <div class="modal">
@@ -4771,6 +4800,13 @@ function toggleTheme(){
 //    같은 값으로 맞춘다(그 값이 바뀌면 새 안내가 뜨는 구조라서, 빼먹으면 아무 안내도 안 뜬다).
 //    사용자가 읽을 문장으로 쓴다 — 파일명·함수명·RLS 같은 내부 용어는 넣지 않는다.
 const APP_UPDATES=[
+  {v:'2026-09-06-54', date:'2026년 9월 6일', title:'교재를 골라서 가져올 수 있어요',
+   items:[
+     '교재 탭 오른쪽 위 "📚 가져오기"를 누르면 자주 쓰는 교재와 친구들이 등록한 교재가 나와요. 고르면 챕터 수까지 그대로 채워져요.',
+     '챕터를 하나하나 다시 입력하지 않아도 돼요. 진도는 0부터 새로 시작하니 안심하세요.',
+     '같은 교재를 몇 명이 쓰고 있는지도 같이 보여요.',
+     '운영자는 교재 등록 화면에서 "⭐ 자주 쓰는 교재에 넣기"로 반에서 많이 쓰는 교재를 미리 올려둘 수 있어요.',
+   ]},
   {v:'2026-09-05-53', date:'2026년 9월 5일', title:'DM 꾹 누를 때 글씨가 파랗게 선택되지 않아요',
    items:[
      '내 메시지를 꾹 눌러 수정·삭제 메뉴를 열 때 글씨가 파랗게 선택되던 걸 없앴어요.',
@@ -12206,7 +12242,7 @@ async function loadTextbookBoard(){
   textbooks=data||[];
   tbProfileMap=profileMap||{};
   if(!textbooks.length){
-    wrap.innerHTML='<div class="tb-empty">아직 등록된 교재가 없어요.<br>오른쪽 위 <b>+ 교재 등록</b>으로 내 문제집이나 인강을 올려보세요!</div>';
+    wrap.innerHTML='<div class="tb-empty">아직 등록된 교재가 없어요.<br>오른쪽 위 <b>+ 교재 등록</b>으로 내 문제집이나 인강을 올려보세요!<br>다른 사람이 올린 게 있으면 <b>📚 가져오기</b>로 그대로 따올 수 있어요.</div>';
     return;
   }
   // 문제집과 강의는 성격이 달라서 따로 묶어서 보여준다(요청: "강의랑 교재는 따로 분리").
@@ -12235,6 +12271,148 @@ async function loadTextbookBoard(){
       <div class="tb-meta">${tbDone(t)} / ${tbTotal(t)}${tbUnit(t)}</div>
     </div>`;
   }
+}
+
+// ── 교재 가져오기 ──
+// 제보: "다른 친구가 등록한 교재면 다시 등록하는 게 번거롭다".
+// 두 갈래를 한 목록에서 고르게 한다.
+//   ⭐ 자주 쓰는 교재 = textbook_presets (운영자가 미리 등록해두는 목록)
+//   👥 친구들이 등록한 교재 = 다른 사람의 textbooks 행을 제목 기준으로 묶은 것
+// 고르면 설정(측정 방식·챕터·총 문항/강의 수·표지)만 그대로 복사해 등록 화면을 채운다.
+// 진도는 따라오지 않는다 — 남의 진도를 내 것으로 가져오면 안 되니까.
+let tbPresets=[];
+let tbPickItems=[];   // 목록에 그린 설정들 — onclick에는 인덱스만 넘긴다
+                      // (제목에 따옴표가 들어가면 JSON을 속성에 박는 방식은 깨진다)
+async function openTextbookPickModal(){
+  document.getElementById('tb-pick-search').value='';
+  document.getElementById('tb-pick-list').innerHTML='<div class="tb-empty">불러오는 중…</div>';
+  document.getElementById('tb-pick-modal').classList.add('open');
+  const [{data:presets},_]=await Promise.all([
+    sb.from('textbook_presets').select('*').eq('is_active',true).order('sort_order').order('created_at',{ascending:false}),
+    textbooks.length?Promise.resolve():loadTextbookBoard(),
+  ]);
+  tbPresets=presets||[];
+  renderTextbookPickList();
+}
+function closeTextbookPickModal(){document.getElementById('tb-pick-modal').classList.remove('open')}
+// 교재의 "설정" 부분만 뽑는다(진도·소유자 제외).
+function tbSetupOf(t){
+  return{
+    title:t.title,cover_url:t.cover_url||null,mode:t.mode||'problem',
+    total_lectures:t.total_lectures||null,split_chapters:!!t.split_chapters,
+    chapters:Array.isArray(t.chapters)?t.chapters:[],total_questions:t.total_questions||null,
+  };
+}
+function tbSetupDesc(t){
+  if(t.mode==='lecture')return`🎬 강의 ${t.total_lectures||0}강`;
+  if(t.split_chapters){
+    const chs=t.chapters||[];
+    const total=chs.reduce((n,c)=>n+(parseInt(c.count,10)||0),0);
+    return`✏️ ${chs.length}챕터 · 총 ${total}문제`;
+  }
+  return`✏️ 총 ${t.total_questions||0}문제`;
+}
+function renderTextbookPickList(){
+  const q=(document.getElementById('tb-pick-search').value||'').trim().toLowerCase();
+  const hit=name=>!q||name.toLowerCase().includes(q);
+  // 친구들 교재: 내 것은 빼고, 같은 제목은 한 줄로 묶어 등록자 수를 보여준다.
+  const byTitle={};
+  textbooks.filter(t=>t.student_id!==currentStudentId).forEach(t=>{
+    const key=t.title.trim();
+    if(!byTitle[key]){byTitle[key]={t,users:new Set()}}
+    byTitle[key].users.add(t.student_id);
+    // 표지가 있는 쪽을 대표로 삼는다(표지 없는 행이 대표가 되면 그림이 안 따라온다).
+    if(!byTitle[key].t.cover_url&&t.cover_url)byTitle[key].t=t;
+  });
+  const myTitles=new Set(textbooks.filter(t=>t.student_id===currentStudentId).map(t=>t.title.trim()));
+  tbPickItems=[];
+  const row=(t,extra,presetId)=>{
+    const i=tbPickItems.push(tbSetupOf(t))-1;
+    const have=myTitles.has(t.title.trim());
+    const cover=t.cover_url
+      ?`<img src="${t.cover_url}" alt="" loading="lazy">`
+      :`${escHtml(t.title.slice(0,6))}`;
+    const del=(presetId&&isStaffRole())
+      ?`<button class="tb-pick-del" title="목록에서 빼기" onclick="event.stopPropagation();removeTextbookPreset('${presetId}')">×</button>`:'';
+    return`<div class="tb-pick-row" onclick="useTextbookSetup(${i})">
+      <div class="tb-pick-cover">${cover}</div>
+      <div class="tb-pick-body">
+        <div class="tb-pick-name">${escHtml(t.title)}</div>
+        <div class="tb-pick-desc">${tbSetupDesc(t)}${extra?' · '+escHtml(extra):''}</div>
+      </div>
+      ${have?'<span class="tb-pick-have">이미 있음</span>':''}${del}
+    </div>`;
+  };
+  const presetRows=tbPresets.filter(p=>hit(p.title)).map(p=>row(p,null,p.id)).join('');
+  const friendRows=Object.values(byTitle).filter(v=>hit(v.t.title))
+    .sort((a,b)=>b.users.size-a.users.size)
+    .map(v=>row(v.t,`${v.users.size}명이 쓰는 중`)).join('');
+  const wrap=document.getElementById('tb-pick-list');
+  if(!presetRows&&!friendRows){
+    wrap.innerHTML=`<div class="tb-empty">${q?'찾는 교재가 없어요':'아직 가져올 교재가 없어요.<br>직접 등록하면 다음 사람이 가져다 쓸 수 있어요!'}</div>`;
+    return;
+  }
+  wrap.innerHTML=(presetRows?`<div class="tb-pick-group">⭐ 자주 쓰는 교재</div>${presetRows}`:'')
+    +(friendRows?`<div class="tb-pick-group">👥 친구들이 등록한 교재</div>${friendRows}`:'');
+}
+// 고른 설정으로 등록 화면을 채워 연다. 바로 저장하지 않는 이유: 챕터 수나 표지를 보고
+// 손볼 여지를 남기려고(같은 문제집도 판형에 따라 문항 수가 다른 경우가 있다).
+function useTextbookSetup(i){
+  const setup=tbPickItems[i];
+  if(!setup)return;
+  closeTextbookPickModal();
+  openTextbookEditPage();
+  document.getElementById('tb-title').value=setup.title||'';
+  if(setup.cover_url){tbCoverExisting=setup.cover_url;showTextbookCoverPreview(setup.cover_url,'가져온 표지')}
+  setTextbookMode(setup.mode==='lecture'?'lecture':'problem');
+  if(setup.mode==='lecture'){
+    document.getElementById('tb-total-lectures').value=setup.total_lectures||'';
+  }else{
+    setTextbookSplit(!!setup.split_chapters);
+    if(setup.split_chapters){
+      document.getElementById('tb-chapter-rows').innerHTML='';
+      (setup.chapters||[]).forEach(c=>addTextbookChapterRow(c.name,c.count));
+    }else{
+      document.getElementById('tb-total-questions').value=setup.total_questions||'';
+    }
+  }
+  toast('가져왔어요 — 확인하고 등록을 눌러주세요');
+}
+// 운영자: 지금 보고 있는 설정을 "자주 쓰는 교재"에 넣는다(학생들이 바로 골라 쓰도록).
+async function addTextbookPreset(){
+  if(!isStaffRole()){toast('권한이 없습니다');return}
+  const title=document.getElementById('tb-title').value.trim();
+  if(!title){toast('교재 이름을 먼저 입력해주세요');return}
+  const row={title,mode:tbMode,cover_url:tbCoverExisting||null,
+    created_by:currentUser.id,created_by_student_id:currentStudentId};
+  if(tbMode==='lecture'){
+    row.total_lectures=parseInt(document.getElementById('tb-total-lectures').value,10)||0;
+    if(row.total_lectures<1){toast('총 강의 수를 입력해주세요');return}
+    row.split_chapters=false;row.chapters=[];row.total_questions=null;
+  }else{
+    row.total_lectures=null;row.split_chapters=tbSplit;
+    if(tbSplit){
+      const chapters=textbookChapterRows();
+      if(!chapters.length){toast('챕터를 먼저 입력해주세요');return}
+      row.chapters=chapters;row.total_questions=null;
+    }else{
+      row.total_questions=parseInt(document.getElementById('tb-total-questions').value,10)||0;
+      if(row.total_questions<1){toast('총 문제 수를 입력해주세요');return}
+      row.chapters=[];
+    }
+  }
+  const {error}=await sb.from('textbook_presets').insert(row);
+  if(error){toast('추가 실패: '+error.message);return}
+  toast('자주 쓰는 교재에 넣었어요 ⭐');
+}
+async function removeTextbookPreset(id){
+  if(!isStaffRole())return;
+  if(!confirm('이 교재를 "자주 쓰는 교재" 목록에서 뺄까요?\n이미 가져다 쓴 사람 것은 그대로 남아요.'))return;
+  const {error}=await sb.from('textbook_presets').delete().eq('id',id);
+  if(error){toast('삭제 실패: '+error.message);return}
+  tbPresets=tbPresets.filter(p=>p.id!==id);
+  renderTextbookPickList();
+  toast('목록에서 뺐어요');
 }
 
 // ── 등록/수정 화면 ──
@@ -12425,6 +12603,8 @@ function openTextbookEditPage(t){
     addTextbookChapterRow();
   }
   initTextbookCoverDrop();
+  const presetBtn=document.getElementById('tb-preset-btn');
+  if(presetBtn)presetBtn.style.display=isStaffRole()?'':'none';
   document.querySelectorAll('.page').forEach(pg=>pg.classList.remove('active'));
   document.getElementById('page-textbook-edit').classList.add('active');
   window.scrollTo(0,0);

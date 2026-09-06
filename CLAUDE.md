@@ -2,10 +2,16 @@
 
 이 파일은 Claude Code가 이 저장소에서 대화를 시작할 때 자동으로 읽습니다.
 
-**전체 프로젝트 맥락, 최근 변경사항, 백엔드 정보 등은 [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) 를 반드시 참고하세요.**
+**전체 프로젝트 맥락, 백엔드 정보, 최근 변경사항은 [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md)
+를 참고하세요** (약 38KB — 통째로 읽어도 됩니다).
 
-작업 후 의미 있는 변경사항이 생기면 `PROJECT_CONTEXT.md`의 "최근 변경사항" 섹션과
-필요시 다른 섹션도 함께 갱신해주세요.
+지난 변경 기록은 [docs/CHANGELOG.md](docs/CHANGELOG.md)에 따로 있습니다. **이 파일은 320KB라
+통째로 읽지 마세요** — 옛날에 뭘 왜 그렇게 했는지 찾을 때만
+`grep -n "키워드" docs/CHANGELOG.md`로 줄 번호를 찾아 그 주변만 보세요.
+
+작업 후 의미 있는 변경사항이 생기면 `PROJECT_CONTEXT.md`의 "최근 변경사항" 맨 위에 추가하고,
+필요시 다른 섹션도 함께 갱신해주세요. 그 섹션은 최신 5건만 두고, 6번째로 밀려난 항목은
+`docs/CHANGELOG.md` 맨 위로 옮겨주세요.
 
 **배포할 때는 세 가지를 항상 같이 합니다.**
 1. `sw.js`의 `SW_BUILD` 올리기 (안 올리면 새 버전이 사용자에게 안 내려갑니다)

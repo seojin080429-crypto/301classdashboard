@@ -24,24 +24,20 @@
 <script>(function(){try{var t=localStorage.getItem('theme');if(t==='bear'){document.documentElement.dataset.theme='bear';if(localStorage.getItem('bearDecor')==='on')document.documentElement.dataset.bearDecor='on';}else if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme:dark)').matches))document.documentElement.dataset.theme='dark';}catch(e){}})();</script>
 <!-- crossorigin: 이걸 붙여야 응답이 "불투명(opaque)"이 아니라 정상 응답으로 와서, 서비스
      워커가 이 라이브러리를 캐시해둘 수 있다(두 번째 방문부터 CDN을 아예 안 두드림). -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous" onerror="window.__sbLoadFailed=1"></script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous" onerror="window.__sbLoadFailed=1"></script> -->
 <script>
-// 이 라이브러리를 못 받으면 아래 앱 코드가 첫 줄(createClient)에서 통째로 죽어서 **화면이
-// 하얗게 멈춘다** — 느린 인터넷에서 "앱이 안 켜진다"의 가장 흔한 정체. 그 경우 이유와 다시
-// 시도 버튼이라도 보여준다.
-if(typeof supabase==='undefined'){
   window.__sbLoadFailed=1;
   document.addEventListener('DOMContentLoaded',function(){
     var d=document.createElement('div');
     d.setAttribute('style','position:fixed;inset:0;z-index:9999;background:#fff;color:#1d1d1f;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px;text-align:center;font-family:system-ui,-apple-system,sans-serif');
-    d.innerHTML='<div style="font-size:34px">📡</div>'+
-      '<div style="font-size:17px;font-weight:600">앱을 불러오지 못했어요</div>'+
-      '<div style="font-size:14px;line-height:1.6;color:#7a7a7a;max-width:320px">인터넷 연결이 불안정해서 필요한 파일을 다 받지 못했어요.<br>연결을 확인하고 다시 시도해주세요.</div>'+
-      '<button style="margin-top:6px;padding:11px 26px;border:none;border-radius:9999px;background:#0066cc;color:#fff;font-size:15px;font-weight:600" onclick="location.reload()">다시 시도</button>';
+    d.innerHTML='<div style="font-size:34px">🚧</div>'+
+      '<div style="font-size:17px;font-weight:600">서버 트래픽 초과로 점검 중입니다</div>'+
+      '<div style="font-size:14px;line-height:1.6;color:#7a7a7a;max-width:320px">오늘(12일) 중으로 서버 용량 초기화 및<br>최적화 작업이 완료된 후 다시 접속 가능합니다.<br>이용에 불편을 드려 죄송합니다.</div>';
     document.body.appendChild(d);
   });
-}
 </script>
+
 <style>
 :root {
   --blue:#0066cc; --blue-focus:#0071e3; --blue-dark:#2997ff;

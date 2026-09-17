@@ -10440,7 +10440,7 @@ const HOT_SCORE=5;
 const HOT_MAX_AGE_MS=14*24*60*60*1000;
 function isHotPost(p){
   if(postScore(p.id)<HOT_SCORE)return false;
-  return Date.now()-new Date(p.created_at).getTime()<=HOT_MAX_AGE_MS;
+  return true;
 }
 
 // 한 페이지에 보여줄 글 수 — 이보다 많이 쌓이면 하단 페이지 번호로 넘긴다.
@@ -13272,7 +13272,7 @@ async function loadBoardPosts(category,listElId,emptyMsg,type){
 async function loadFreeBoard(){
   renderFreeTabs();
   const empty=freeTab==='hot'
-    ?'아직 인기글이 없어요. 최근 2주 안에 개추를 5개 이상 받으면 올라와요!'
+    ?'아직 인기글이 없어요. 개추를 5개 이상 받으면 올라와요!'
     :'아직 글이 없어요. 첫 글을 남겨보세요!';
   await loadBoardPosts(freeTab==='hot'?'hot':'free','free-list',empty,'free');
 }

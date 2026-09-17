@@ -2385,17 +2385,18 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
             <div><span class="timer-subrow-label">걸린 시간</span><span class="timer-subrow-val" id="nap-elapsed">0:00</span></div>
             <div><span class="timer-subrow-label">남은 시간</span><span class="timer-subrow-val" id="nap-remaining">0:00</span></div>
           </div>
-          <div class="timer-preset-row" id="nap-preset-row">
-            <button class="timer-preset-btn" onclick="startNapTimer(10)">10분</button>
-            <button class="timer-preset-btn" onclick="startNapTimer(15)">15분</button>
-            <button class="timer-preset-btn" onclick="startNapTimer(20)">20분</button>
-            <button class="timer-preset-btn" onclick="startNapTimer(30)">30분</button>
+                    <div class="timer-preset-row" id="nap-preset-row">
+            <!-- Rendered by JS -->
           </div>
           <div class="timer-custom-row" id="nap-custom-row">
-            <input type="number" class="modal-input" id="nap-custom-min" placeholder="직접 입력(분)" min="1" max="180">
+            <input type="number" class="modal-input" id="nap-custom-min" placeholder="직접 입력(분)" min="1" max="180" oninput="renderNapPresets()">
             <button class="btn-primary" onclick="startNapCustom()">시작</button>
+            <button class="btn-ghost" id="nap-fav-btn" onclick="toggleNapPreset()">☆ 즐겨찾기</button>
           </div>
-          <button class="btn-danger" id="nap-cancel-btn" onclick="cancelTimer('nap')" style="display:none;margin-top:14px">취소</button>
+          <div style="margin-top:14px; text-align:center">
+            <button class="btn-ghost" id="nap-pause-btn" onclick="togglePauseTimer('nap')" style="display:none; margin-right:10px">일시정지</button>
+            <button class="btn-danger" id="nap-cancel-btn" onclick="cancelTimer('nap')" style="display:none">취소</button>
+          </div>
           <div class="nap-alarm-box">
             <div class="nap-alarm-hd">🎧 알람 소리</div>
             <div class="nap-alarm-modes">
@@ -8363,6 +8364,34 @@ function startExamTimer(subject,minutes){
   const cfg=EXAM_SCHEDULE[subject];
   startCountdown('exam',cfg?cfg.minutes:minutes,subject,cfg?cfg.clockStart:null);
 }
+
+let napPresets = JSON.parse(localStorage.getItem('bugwang_nap_presets')||'[10,15,20,30]');
+function renderNapPresets() {
+  const row = document.getElementById('nap-preset-row');
+  if(!row) return;
+  row.innerHTML = napPresets.map(p => `<button class="timer-preset-btn" onclick="startNapTimer(${p})">${p}분</button>`).join('');
+  const minInput = document.getElementById('nap-custom-min');
+  const favBtn = document.getElementById('nap-fav-btn');
+  if(minInput && favBtn) {
+    const min = Number(minInput.value);
+    favBtn.textContent = (min && napPresets.includes(min)) ? '★ 즐겨찾기 해제' : '☆ 즐겨찾기 추가';
+  }
+}
+function toggleNapPreset() {
+  const v = Number(document.getElementById('nap-custom-min').value);
+  if(!v||v<1) { toast('먼저 즐겨찾기에 추가할 분(시간)을 입력해주세요!'); return; }
+  if (napPresets.includes(v)) {
+    napPresets = napPresets.filter(p => p !== v);
+    toast(`${v}분 즐겨찾기에서 제거됨`);
+  } else {
+    napPresets.push(v);
+    napPresets.sort((a,b)=>a-b);
+    toast(`${v}분 즐겨찾기 추가됨`);
+  }
+  localStorage.setItem('bugwang_nap_presets', JSON.stringify(napPresets));
+  renderNapPresets();
+}
+// ── END NAP PRESETS ──
 
 // ── 쪽잠 알람 소리 정책 ("꼬끼오 알람" 참고) ──
 // 수업 중에 쪽잠을 자다 깨는 용도라, 알람이 교실 전체에 울리면 안 된다. 그래서 기본값은

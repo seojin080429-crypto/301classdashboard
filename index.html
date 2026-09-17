@@ -15114,7 +15114,7 @@ async function renderNews(){
   // 뉴스 목록 로드
   const el = document.getElementById('news-list');
   el.innerHTML='<div style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">뉴스 불러오는 중...</div>';
-  const {data,error} = await sb.from('news').select('*').order('published_at',{ascending:false}).limit(50);
+  const {data,error} = await sb.from('news').select('*').order('published_at',{ascending:false}).limit(100);
   if(error||!data||!data.length){
     el.innerHTML='<div style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">뉴스를 불러올 수 없습니다.<br>관리자 페이지에서 수집해주세요.</div>';
     return;
@@ -15126,13 +15126,64 @@ async function renderNews(){
 // 백엔드 뉴스 수집기가 같은 기사를 중복으로 넣는 경우가 있어(url이 같으면 같은 기사로 간주,
 // url이 없으면 제목으로) 화면에 보여주기 전에 걸러낸다.
 function dedupeNews(list){
-  const seen=new Set();
-  return list.filter(n=>{
-    const key=(n.url||n.title||'').trim().toLowerCase();
-    if(seen.has(key))return false;
-    seen.add(key);
-    return true;
-  });
+  const seenUrls = new Set();
+  const seenTitles = new Set();
+  const result = [];
+
+  function cleanUrl(u){
+    if(!u) return '';
+    try {
+      const url = new URL(u);
+      ['utm_source', 'utm_medium', 'utm_campaign', 'ref', 'wlog_tag3', 'wlog_tag2', 'cmp_id', 'ref_id'].forEach(p => url.searchParams.delete(p));
+      return (url.origin + url.pathname).toLowerCase();
+    } catch(e) {
+      return u.trim().toLowerCase();
+    }
+  }
+
+  function normalizeTitle(t){
+    return (t||'')
+      .replace(/\[[^\]]*\]/g, '')
+      .replace(/[‘'“"’”`,.·…\s\-_–—]/g, '')
+      .toLowerCase();
+  }
+
+  function getBigrams(s) {
+    const set = new Set();
+    for(let i=0; i<s.length-1; i++) set.add(s.slice(i, i+2));
+    return set;
+  }
+
+  function isSimilarTitle(t1, t2) {
+    const s1 = normalizeTitle(t1);
+    const s2 = normalizeTitle(t2);
+    if (s1 === s2) return true;
+    if (s1.length >= 8 && s2.length >= 8) {
+      if (s1.includes(s2) || s2.includes(s1)) return true;
+    }
+    const b1 = getBigrams(s1);
+    const b2 = getBigrams(s2);
+    if (!b1.size || !b2.size) return false;
+    let intersect = 0;
+    for(const b of b1) if(b2.has(b)) intersect++;
+    return (2 * intersect) / (b1.size + b2.size) >= 0.70;
+  }
+
+  for(const n of list){
+    const u = cleanUrl(n.url);
+    const t = normalizeTitle(n.title);
+
+    if (u && seenUrls.has(u)) continue;
+    if (t && seenTitles.has(t)) continue;
+
+    const hasSimilar = result.some(prev => isSimilarTitle(prev.title, n.title));
+    if (hasSimilar) continue;
+
+    if (u) seenUrls.add(u);
+    if (t) seenTitles.add(t);
+    result.push(n);
+  }
+  return result;
 }
 
 // 백엔드 수집기가 아직 썸네일(image_url)을 못 채워주는 기사가 대부분이라, 그 경우엔

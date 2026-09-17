@@ -6477,6 +6477,20 @@ async function loadSubjectsFromDB(){
   renderSubjects();
 }
 
+
+async function playSubjectTimer(si) {
+  let ti = subjects[si].tasks.findIndex(t => t.name === subjects[si].name);
+  if (ti === -1) {
+    const today = localDateStr();
+    const {data, error} = await sb.from('study_tasks').insert({user_id:currentUser.id,subject:subjects[si].name,task_name:subjects[si].name,is_done:false,date:today}).select().single();
+    if(error){ toast('과목 학습 추가 실패: '+error.message); return; }
+    subjects[si].tasks.push({id:data.id, name:subjects[si].name, done:false, seconds:0, dbId:data.id});
+    ti = subjects[si].tasks.length - 1;
+    renderSubjects();
+  }
+  openTimerView(si, ti);
+}
+
 // ── RENDER SUBJECTS ──
 function renderSubjects(){
   const el=document.getElementById('subject-list');el.innerHTML='';

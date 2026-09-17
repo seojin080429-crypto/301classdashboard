@@ -887,6 +887,10 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .dm-msg-bubble{padding:9px 13px;border-radius:14px;font-size:13px;line-height:1.5;word-break:break-word}
 .dm-msg-row.theirs .dm-msg-bubble{background:var(--parchment);color:var(--ink);border-bottom-left-radius:4px}
 .dm-msg-row.mine .dm-msg-bubble{background:var(--blue);color:#fff;border-bottom-right-radius:4px}
+.dm-shared-card{transition:opacity var(--t)}
+.dm-shared-card:hover{opacity:0.92}
+.dm-msg-row.mine .dm-shared-card .dm-shared-title{color:#fff!important}
+.dm-msg-row.theirs .dm-shared-card .dm-shared-title{color:var(--blue)!important}
 .dm-msg-img{max-width:220px;max-height:260px;border-radius:12px;margin-top:2px;cursor:pointer;display:block;background:var(--parchment);min-height:60px;object-fit:cover}
 .dm-msg-meta{font-size:10px;color:var(--ink-48);margin-top:3px;padding:0 4px;display:flex;align-items:center;gap:6px}
 .dm-read-receipt{color:var(--ig-blue);font-weight:600}
@@ -9263,6 +9267,42 @@ async function loadDmMessages(roomId){
 let dmCurrentMessages=[];
 // 메시지 한 줄 템플릿 — 전체 재렌더(renderDmThreadMessages)와 낙관적 한 줄 추가
 // (appendDmMessage)가 공유한다.
+function renderDmBubbleContent(m){
+  let text = m.content || '';
+  const postMatch = text.match(/#post-([a-f0-9-]+)/i);
+  if(postMatch){
+    const postId = postMatch[1];
+    const cleanText = text.replace(/\n?👉\s*게시글\s*보러가기:\s*#post-[a-f0-9-]+/i, '').replace(/^📌\s*게시글\s*공유\n?/, '');
+    return `<div class="dm-shared-card" onclick="goToSharedPost('${postId}')" style="cursor:pointer;text-align:left">
+      <div class="dm-shared-title" style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;margin-bottom:6px">
+        <span>📌 게시글 공유</span>
+        <span style="margin-left:auto;font-size:11px;opacity:0.85;text-decoration:underline">보러가기 ↗</span>
+      </div>
+      <div style="white-space:pre-wrap;line-height:1.45;word-break:break-word">${escHtml(cleanText)}</div>
+    </div>`;
+  }
+  if(text.startsWith('📌 게시글 공유')){
+    const lines = text.split('\n');
+    if (lines.length >= 2 && lines[1].includes(': ')) {
+      const colonIdx = lines[1].indexOf(': ');
+      lines[1] = lines[1].substring(colonIdx + 2);
+      text = lines.join('\n');
+    }
+  }
+  return escHtml(text);
+}
+
+async function goToSharedPost(postId){
+  if(!postId)return;
+  const dmLayout = document.getElementById('dm-layout');
+  if(dmLayout && dmLayout.classList.contains('thread-open')){
+    dmLayout.classList.remove('thread-open');
+    document.body.style.overflow = '';
+  }
+  navigate('free-board');
+  await openBoardPost(postId);
+}
+
 function dmMessageRowHtml(m,isGroup){
   const mine=m.sender_student_id===currentStudentId;
   const time=new Date(m.created_at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
@@ -9271,7 +9311,7 @@ function dmMessageRowHtml(m,isGroup){
   // 브라우저가 캐시에서 바로 꺼낸다.
   const known=m.image_url?dmCachedSignedUrl(m.image_url):null;
   const imgHtml=m.image_url?`<img class="dm-msg-img" data-path="${m.image_url}"${known?` src="${escAttr(known)}"`:''} onclick="if(this.src)openLightbox(this.src)" alt="사진">`:'';
-  const textHtml=m.content?`<div class="dm-msg-bubble" id="dm-msg-bubble-${m.id}">${escHtml(m.content)}</div>`:'';
+  const textHtml=m.content?`<div class="dm-msg-bubble" id="dm-msg-bubble-${m.id}">${renderDmBubbleContent(m)}</div>`:'';
   // 내 메시지만 모바일 꾹 누르기/PC 우클릭으로 삭제·수정 메뉴를 띄운다(showDmMsgMenu).
   const menuAttrs=mine?`oncontextmenu="showDmMsgMenu(event,'${m.id}')" ontouchstart="dmTouchStart(event,'${m.id}')" ontouchend="dmTouchEnd(event)" ontouchmove="dmTouchEnd(event)"`:'';
   return`<div class="dm-msg-row ${mine?'mine':'theirs'}" data-msg-id="${m.id}" ${menuAttrs}>
@@ -11274,7 +11314,9 @@ async function confirmSharePostToDm(roomId){
     }catch(e){/* 사진 전달에 실패해도 텍스트 공유는 계속 진행 */}
   }
   const videoNote=isVideoAttachment?'\n(동영상 첨부됨 — 게시판에서 확인해주세요)':'';
-  const content=`📌 게시글 공유\n${authorName}: ${post.content}${videoNote}`;
+  const titlePart=post.title?`[${post.title}]\n`:'';
+  const bodySnippet=(post.content||'').slice(0,150)+((post.content||'').length>150?'...':'');
+  const content=`📌 게시글 공유\n${titlePart}${bodySnippet}${videoNote}\n👉 게시글 보러가기: #post-${postId}`;
   const {data:msg,error:sendErr}=await sb.from('dm_messages').insert({
     room_id:roomId,sender_student_id:currentStudentId,sender_user_id:currentUser.id,
     sender_name:currentName||currentStudentId+'번',content,image_url:imagePath

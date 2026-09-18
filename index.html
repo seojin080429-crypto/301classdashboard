@@ -1356,6 +1356,15 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .routine-list-item-subject{font-size:13px;font-weight:600;color:var(--ink)}
 .routine-list-item-deadline{font-size:11px;color:var(--ink-48);margin-top:2px}
 .routine-list-item-actions{display:flex;gap:6px;flex-shrink:0}
+.sc-routine-list{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.sc-routine-chip{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--subtle);border:1px solid var(--hairline);border-radius:var(--radius-md);cursor:pointer;user-select:none;transition:border-color var(--t),background var(--t)}
+.sc-routine-chip:hover{border-color:var(--ig-blue)}
+.sc-routine-chip.selected{border-color:var(--ig-blue);background:rgba(0,149,246,.06)}
+.sc-routine-chip input[type="checkbox"]{width:17px;height:17px;accent-color:var(--ig-blue);cursor:pointer;flex-shrink:0}
+.sc-routine-chip-subj{font-weight:600;font-size:13px;color:var(--ink)}
+.sc-routine-chip-task{font-size:12.5px;color:var(--ink-48);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sc-routine-chip-dl{font-size:11px;color:var(--ink-48);background:var(--canvas);padding:2px 6px;border-radius:4px;border:1px solid var(--hairline);white-space:nowrap;flex-shrink:0}
+
 /* ㅇㅈ/ㄴㅇㅈ 인증 투표 버튼(공부인증 표의 "인증" 컬럼) */
 .sc-vote-group{display:flex;gap:4px;flex-wrap:wrap}
 .sc-vote-btn{display:flex;align-items:center;gap:3px;padding:3px 7px;border-radius:var(--radius-pill);border:1px solid var(--hairline);background:var(--canvas);font-size:11px;color:var(--ink-48);cursor:pointer;white-space:nowrap;transition:all var(--t)}
@@ -11618,7 +11627,7 @@ function setScCertDate(offset){
   syncScDateLabel();
 }
 // post를 넘기면 "수정" 모드 — 인증 날짜·과목별 기록·사진·연결 루틴까지 그대로 채워서 연다.
-function openStudyCertWritePage(post){
+async function openStudyCertWritePage(post){
   editingPost.studycert=post?post.id:null;
   const dateEl=document.getElementById('sc-date');
   dateEl.value=post?(post.study_date||scDefaultCertDate()):scDefaultCertDate();
@@ -11636,14 +11645,44 @@ function openStudyCertWritePage(post){
     renderScPhotoPreviews();
   }
   document.getElementById('sc-error').style.display='none';
-  // 활성 루틴이 있으면 이 인증을 어느 루틴에 연결할지 고를 수 있게 한다(루틴이 여러 개일
-  // 수 있어서 자동 연결 대신 선택형으로 — 예: 국어 루틴 인증인데 수학 루틴에 잘못 잡히는 일 방지).
+
+  // 활성 루틴 목록 확보(캐시가 아직 안 채워졌으면 직접 조회)
+  if((!myRoutines||!myRoutines.length)&&currentUser){
+    try{
+      const {data:rts}=await sb.from('study_routines').select('*').eq('student_id',currentStudentId).eq('is_active',true);
+      if(rts)myRoutines=rts;
+    }catch(e){}
+  }
+
+  // 활성 루틴이 있으면 이 인증으로 한 번에 완료할 루틴들을 다중 선택할 수 있게 한다.
   const hintEl=document.getElementById('sc-routine-hint');
-  if(myRoutines.length){
+  if(myRoutines&&myRoutines.length){
     hintEl.style.display='block';
-    const options=myRoutines.map(r=>`<option value="${r.id}">${escHtml(r.subject)} · ${escHtml(r.task)}</option>`).join('');
-    hintEl.innerHTML=`<label class="modal-label">🔗 연결할 루틴</label><select class="modal-input" id="sc-routine-select"><option value="">연결 안 함</option>${options}</select>`;
-    document.getElementById('sc-routine-select').value=(post&&post.routine_id)||myRoutines[0].id;
+    const selectedIds=new Set(
+      post
+        ? (Array.isArray(post.routine_ids)&&post.routine_ids.length ? post.routine_ids : (post.routine_id ? [post.routine_id] : []))
+        : myRoutines.map(r=>r.id)
+    );
+    const items=myRoutines.map(r=>{
+      const isChecked=selectedIds.has(r.id);
+      const dl=fmtDeadlineLabel(r.deadline_time,r.deadline_next_day);
+      return `<label class="sc-routine-chip${isChecked?' selected':''}">
+        <input type="checkbox" name="sc-routine-check" value="${r.id}" ${isChecked?'checked':''} onchange="updateScRoutineChipStyle(this)">
+        <span class="sc-routine-chip-subj">${escHtml(r.subject)}</span>
+        <span class="sc-routine-chip-task">${escHtml(r.task)}</span>
+        ${dl?`<span class="sc-routine-chip-dl">${dl}</span>`:''}
+      </label>`;
+    }).join('');
+
+    hintEl.innerHTML=`
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <label class="modal-label" style="margin:0">🔗 인증할 루틴 선택 (다중 선택 가능)</label>
+        <div style="display:flex;gap:6px">
+          <button type="button" class="btn-ghost" style="font-size:11px;padding:3px 8px;height:auto;line-height:1.2" onclick="toggleAllScRoutines(true)">전체 선택</button>
+          <button type="button" class="btn-ghost" style="font-size:11px;padding:3px 8px;height:auto;line-height:1.2" onclick="toggleAllScRoutines(false)">전체 해제</button>
+        </div>
+      </div>
+      <div class="sc-routine-list">${items}</div>`;
   }else{
     hintEl.style.display='none';
     hintEl.innerHTML='';
@@ -11656,6 +11695,18 @@ function openStudyCertWritePage(post){
   document.getElementById('page-studycert-write').classList.add('active');
   window.scrollTo(0,0);
   if(!post)offerDraftRestore('studycert');
+}
+function toggleAllScRoutines(checked){
+  document.querySelectorAll('input[name="sc-routine-check"]').forEach(cb=>{
+    cb.checked=checked;
+    updateScRoutineChipStyle(cb);
+  });
+}
+function updateScRoutineChipStyle(cb){
+  const label=cb.closest('.sc-routine-chip');
+  if(label){
+    label.classList.toggle('selected',!!cb.checked);
+  }
 }
 function closeStudyCertWritePage(){
   editingPost.studycert=null;
@@ -11965,13 +12016,15 @@ async function submitStudyCertPost(){
   const content=document.getElementById('sc-content').value.trim()||'오늘도 공부 완료!';
   // 첨부 최종 목록 = (수정 중 그대로 둔 기존 사진) + (이번에 새로 올린 사진)
   const finalUrls=[...scPhotoExisting,...urls];
+  const selectedRoutineIds=Array.from(document.querySelectorAll('input[name="sc-routine-check"]:checked')).map(cb=>cb.value);
   const fields={
     // image_url에는 첫 장을 그대로 넣는다 — 옛 글/다른 화면(게시글 공유 등)이 이 컬럼만
     // 보고 있어서, 여러 장이 되어도 한 장짜리로는 계속 정상 동작하게 하기 위함.
     category:'studycert',subject:null,content,
     image_url:finalUrls[0]||null,image_urls:finalUrls.length?finalUrls:null,
     study_seconds:studySeconds,study_date:studyDate,study_log:logRows,
-    routine_id:document.getElementById('sc-routine-select')?.value||null
+    routine_id:selectedRoutineIds[0]||null,
+    routine_ids:selectedRoutineIds.length?selectedRoutineIds:null
   };
   // ── 수정 모드 ── (인증 날짜·과목별 시간·사진·연결 루틴까지 전부 바뀔 수 있다)
   if(isEditingPost('studycert')){
@@ -11986,6 +12039,7 @@ async function submitStudyCertPost(){
     finishDraft('studycert');
     closeStudyCertWritePage();
     toast('공부 인증이 수정되었습니다 ✓');
+    renderStudyRoutineBoard();
     return; // 수정에는 "인증 올라왔어요" 알림을 다시 보내지 않는다
   }
   const{data:newPost,error}=await sb.from('posts').insert({
@@ -12001,6 +12055,7 @@ async function submitStudyCertPost(){
   closeStudyCertWritePage();
   toast('공부 인증이 등록되었습니다 ✓');
   triggerNotify('study-cert',{post_id:newPost.id});
+  renderStudyRoutineBoard();
 }
 
 // ── 시험 회고 (examreview) ──
@@ -13248,9 +13303,14 @@ async function renderStudyRoutineBoard(){
   // 스트릭(연속 인증일수) 계산에는 이번 주보다 긴 기록이 필요해서 최근 90일치를 한 번에
   // 받아, 주간 미인증 집계와 스트릭 둘 다 이 데이터 하나로 계산한다.
   const lookbackStart=localDateStr(new Date(Date.now()-90*86400000));
-  const {data:certs}=await sb.from('posts').select('routine_id,study_date').eq('category','studycert').in('routine_id',routineIds).gte('study_date',lookbackStart);
+  const {data:certs}=await sb.from('posts').select('routine_id,routine_ids,study_date').eq('category','studycert').gte('study_date',lookbackStart);
   const certDatesByRoutine={};
-  (certs||[]).forEach(c=>{(certDatesByRoutine[c.routine_id]=certDatesByRoutine[c.routine_id]||new Set()).add(c.study_date)});
+  (certs||[]).forEach(c=>{
+    const ids=Array.isArray(c.routine_ids)&&c.routine_ids.length?c.routine_ids:(c.routine_id?[c.routine_id]:[]);
+    ids.forEach(rid=>{
+      if(rid)(certDatesByRoutine[rid]=certDatesByRoutine[rid]||new Set()).add(c.study_date);
+    });
+  });
   // 오늘은 아직 안 끝난 하루라 "미인증"으로 안 세고, 오늘 이전(이미 다 지난 날)만 놓친 횟수로 센다.
   wrap.innerHTML=`<div class="routine-board">${routines.slice().sort((a,b)=>a.student_id.localeCompare(b.student_id)).map(r=>{
     const profile=profileMap[r.student_id];

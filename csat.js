@@ -4,7 +4,7 @@ function renderCsatBoard() {
   const board = document.getElementById('csat-board');
   if (!board) return;
 
-  let html = \`
+  let html = `
     <div style="background:var(--bg-card);border:1px solid var(--border-color);border-radius:12px;padding:24px;">
       <h2 style="margin:0 0 16px 0;font-size:20px;">기출문제 빠른 채점</h2>
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;">
@@ -43,7 +43,7 @@ function renderCsatBoard() {
       <div id="csat-result-area" style="display:none;margin-top:24px;padding:20px;background:rgba(16,185,129,0.1);border-radius:12px;border:1px solid rgba(16,185,129,0.3);">
       </div>
     </div>
-  \`;
+  `;
   
   board.innerHTML = html;
 }
@@ -55,10 +55,10 @@ function onCsatSubjectChange() {
   
   if (subj === '국어') {
     electiveSelect.style.display = 'block';
-    electiveSelect.innerHTML = \`<option value="화법과 작문">화법과 작문</option><option value="언어와 매체">언어와 매체</option>\`;
+    electiveSelect.innerHTML = `<option value="화법과 작문">화법과 작문</option><option value="언어와 매체">언어와 매체</option>`;
   } else if (subj === '수학') {
     electiveSelect.style.display = 'block';
-    electiveSelect.innerHTML = \`<option value="확률과 통계">확률과 통계</option><option value="미적분">미적분</option><option value="기하">기하</option>\`;
+    electiveSelect.innerHTML = `<option value="확률과 통계">확률과 통계</option><option value="미적분">미적분</option><option value="기하">기하</option>`;
   } else {
     electiveSelect.style.display = 'none';
   }
@@ -82,15 +82,15 @@ function generateCsatOmr() {
   for (let i = 1; i <= qCount; i++) {
     const isMathShort = (subj === '수학' && ((i >= 16 && i <= 22) || (i >= 29 && i <= 30)));
     
-    let html = \`
+    let html = `
       <div style="display:flex;flex-direction:column;align-items:center;">
-        <label style="font-size:12px;color:var(--text-color);margin-bottom:4px;">\${i}번</label>
-        <input type="\${isMathShort ? 'text' : 'number'}" id="omr-input-\${i}" data-q="\${i}" 
-               \${!isMathShort ? 'min="1" max="5"' : ''}
+        <label style="font-size:12px;color:var(--text-color);margin-bottom:4px;">${i}번</label>
+        <input type="${isMathShort ? 'text' : 'number'}" id="omr-input-${i}" data-q="${i}" 
+               ${!isMathShort ? 'min="1" max="5"' : ''}
                class="input-text" style="width:100%;text-align:center;padding:8px;"
-               oninput="onOmrInput(this, \${isMathShort})">
+               oninput="onOmrInput(this, ${isMathShort})">
       </div>
-    \`;
+    `;
     grid.insertAdjacentHTML('beforeend', html);
   }
   
@@ -145,7 +145,6 @@ function gradeCsatExam() {
   
   let rawScore = 0;
   let correctCount = 0;
-  let resultDetails = '';
   
   for (let i = 0; i < answerKey.length; i++) {
     const qNum = i + 1;
@@ -184,14 +183,14 @@ function gradeCsatExam() {
   
   const resultArea = document.getElementById('csat-result-area');
   resultArea.style.display = 'block';
-  resultArea.innerHTML = \`
+  resultArea.innerHTML = `
     <div style="text-align:center;">
       <h2 style="font-size:24px;margin:0;color:var(--text-color);">채점 결과</h2>
-      <div style="font-size:48px;font-weight:bold;color:#10b981;margin:10px 0;">\${grade}등급</div>
-      <div style="font-size:18px;color:var(--text-muted);">원점수: <strong>\${rawScore}점</strong> / \${correctCount}문항 정답</div>
+      <div style="font-size:48px;font-weight:bold;color:#10b981;margin:10px 0;">${grade}등급</div>
+      <div style="font-size:18px;color:var(--text-muted);">원점수: <strong>${rawScore}점</strong> / ${correctCount}문항 정답</div>
       <div style="margin-top:16px;font-size:14px;color:var(--text-muted);">
         * 등급컷은 추정치이므로 실제와 차이가 있을 수 있습니다.
       </div>
     </div>
-  \`;
+  `;
 }

@@ -2472,6 +2472,8 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
           <div class="timer-preset-row" id="exam-preset-row">
             <button class="timer-preset-btn" onclick="startExamTimer('국어')">국어 8:40~10:00</button>
             <button class="timer-preset-btn" onclick="startExamTimer('수학')">수학 10:30~12:10</button>
+            <button class="timer-preset-btn" onclick="startExamTimer('탐구1')">탐구1 15:35~16:05</button>
+            <button class="timer-preset-btn" onclick="startExamTimer('탐구2')">탐구2 16:07~16:37</button>
           </div>
           <div style="display:flex;gap:8px;justify-content:center;margin-top:14px">
             <button class="btn-ghost" id="exam-pause-btn" onclick="togglePauseTimer('exam')" style="display:none">일시정지</button>
@@ -8157,6 +8159,8 @@ function miscTimerRunning(){
 const EXAM_SCHEDULE={
   '국어':{clockStart:8*60+40,minutes:80},   // 08:40 ~ 10:00
   '수학':{clockStart:10*60+30,minutes:100}, // 10:30 ~ 12:10
+  '탐구1':{clockStart:15*60+35,minutes:30},
+  '탐구2':{clockStart:16*60+7,minutes:30}
 };
 function fmtClockLabel(totalMin){
   const h=Math.floor(totalMin/60)%24,m=totalMin%60;
@@ -8546,6 +8550,18 @@ function unlockAudio(){
     src.buffer=buf;src.connect(ctx.destination);src.start(0);
   }catch(e){}
 }
+
+function playExamBroadcast(msgText) {
+  if ('speechSynthesis' in window) {
+    const msg = new SpeechSynthesisUtterance(msgText);
+    msg.lang = 'ko-KR';
+    msg.rate = 0.9;
+    window.speechSynthesis.speak(msg);
+  } else {
+    for(let i=0; i<3; i++) setTimeout(playBeep, i*500);
+  }
+}
+
 function playBeep(){
   try{
     const ctx=playBeep._ctx||(playBeep._ctx=new (window.AudioContext||window.webkitAudioContext)());

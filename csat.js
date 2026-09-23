@@ -6,18 +6,72 @@ function renderCsatBoard() {
 
   let html = `
     <div style="background:var(--bg-card);border:1px solid var(--border-color);border-radius:12px;padding:24px;">
-      <h2 style="margin:0 0 16px 0;font-size:20px;">기출문제 빠른 채점</h2>
-      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;">
-        <select id="csat-year" class="input-text" style="width:auto;">
+      
+      <style>
+        .glass-select {
+          appearance: none;
+          background: rgba(16, 185, 129, 0.08);
+          backdrop-filter: blur(8px);
+          border: 1px solid rgba(16, 185, 129, 0.3);
+          border-radius: 12px;
+          color: var(--text-color);
+          padding: 10px 16px;
+          padding-right: 36px;
+          font-size: 14px;
+          font-weight: 600;
+          outline: none;
+          cursor: pointer;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          background-image: url('data:image/svg+xml;utf8,<svg fill="%2310b981" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+          background-repeat: no-repeat;
+          background-position: right 10px center;
+          background-size: 20px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+        }
+        .glass-select:hover {
+          background: rgba(16, 185, 129, 0.12);
+          border-color: rgba(16, 185, 129, 0.5);
+          transform: translateY(-1px);
+          box-shadow: 0 6px 16px rgba(16, 185, 129, 0.1);
+        }
+        .glass-select:focus {
+          border-color: #10b981;
+          box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+        }
+        [data-theme="dark"] .glass-select {
+          background: rgba(16, 185, 129, 0.15);
+          border-color: rgba(16, 185, 129, 0.4);
+        }
+        [data-theme="dark"] .glass-select:hover {
+          background: rgba(16, 185, 129, 0.2);
+          border-color: rgba(16, 185, 129, 0.6);
+        }
+        .csat-header-row {
+          display: flex;
+          gap: 12px;
+          flex-wrap: wrap;
+          margin-bottom: 24px;
+          align-items: center;
+          background: var(--bg-card);
+          padding: 16px;
+          border-radius: 16px;
+          box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+          border: 1px solid var(--border-color);
+        }
+      </style>
+
+      <h2 style="margin:0 0 16px 0;font-size:20px;font-weight:700;">기출문제 빠른 채점</h2>
+      <div class="csat-header-row">
+        <select id="csat-year" class="glass-select" style="width:auto;">
           <option value="2024">24학년도</option>
           <option value="2023">23학년도</option>
         </select>
-        <select id="csat-month" class="input-text" style="width:auto;">
+        <select id="csat-month" class="glass-select" style="width:auto;">
           <option value="11">11월 수능</option>
           <option value="09">09월 모평</option>
           <option value="06">06월 모평</option>
         </select>
-        <select id="csat-subject" class="input-text" style="width:auto;" onchange="onCsatSubjectChange()">
+        <select id="csat-subject" class="glass-select" style="width:auto;" onchange="onCsatSubjectChange()">
           <option value="">과목 선택</option>
           <option value="국어">국어 (45문항)</option>
           <option value="수학">수학 (30문항)</option>
@@ -26,7 +80,7 @@ function renderCsatBoard() {
           <option value="지구과학1">지구과학1 (20문항)</option>
           <option value="윤리와사상">윤리와 사상 (20문항)</option>
         </select>
-        <select id="csat-elective" class="input-text" style="width:auto;display:none;">
+        <select id="csat-elective" class="glass-select" style="width:auto;display:none;">
         </select>
         <button class="btn-primary" onclick="generateCsatOmr()">OMR 띄우기</button>
         <button class="btn-ghost" onclick="showCsatAnswerKey()">빠른 정답 보기</button>

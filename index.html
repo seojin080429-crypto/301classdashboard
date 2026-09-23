@@ -25,6 +25,8 @@
 <!-- crossorigin: 이걸 붙여야 응답이 "불투명(opaque)"이 아니라 정상 응답으로 와서, 서비스
      워커가 이 라이브러리를 캐시해둘 수 있다(두 번째 방문부터 CDN을 아예 안 두드림). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous" onerror="window.__sbLoadFailed=1"></script>
+<script src="exam_data.js"></script>
+<script src="csat.js"></script>
 <script>
 // 이 라이브러리를 못 받으면 아래 앱 코드가 첫 줄(createClient)에서 통째로 죽어서 **화면이
 // 하얗게 멈춘다** — 느린 인터넷에서 "앱이 안 켜진다"의 가장 흔한 정체. 그 경우 이유와 다시
@@ -2610,6 +2612,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
           <button class="view-btn" id="study-tab-studycert" onclick="switchStudyTab('studycert')">공부인증</button>
           <button class="view-btn" id="study-tab-textbook" onclick="switchStudyTab('textbook')">교재</button>
           <button class="view-btn" id="study-tab-examreview" onclick="switchStudyTab('examreview')">시험 회고</button>
+          <button class="view-btn" id="study-tab-csat" onclick="switchStudyTab('csat')">기출 채점</button>
         </div>
         <div style="margin-left:auto;flex-shrink:0;display:flex;gap:8px">
           <div id="studycert-write-btn" style="display:none;gap:8px">
@@ -2631,6 +2634,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
       <div id="study-routine-board" style="display:none"></div>
       <!-- 교재 탭 — 반 친구들이 등록한 문제집을 표지 + 진행률 게이지로 -->
       <div id="textbook-board" style="display:none"></div>
+      <div id="csat-board" style="display:none"></div>
       <div class="qna-list" id="study-list"></div>
     </div>
 
@@ -10684,21 +10688,22 @@ function syncFreePollSection(){
 // 공부인증 / 시험회고 페이지 탭
 let studyTab='studycert';
 function renderStudyTabs(){
-  ['studycert','textbook','examreview'].forEach(t=>document.getElementById('study-tab-'+t)?.classList.toggle('active',studyTab===t));
-  const isCert=studyTab==='studycert', isBook=studyTab==='textbook';
+  ['studycert','textbook','examreview','csat'].forEach(t=>document.getElementById('study-tab-'+t)?.classList.toggle('active',studyTab===t));
+  const isCert=studyTab==='studycert', isBook=studyTab==='textbook', isCsat=studyTab==='csat';
   const scBtn=document.getElementById('studycert-write-btn');
   const tbBtn=document.getElementById('textbook-write-btn');
   const erBtn=document.getElementById('examreview-write-btn');
   if(scBtn)scBtn.style.display=isCert?'flex':'none';
   if(tbBtn)tbBtn.style.display=isBook?'block':'none';
-  if(erBtn)erBtn.style.display=(!isCert&&!isBook)?'block':'none';
+  if(erBtn)erBtn.style.display=(studyTab==='examreview')?'block':'none';
   const routineBoard=document.getElementById('study-routine-board');
   if(routineBoard)routineBoard.style.display=isCert?'block':'none';
   const tbBoard=document.getElementById('textbook-board');
   if(tbBoard)tbBoard.style.display=isBook?'block':'none';
-  // 교재 탭은 글 목록이 아니라 교재 격자를 쓰므로 글 목록은 숨긴다.
+  const csatBoard=document.getElementById('csat-board');
+  if(csatBoard)csatBoard.style.display=isCsat?'block':'none';
   const list=document.getElementById('study-list');
-  if(list)list.style.display=isBook?'none':'';
+  if(list)list.style.display=(isBook||isCsat)?'none':'';
   if(isCert)renderStudyRoutineBoard();
 }
 function switchStudyTab(t){
@@ -10710,6 +10715,7 @@ function switchStudyTab(t){
 async function loadStudyBoard(){
   renderStudyTabs();
   if(studyTab==='textbook'){await loadTextbookBoard();return}
+  if(studyTab==='csat'){renderCsatBoard();return}
   const isCert=studyTab==='studycert';
   await loadBoardPosts(
     isCert?'studycert':'examreview','study-list',

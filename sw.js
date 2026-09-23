@@ -18,7 +18,7 @@
 // 한다(서비스 워커 업데이트는 이 파일의 바이트가 달라졌을 때만 트리거됨) — 그래서 index.html에
 // 의미 있는 변경이 생겨 배포할 때마다 이 값을 같이 올려서, 새 버전 배포 시 이 파일도 함께
 // 바뀌게 만든다. 값 자체는 로직에서 안 쓰고 순전히 "새 버전 신호"용.
-const SW_BUILD = '2026-09-18-multi-routine-cert';
+const SW_BUILD = '2026-09-23-csat-grading';
 
 // index.html이 "새로고침하기" 배너에서 새 워커를 즉시 활성화시키려고 보내는 메시지
 self.addEventListener('message', (event) => {
@@ -27,7 +27,7 @@ self.addEventListener('message', (event) => {
 
 // 앱 셸 캐시 — 이름에 SW_BUILD가 들어가서 배포할 때마다 새 캐시가 생기고 옛 캐시는 버려진다.
 const SHELL_CACHE = 'bugwang-shell-' + SW_BUILD;
-const SHELL_URLS = ['./', './index.html', './manifest.json', './uc.js'];
+const SHELL_URLS = ['./', './index.html', './manifest.json', './uc.js', './exam_data.js', './csat.js'];
 // 라이브러리(코드)는 데이터가 아니므로 캐시해도 안전하다. 매번 바깥 CDN에 DNS+TLS+120KB를
 // 새로 쓰지 않도록 이것만 예외로 캐시한다(캐시 이름이 배포마다 바뀌니 자동으로 갱신됨).
 const CDN_PREFIX = 'https://cdn.jsdelivr.net/';

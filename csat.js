@@ -195,3 +195,61 @@ function gradeCsatExam() {
     </div>
   `;
 }
+
+function showCsatAnswerKey() {
+  const year = document.getElementById('csat-year').value;
+  const month = document.getElementById('csat-month').value;
+  const subj = document.getElementById('csat-subject').value;
+  
+  if (!subj) {
+    alert('과목을 선택해주세요.');
+    return;
+  }
+  
+  let elective = '';
+  if (subj === '국어' || subj === '수학') {
+    elective = document.getElementById('csat-elective').value;
+  } else {
+    elective = '공통';
+  }
+  
+  const EXAM_DATA = window.EXAM_DATA;
+  if (!EXAM_DATA || !EXAM_DATA[year] || !EXAM_DATA[year][month] || !EXAM_DATA[year][month][subj]) {
+    alert('해당 시험의 정답 데이터가 아직 준비되지 않았습니다.');
+    return;
+  }
+  
+  const examInfo = EXAM_DATA[year][month][subj];
+  let answerKey = [];
+  if (examInfo.common) {
+    answerKey = answerKey.concat(examInfo.common);
+  }
+  if (examInfo.electives && elective && examInfo.electives[elective]) {
+    answerKey = answerKey.concat(examInfo.electives[elective]);
+  }
+  
+  document.getElementById('csat-omr-area').style.display = 'none';
+  const resultArea = document.getElementById('csat-result-area');
+  resultArea.style.display = 'block';
+  
+  let gridHtml = '<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(60px, 1fr));gap:8px;margin-top:16px;">';
+  for (let i = 0; i < answerKey.length; i++) {
+    const qNum = i + 1;
+    const ansObj = answerKey[i];
+    gridHtml += `
+      <div style="background:var(--bg-elevated);border:1px solid var(--border-color);border-radius:8px;padding:8px;text-align:center;">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">${qNum}번</div>
+        <div style="font-size:16px;font-weight:bold;color:var(--text-color);">${ansObj.a}</div>
+      </div>
+    `;
+  }
+  gridHtml += '</div>';
+  
+  resultArea.innerHTML = `
+    <div>
+      <h2 style="font-size:20px;margin:0 0 8px 0;color:var(--text-color);">빠른 정답 (${subj} ${elective === '공통' ? '' : '- ' + elective})</h2>
+      <div style="font-size:14px;color:var(--text-muted);">* 각 문항의 정답입니다.</div>
+      ${gridHtml}
+    </div>
+  `;
+}

@@ -30,6 +30,7 @@ function renderCsatBoard() {
         </select>
         <button class="btn-primary" onclick="generateCsatOmr()">OMR 띄우기</button>
         <button class="btn-ghost" onclick="showCsatAnswerKey()">빠른 정답 보기</button>
+        <button class="btn-ghost" onclick="showCsatCutoffs()">등급컷 보기</button>
       </div>
       
       <div id="csat-omr-area" style="display:none;margin-top:24px;">
@@ -250,6 +251,66 @@ function showCsatAnswerKey() {
       <h2 style="font-size:20px;margin:0 0 8px 0;color:var(--text-color);">빠른 정답 (${subj} ${elective === '공통' ? '' : '- ' + elective})</h2>
       <div style="font-size:14px;color:var(--text-muted);">* 각 문항의 정답입니다.</div>
       ${gridHtml}
+    </div>
+  `;
+}
+
+function showCsatCutoffs() {
+  const year = document.getElementById('csat-year').value;
+  const month = document.getElementById('csat-month').value;
+  const subj = document.getElementById('csat-subject').value;
+  
+  if (!subj) {
+    alert('과목을 선택해주세요.');
+    return;
+  }
+  
+  const EXAM_DATA = window.EXAM_DATA;
+  if (!EXAM_DATA || !EXAM_DATA[year] || !EXAM_DATA[year][month] || !EXAM_DATA[year][month][subj]) {
+    alert('해당 시험의 데이터가 아직 준비되지 않았습니다.');
+    return;
+  }
+  
+  const examInfo = EXAM_DATA[year][month][subj];
+  const cutoffs = examInfo.cutoffs;
+  if (!cutoffs) {
+    alert('해당 시험의 등급컷 데이터가 없습니다.');
+    return;
+  }
+  
+  document.getElementById('csat-omr-area').style.display = 'none';
+  const resultArea = document.getElementById('csat-result-area');
+  resultArea.style.display = 'block';
+  
+  let tablesHtml = '<div style="display:flex;flex-wrap:wrap;gap:20px;margin-top:16px;">';
+  
+  for (const [key, scores] of Object.entries(cutoffs)) {
+    let rowsHtml = '';
+    for (let i = 0; i < scores.length; i++) {
+      rowsHtml += `
+        <tr>
+          <td style="padding:8px;border-bottom:1px solid var(--border-color);text-align:center;">${i + 1}등급</td>
+          <td style="padding:8px;border-bottom:1px solid var(--border-color);text-align:center;font-weight:bold;color:var(--text-color);">${scores[i]}점</td>
+        </tr>
+      `;
+    }
+    
+    tablesHtml += `
+      <div style="flex:1;min-width:200px;background:var(--bg-elevated);border:1px solid var(--border-color);border-radius:8px;padding:16px;">
+        <h3 style="margin:0 0 12px 0;font-size:16px;text-align:center;">${key === '공통' ? subj : key}</h3>
+        <table style="width:100%;border-collapse:collapse;">
+          ${rowsHtml}
+        </table>
+      </div>
+    `;
+  }
+  tablesHtml += '</div>';
+  
+  resultArea.innerHTML = `
+    <div>
+      <h2 style="font-size:20px;margin:0 0 8px 0;color:var(--text-color);">원점수 등급컷</h2>
+      <div style="font-size:14px;color:var(--text-muted);">* 입시 기관 추정치이므로 실제와 차이가 있을 수 있습니다.</div>
+      ${tablesHtml}
     </div>
   `;
 }

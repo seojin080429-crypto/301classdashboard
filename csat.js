@@ -29,6 +29,7 @@ function renderCsatBoard() {
         <select id="csat-elective" class="input-text" style="width:auto;display:none;">
         </select>
         <button class="btn-primary" onclick="generateCsatOmr()">OMR 띄우기</button>
+        <button class="btn-ghost" onclick="showCsatAnswerKey()">빠른 정답 보기</button>
       </div>
       
       <div id="csat-omr-area" style="display:none;margin-top:24px;">

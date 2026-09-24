@@ -63,16 +63,10 @@ function renderCsatBoard() {
       <h2 style="margin:0 0 16px 0;font-size:20px;font-weight:700;">기출문제 빠른 채점</h2>
       <div class="csat-header-row">
         <select id="csat-year" class="glass-select" style="width:auto;">
-          <option value="2026">26학년도</option>
-          <option value="2025">25학년도</option>
           <option value="2024">24학년도</option>
-          <option value="2023">23학년도</option>
-          <option value="2022">22학년도</option>
         </select>
         <select id="csat-month" class="glass-select" style="width:auto;">
           <option value="11">11월 수능</option>
-          <option value="09">09월 모평</option>
-          <option value="06">06월 모평</option>
         </select>
         <select id="csat-subject" class="glass-select" style="width:auto;" onchange="onCsatSubjectChange()">
           <option value="">과목 선택</option>

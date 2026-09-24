@@ -8552,6 +8552,7 @@ function unlockAudio(){
 }
 
 function playExamBroadcast(msgText) {
+  playBeep(); // 음성 안내 전 반드시 비프음을 먼저 재생
   if ('speechSynthesis' in window) {
     const msg = new SpeechSynthesisUtterance(msgText);
     msg.lang = 'ko-KR';

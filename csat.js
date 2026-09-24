@@ -8,10 +8,7 @@
   }
 
   const rawData = window.EXAM_DATA[year][month];
-  if (!rawData || !rawData[subj] || !rawData[subj].common || rawData[subj].common.length === 0) {
-    alert('해당 시험(' + year + '학년도 ' + month + '월)의 정답 데이터는 현재 완벽한 팩트 체크를 위해 서버에서 구축 중입니다.\n(현재 24학년도 11월 수능만 채점 가능합니다)');
-    return;
-  }
+  
 
 
 function renderCsatBoard() {
@@ -278,10 +275,7 @@ function showCsatAnswerKey() {
   }
 
   const rawData = window.EXAM_DATA[year][month];
-  if (!rawData || !rawData[subj] || !rawData[subj].common || rawData[subj].common.length === 0) {
-    alert('해당 시험(' + year + '학년도 ' + month + '월)의 정답 데이터는 현재 완벽한 팩트 체크를 위해 서버에서 구축 중입니다.\n(현재 24학년도 11월 수능만 조회 가능합니다)');
-    return;
-  }
+  
 
   const year = document.getElementById('csat-year').value;
   const month = document.getElementById('csat-month').value;

@@ -1,4 +1,18 @@
 // 기출문제 채점/답지/등급컷 로직 (csat.js)
+  const year = document.getElementById('csat-year').value;
+  const month = document.getElementById('csat-month').value;
+  const subj = document.getElementById('csat-subject').value;
+  let elective = '';
+  if (subj === '국어' || subj === '수학') {
+    elective = document.getElementById('csat-elective').value;
+  }
+
+  const rawData = window.EXAM_DATA[year][month];
+  if (!rawData || !rawData[subj] || !rawData[subj].common || rawData[subj].common.length === 0) {
+    alert('해당 시험(' + year + '학년도 ' + month + '월)의 정답 데이터는 현재 완벽한 팩트 체크를 위해 서버에서 구축 중입니다.\n(현재 24학년도 11월 수능만 채점 가능합니다)');
+    return;
+  }
+
 
 function renderCsatBoard() {
   const board = document.getElementById('csat-board');
@@ -63,10 +77,16 @@ function renderCsatBoard() {
       <h2 style="margin:0 0 16px 0;font-size:20px;font-weight:700;">기출문제 빠른 채점</h2>
       <div class="csat-header-row">
         <select id="csat-year" class="glass-select" style="width:auto;">
+          <option value="2026">26학년도</option>
+          <option value="2025">25학년도</option>
           <option value="2024">24학년도</option>
+          <option value="2023">23학년도</option>
+          <option value="2022">22학년도</option>
         </select>
         <select id="csat-month" class="glass-select" style="width:auto;">
           <option value="11">11월 수능</option>
+          <option value="09">09월 모평</option>
+          <option value="06">06월 모평</option>
         </select>
         <select id="csat-subject" class="glass-select" style="width:auto;" onchange="onCsatSubjectChange()">
           <option value="">과목 선택</option>
@@ -249,6 +269,20 @@ function gradeCsatExam() {
 }
 
 function showCsatAnswerKey() {
+  const year = document.getElementById('csat-year').value;
+  const month = document.getElementById('csat-month').value;
+  const subj = document.getElementById('csat-subject').value;
+  let elective = '';
+  if (subj === '국어' || subj === '수학') {
+    elective = document.getElementById('csat-elective').value;
+  }
+
+  const rawData = window.EXAM_DATA[year][month];
+  if (!rawData || !rawData[subj] || !rawData[subj].common || rawData[subj].common.length === 0) {
+    alert('해당 시험(' + year + '학년도 ' + month + '월)의 정답 데이터는 현재 완벽한 팩트 체크를 위해 서버에서 구축 중입니다.\n(현재 24학년도 11월 수능만 조회 가능합니다)');
+    return;
+  }
+
   const year = document.getElementById('csat-year').value;
   const month = document.getElementById('csat-month').value;
   const subj = document.getElementById('csat-subject').value;

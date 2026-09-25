@@ -1970,7 +1970,13 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
   <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
-      <div class="sidebar-wordmark">부광 <span>3-1</span></div>
+      <div class="sidebar-wordmark" style="display:flex; align-items:center; gap:8px;">
+  <div>부광 <span>3-1</span></div>
+  <div style="display:flex; align-items:center; gap:5px; background:rgba(255,153,0,0.1); border-radius:999px; padding:3px 6px;">
+    <div style="width:6px; height:6px; background:#ff9900; border-radius:50%; animation: pulse-dot 1.5s infinite;"></div>
+    <span style="font-size:10px; color:#ff9900; font-weight:600; letter-spacing:-0.03em;">데이터 봇 과부하 대기중</span>
+  </div>
+</div>
       <div style="display:flex;align-items:center;gap:2px">
         <button class="theme-toggle-btn notif-bell-btn" style="position:relative" onclick="event.stopPropagation();toggleNotifDropdown(this)" title="알림">
           <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>

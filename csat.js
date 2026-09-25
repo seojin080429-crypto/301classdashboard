@@ -1,15 +1,4 @@
 // 기출문제 채점/답지/등급컷 로직 (csat.js)
-  const year = document.getElementById('csat-year').value;
-  const month = document.getElementById('csat-month').value;
-  const subj = document.getElementById('csat-subject').value;
-  let elective = '';
-  if (subj === '국어' || subj === '수학') {
-    elective = document.getElementById('csat-elective').value;
-  }
-
-  const rawData = window.EXAM_DATA[year][month];
-  
-
 
 function renderCsatBoard() {
   const board = document.getElementById('csat-board');
@@ -266,18 +255,7 @@ function gradeCsatExam() {
 }
 
 function showCsatAnswerKey() {
-  const year = document.getElementById('csat-year').value;
-  const month = document.getElementById('csat-month').value;
-  const subj = document.getElementById('csat-subject').value;
-  let elective = '';
-  if (subj === '국어' || subj === '수학') {
-    elective = document.getElementById('csat-elective').value;
-  }
-
-  const rawData = window.EXAM_DATA[year][month];
-  
-
-  const year = document.getElementById('csat-year').value;
+const year = document.getElementById('csat-year').value;
   const month = document.getElementById('csat-month').value;
   const subj = document.getElementById('csat-subject').value;
   

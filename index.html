@@ -9280,12 +9280,12 @@ document.addEventListener('visibilitychange',()=>{
 });
 
 let dmRealtimeChannel = null;
+let dmPendingBroadcasts = [];
 
 async function watchDmThread(roomId) {
   unwatchDmThread();
   if (!roomId || !currentUser) return;
   try {
-    await rtAuth();
     const ch = sb.channel('dm-room-' + roomId, {
       config: { broadcast: { self: false } }
     });
@@ -9296,51 +9296,37 @@ async function watchDmThread(roomId) {
       const pData = payload?.payload;
       if (!pData || pData.room_id !== dmActiveRoomId) return;
       if (pData.student_id !== currentStudentId) {
+        const effectiveTime = Math.max(new Date(pData.read_at).getTime(), Date.now());
+        const effectiveIso = new Date(effectiveTime).toISOString();
         const found = dmRoomParticipantsCache.find(x => x.student_id === pData.student_id);
         if (found) {
-          found.last_read_at = pData.read_at;
+          found.last_read_at = effectiveIso;
         } else {
-          dmRoomParticipantsCache.push({ student_id: pData.student_id, last_read_at: pData.read_at });
+          dmRoomParticipantsCache.push({ student_id: pData.student_id, last_read_at: effectiveIso });
         }
         renderDmReadReceipt();
       }
     });
 
-    // (2) 실시간 웹소켓 브로드캐스트: 상대방이 새 메시지 보냈을 때 즉시 화면에 띄우고 읽음 전송
+    // (2) 실시간 웹소켓 브로드캐스트: 상대방이 새 메시지 보냈을 때 즉시 띄우고 즉각 읽음 전송
     ch.on('broadcast', { event: 'new_message' }, async (payload) => {
       const msg = payload?.payload?.message;
       if (!msg || msg.room_id !== dmActiveRoomId) return;
       if (msg.sender_student_id !== currentStudentId) {
         if (!dmCurrentMessages.some(m => m.id === msg.id)) {
           appendDmMessage(msg);
-          await markDmRoomRead(roomId);
+          broadcastDmRead(roomId);
+          markDmRoomRead(roomId).catch(()=>{});
         }
-      }
-    });
-
-    // (3) Supabase Postgres Changes 백업 리스너
-    ch.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'dm_messages', filter: 'room_id=eq.' + roomId }, async (payload) => {
-      if (payload.new && payload.new.sender_student_id !== currentStudentId) {
-        if (!dmCurrentMessages.some(m => m.id === payload.new.id)) {
-          appendDmMessage(payload.new);
-          await markDmRoomRead(roomId);
-        }
-      }
-    });
-    ch.on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'dm_participants', filter: 'room_id=eq.' + roomId }, (payload) => {
-      if (payload.new && payload.new.student_id !== currentStudentId) {
-        const found = dmRoomParticipantsCache.find(x => x.student_id === payload.new.student_id);
-        if (found) {
-          found.last_read_at = payload.new.last_read_at;
-        } else {
-          dmRoomParticipantsCache.push({ student_id: payload.new.student_id, last_read_at: payload.new.last_read_at });
-        }
-        renderDmReadReceipt();
       }
     });
 
     ch.subscribe((status) => {
       if (status === 'SUBSCRIBED') {
+        while (dmPendingBroadcasts.length) {
+          const fn = dmPendingBroadcasts.shift();
+          try { fn(); } catch(e) {}
+        }
         broadcastDmRead(roomId);
       }
     });
@@ -9352,55 +9338,75 @@ function unwatchDmThread() {
     try { sb.removeChannel(dmRealtimeChannel); } catch(e) {}
     dmRealtimeChannel = null;
   }
+  dmPendingBroadcasts = [];
 }
 
 function broadcastDmRead(roomId) {
   if (!dmRealtimeChannel || !roomId) return;
-  try {
-    dmRealtimeChannel.send({
-      type: 'broadcast',
-      event: 'read_receipt',
-      payload: {
-        room_id: roomId,
-        student_id: currentStudentId,
-        read_at: new Date().toISOString()
-      }
-    });
-  } catch(e) {}
+  const send = () => {
+    try {
+      dmRealtimeChannel.send({
+        type: 'broadcast',
+        event: 'read_receipt',
+        payload: {
+          room_id: roomId,
+          student_id: currentStudentId,
+          read_at: new Date().toISOString()
+        }
+      });
+    } catch(e) {}
+  };
+  if (dmRealtimeChannel.state === 'joined') {
+    send();
+  } else {
+    dmPendingBroadcasts.push(send);
+  }
 }
 
 function broadcastDmNewMessage(roomId, message) {
   if (!dmRealtimeChannel || !roomId) return;
-  try {
-    dmRealtimeChannel.send({
-      type: 'broadcast',
-      event: 'new_message',
-      payload: {
-        room_id: roomId,
-        message: message
-      }
-    });
-  } catch(e) {}
+  const send = () => {
+    try {
+      dmRealtimeChannel.send({
+        type: 'broadcast',
+        event: 'new_message',
+        payload: {
+          room_id: roomId,
+          message: message
+        }
+      });
+    } catch(e) {}
+  };
+  if (dmRealtimeChannel.state === 'joined') {
+    send();
+  } else {
+    dmPendingBroadcasts.push(send);
+  }
 }
 
 async function openDmThread(roomId){
   dmActiveRoomId=roomId;
   notifyDmViewing(roomId);
-  markNotifGroupRead('dm-message',roomId); // 알림센터를 안 거치고 직접 방을 열어도 그 방 알림은 읽음 처리
+  markNotifGroupRead('dm-message',roomId);
   document.getElementById('dm-layout').classList.add('thread-open');
   document.getElementById('dm-thread-empty').style.display='none';
   document.getElementById('dm-thread-active').classList.add('open');
-  // 모바일에서는 스레드가 화면을 꽉 채우는 고정 오버레이라, 뒤의 페이지가 계속 스크롤
-  // 가능한 상태로 남아있으면(특히 iOS) 키보드가 열리고 닫힐 때 배경이 같이 밀리면서
-  // 스레드 자체가 위로 끌려 올라가듯 보이는 버그가 있었음 — 열려있는 동안 배경 스크롤을 막는다.
   if(window.innerWidth<=834)document.body.style.overflow='hidden';
   clearDmPhoto();
   const room=dmRooms.find(r=>r.id===roomId);
   document.getElementById('dm-thread-title').textContent=room?room.displayName:'대화';
   renderDmRoomList();
-  await loadDmMessages(roomId);
-  await markDmRoomRead(roomId);
-  await refreshDmReadReceipts();
+
+  // ★ 실시간 웹소켓 채널 즉각 가동 및 즉시 읽음 신호 발송! (0ms 딜레이)
+  watchDmThread(roomId);
+
+  // 메시지 로딩 및 읽음 동기화 병렬 처리
+  await Promise.all([
+    loadDmMessages(roomId),
+    markDmRoomRead(roomId),
+    refreshDmReadReceipts()
+  ]);
+  renderDmReadReceipt();
 }
 
 function closeDmThreadMobile(){
@@ -9898,7 +9904,7 @@ setInterval(()=>{
   if(!dmPage||!dmPage.classList.contains('active'))return;
   loadDmRooms();
   if(dmActiveRoomId)pollDmActiveThread();
-},7000);
+},2500);
 
 // ── DM 새 대화 시작 모달 ──
 async function loadDmRoster(){

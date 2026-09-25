@@ -9278,6 +9278,37 @@ document.addEventListener('visibilitychange',()=>{
   if(document.hidden)notifyDmLeftView();
   else notifyDmViewing(dmActiveRoomId);
 });
+
+let dmRealtimeChannel = null;
+
+function watchDmThread(roomId) {
+  unwatchDmThread();
+  try {
+    dmRealtimeChannel = sb.channel('dm-room-' + roomId)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'dm_messages', filter: 'room_id=eq.' + roomId }, async (payload) => {
+        // 새 메시지가 오면 방 최신화 및 읽음 처리
+        await loadDmMessages(roomId);
+        await markDmRoomRead(roomId);
+        await refreshDmReadReceipts();
+        loadDmRooms();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'dm_participants', filter: 'room_id=eq.' + roomId }, async (payload) => {
+        // 참가자의 읽음 시각이 바뀌면 '1' 배지 실시간 업데이트
+        if (payload.new.student_id !== currentStudentId) {
+          await refreshDmReadReceipts();
+        }
+      })
+      .subscribe();
+  } catch(e) {}
+}
+
+function unwatchDmThread() {
+  if (dmRealtimeChannel) {
+    try { sb.removeChannel(dmRealtimeChannel); } catch(e) {}
+    dmRealtimeChannel = null;
+  }
+}
+
 async function openDmThread(roomId){
   dmActiveRoomId=roomId;
   notifyDmViewing(roomId);
@@ -9303,6 +9334,7 @@ function closeDmThreadMobile(){
   document.body.style.overflow='';
   notifyDmLeftView();
   dmActiveRoomId=null;
+  unwatchDmThread();
 }
 
 async function loadDmMessages(roomId){
@@ -9779,12 +9811,8 @@ function renderDmReadReceipt(){
   const unread=dmRoomParticipantsCache.length-readCount;
   // .dm-msg-meta는 이미 display:flex라(시간 표시), 그 안쪽 맨 앞에 끼워 넣으면 같은 줄에
   // "읽음 · 시각"처럼 나란히 보인다(형제로 넣으면 줄이 따로 떨어져 보임).
-  if(unread<=0){
-    meta.insertAdjacentHTML('afterbegin','<span class="dm-read-receipt">읽음</span>');
-  }else if(dmRoomParticipantsCache.length>1){
-    // 1:1은 "안 읽음"을 굳이 표시하지 않음(어차피 상대 한 명뿐이라 정보량이 없음) — 단톡방만
-    // 카카오톡처럼 몇 명이 아직 안 읽었는지 숫자로 보여준다.
-    meta.insertAdjacentHTML('afterbegin',`<span class="dm-read-receipt">${unread}</span>`);
+  if (unread > 0) {
+    meta.insertAdjacentHTML('afterbegin', `<span class="dm-read-receipt" style="color:#d14343;font-weight:800;font-size:10.5px;margin-right:4px;">${unread}</span>`);
   }
 }
 setInterval(()=>{

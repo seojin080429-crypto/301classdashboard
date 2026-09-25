@@ -9281,24 +9281,69 @@ document.addEventListener('visibilitychange',()=>{
 
 let dmRealtimeChannel = null;
 
-function watchDmThread(roomId) {
+async function watchDmThread(roomId) {
   unwatchDmThread();
+  if (!roomId || !currentUser) return;
   try {
-    dmRealtimeChannel = sb.channel('dm-room-' + roomId)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'dm_messages', filter: 'room_id=eq.' + roomId }, async (payload) => {
-        // 새 메시지가 오면 방 최신화 및 읽음 처리
-        await loadDmMessages(roomId);
-        await markDmRoomRead(roomId);
-        await refreshDmReadReceipts();
-        loadDmRooms();
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'dm_participants', filter: 'room_id=eq.' + roomId }, async (payload) => {
-        // 참가자의 읽음 시각이 바뀌면 '1' 배지 실시간 업데이트
-        if (payload.new.student_id !== currentStudentId) {
-          await refreshDmReadReceipts();
+    await rtAuth();
+    const ch = sb.channel('dm-room-' + roomId, {
+      config: { broadcast: { self: false } }
+    });
+    dmRealtimeChannel = ch;
+
+    // (1) 실시간 웹소켓 브로드캐스트: 상대방이 읽었을 때 즉각 '1' 제거
+    ch.on('broadcast', { event: 'read_receipt' }, (payload) => {
+      const pData = payload?.payload;
+      if (!pData || pData.room_id !== dmActiveRoomId) return;
+      if (pData.student_id !== currentStudentId) {
+        const found = dmRoomParticipantsCache.find(x => x.student_id === pData.student_id);
+        if (found) {
+          found.last_read_at = pData.read_at;
+        } else {
+          dmRoomParticipantsCache.push({ student_id: pData.student_id, last_read_at: pData.read_at });
         }
-      })
-      .subscribe();
+        renderDmReadReceipt();
+      }
+    });
+
+    // (2) 실시간 웹소켓 브로드캐스트: 상대방이 새 메시지 보냈을 때 즉시 화면에 띄우고 읽음 전송
+    ch.on('broadcast', { event: 'new_message' }, async (payload) => {
+      const msg = payload?.payload?.message;
+      if (!msg || msg.room_id !== dmActiveRoomId) return;
+      if (msg.sender_student_id !== currentStudentId) {
+        if (!dmCurrentMessages.some(m => m.id === msg.id)) {
+          appendDmMessage(msg);
+          await markDmRoomRead(roomId);
+        }
+      }
+    });
+
+    // (3) Supabase Postgres Changes 백업 리스너
+    ch.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'dm_messages', filter: 'room_id=eq.' + roomId }, async (payload) => {
+      if (payload.new && payload.new.sender_student_id !== currentStudentId) {
+        if (!dmCurrentMessages.some(m => m.id === payload.new.id)) {
+          appendDmMessage(payload.new);
+          await markDmRoomRead(roomId);
+        }
+      }
+    });
+    ch.on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'dm_participants', filter: 'room_id=eq.' + roomId }, (payload) => {
+      if (payload.new && payload.new.student_id !== currentStudentId) {
+        const found = dmRoomParticipantsCache.find(x => x.student_id === payload.new.student_id);
+        if (found) {
+          found.last_read_at = payload.new.last_read_at;
+        } else {
+          dmRoomParticipantsCache.push({ student_id: payload.new.student_id, last_read_at: payload.new.last_read_at });
+        }
+        renderDmReadReceipt();
+      }
+    });
+
+    ch.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        broadcastDmRead(roomId);
+      }
+    });
   } catch(e) {}
 }
 
@@ -9307,6 +9352,35 @@ function unwatchDmThread() {
     try { sb.removeChannel(dmRealtimeChannel); } catch(e) {}
     dmRealtimeChannel = null;
   }
+}
+
+function broadcastDmRead(roomId) {
+  if (!dmRealtimeChannel || !roomId) return;
+  try {
+    dmRealtimeChannel.send({
+      type: 'broadcast',
+      event: 'read_receipt',
+      payload: {
+        room_id: roomId,
+        student_id: currentStudentId,
+        read_at: new Date().toISOString()
+      }
+    });
+  } catch(e) {}
+}
+
+function broadcastDmNewMessage(roomId, message) {
+  if (!dmRealtimeChannel || !roomId) return;
+  try {
+    dmRealtimeChannel.send({
+      type: 'broadcast',
+      event: 'new_message',
+      payload: {
+        room_id: roomId,
+        message: message
+      }
+    });
+  } catch(e) {}
 }
 
 async function openDmThread(roomId){
@@ -9412,6 +9486,7 @@ function renderDmThreadMessages(messages){
   log.innerHTML=messages.map(m=>dmMessageRowHtml(m,isGroup)).join('')||'<div style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">아직 메시지가 없어요. 첫 메시지를 보내보세요!</div>';
   log.scrollTop=log.scrollHeight;
   hydrateDmPhotoUrls();
+  renderDmReadReceipt();
 }
 // 내가 방금 보낸 메시지 하나만 이어붙인다 — sendDmMessage()가 예전엔 여기서 200개를 통째로
 // 다시 불러오고(그때마다 사진 서명URL도 전부 재발급) 방 목록/읽음처리까지 순서대로 기다린
@@ -9633,6 +9708,7 @@ async function sendDmMessage(){
   // 방금 보낸 메시지만 바로 그려서 체감 지연을 없애고, 나머지 뒷정리(읽음 처리/방 목록
   // 갱신/알림)는 화면 반응을 막지 않도록 기다리지 않는다.
   appendDmMessage(data);
+  broadcastDmNewMessage(dmActiveRoomId, data);
   markDmRoomRead(dmActiveRoomId).catch(()=>{});
   triggerNotify('dm-message',{message_id:data.id});
   loadDmRooms().catch(()=>{});
@@ -9651,6 +9727,7 @@ async function deleteDmMessage(id){
 }
 
 async function markDmRoomRead(roomId){
+  broadcastDmRead(roomId);
   await sb.from('dm_participants').update({last_read_at:new Date().toISOString()}).eq('room_id',roomId).eq('user_id',currentUser.id);
   const room=dmRooms.find(r=>r.id===roomId);
   if(room)room.unread=false;
@@ -9802,18 +9879,17 @@ function renderDmReadReceipt(){
   document.querySelectorAll('.dm-read-receipt').forEach(el=>el.remove());
   const myMsgs=dmCurrentMessages.filter(m=>m.sender_student_id===currentStudentId);
   if(!myMsgs.length||!dmRoomParticipantsCache.length)return;
-  const lastMine=myMsgs[myMsgs.length-1];
-  const row=document.querySelector(`.dm-msg-row[data-msg-id="${lastMine.id}"]`);
-  const meta=row?.querySelector('.dm-msg-meta');
-  if(!meta)return;
-  const lastMineTime=new Date(lastMine.created_at).getTime();
-  const readCount=dmRoomParticipantsCache.filter(p=>p.last_read_at&&new Date(p.last_read_at).getTime()>=lastMineTime).length;
-  const unread=dmRoomParticipantsCache.length-readCount;
-  // .dm-msg-meta는 이미 display:flex라(시간 표시), 그 안쪽 맨 앞에 끼워 넣으면 같은 줄에
-  // "읽음 · 시각"처럼 나란히 보인다(형제로 넣으면 줄이 따로 떨어져 보임).
-  if (unread > 0) {
-    meta.insertAdjacentHTML('afterbegin', `<span class="dm-read-receipt" style="color:#d14343;font-weight:800;font-size:10.5px;margin-right:4px;">${unread}</span>`);
-  }
+  myMsgs.forEach(m => {
+    const row=document.querySelector(`.dm-msg-row[data-msg-id="${m.id}"]`);
+    const meta=row?.querySelector('.dm-msg-meta');
+    if(!meta)return;
+    const msgTime=new Date(m.created_at).getTime();
+    const readCount=dmRoomParticipantsCache.filter(p=>p.last_read_at&&new Date(p.last_read_at).getTime()>=msgTime).length;
+    const unread=dmRoomParticipantsCache.length-readCount;
+    if (unread > 0) {
+      meta.insertAdjacentHTML('afterbegin', `<span class="dm-read-receipt" style="color:#D14343;font-weight:800;font-size:10.5px;margin-right:4px;">${unread}</span>`);
+    }
+  });
 }
 setInterval(()=>{
   // 화면이 꺼져 있거나 앱이 배경으로 밀려있으면(탭 전환 등) 폴링을 쉬어서 배터리/데이터를 아낀다.

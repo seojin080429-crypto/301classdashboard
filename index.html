@@ -13801,6 +13801,14 @@ async function fetchMealNow(){
 // ── CAMSTUDY (화상 자습방) ──
 let studyJitsiApi=null, inStudy=false, studyPrivacyTimer=null, studyPrivacyStart=0, jitsiScriptAppId=null;
 
+window.addEventListener('beforeunload', (e) => {
+  if (inStudy) {
+    e.preventDefault();
+    e.returnValue = ''; // 최신 브라우저는 보안상 커스텀 메시지를 무시하지만 이 코드는 필수입니다.
+    return '';
+  }
+});
+
 function escHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 // 텍스트에 붙여넣은 URL을 클릭 가능한 링크로 바꿔준다(요청: "공지사항에 링크를 올리는 기능도
 // 있으면 좋겠는데") — 별도 입력칸을 만들지 않고, 기존 textarea에 URL을 그냥 붙여넣으면 자동으로

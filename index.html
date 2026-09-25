@@ -6,7 +6,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-32.png" type="image/png">
 <link rel="apple-touch-icon" href="icon-180.png">
-<meta name="theme-color" content="#0066cc">
+<meta name="theme-color" content="#ff9900">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -39,14 +39,14 @@ if(typeof supabase==='undefined'){
     d.innerHTML='<div style="font-size:34px">📡</div>'+
       '<div style="font-size:17px;font-weight:600">앱을 불러오지 못했어요</div>'+
       '<div style="font-size:14px;line-height:1.6;color:#7a7a7a;max-width:320px">인터넷 연결이 불안정해서 필요한 파일을 다 받지 못했어요.<br>연결을 확인하고 다시 시도해주세요.</div>'+
-      '<button style="margin-top:6px;padding:11px 26px;border:none;border-radius:9999px;background:#0066cc;color:#fff;font-size:15px;font-weight:600" onclick="location.reload()">다시 시도</button>';
+      '<button style="margin-top:6px;padding:11px 26px;border:none;border-radius:9999px;background:#ff9900;color:#fff;font-size:15px;font-weight:600" onclick="location.reload()">다시 시도</button>';
     document.body.appendChild(d);
   });
 }
 </script>
 <style>
 :root {
-  --blue:#0066cc; --blue-focus:#0071e3; --blue-dark:#2997ff;
+  --blue:#ff9900; --blue-focus:#0071e3; --blue-dark:#2997ff;
   --ink:#1d1d1f; --ink-80:#333; --ink-48:#7a7a7a;
   --green: #2ecc71; --green-light: rgba(46, 204, 113, .12); --green-dark: #1a9c53;
   --canvas:#fff; --parchment:#f5f5f7; --pearl:#fafafc;
@@ -2090,8 +2090,8 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
     <div class="topbar-wordmark" style="display:flex; align-items:center; gap:10px;">
   부광 <span>3-1</span>
   <div style="display:flex; align-items:center; gap:5px; background:rgba(0,102,204,0.1); border-radius:999px; padding:3px 8px;">
-    <div style="width:6px; height:6px; background:#0066cc; border-radius:50%; animation: pulse-dot 1.5s infinite;"></div>
-    <span style="font-size:11px; color:#0066cc; font-weight:600;">데이터 봇 가동중</span>
+    <div style="width:6px; height:6px; background:#ff9900; border-radius:50%; animation: pulse-dot 1.5s infinite;"></div>
+    <span style="font-size:11px; color:#ff9900; font-weight:600;">데이터 봇 과부하 대기중</span>
   </div>
 </div>
 <style>
@@ -15332,7 +15332,7 @@ function dedupeNews(list){
 // 백엔드 수집기가 아직 썸네일(image_url)을 못 채워주는 기사가 대부분이라, 그 경우엔
 // 카테고리별 색상+이모지 플레이스홀더 타일로 대신 채워서 밋밋해 보이지 않게 함.
 const NEWS_CATEGORY_STYLE={
-  '수능':{color:'#0066cc',emoji:'🎓'},
+  '수능':{color:'#ff9900',emoji:'🎓'},
   '수시':{color:'#2ecc71',emoji:'📝'},
   '정시':{color:'#8b5cf6',emoji:'📊'},
   '모의고사':{color:'#f97316',emoji:'✏️'},

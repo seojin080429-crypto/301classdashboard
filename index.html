@@ -2171,6 +2171,12 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
             <option value="simo">실모반 전용</option>
           </select>
         </div>
+        <div class="modal-field">
+          <label class="modal-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="notice-pin-toggle" style="width:15px;height:15px;accent-color:var(--blue)">
+            항상 상단에 고정
+          </label>
+        </div>
         <div class="modal-field" id="notice-poll-toggle-field">
           <label class="modal-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
             <input type="checkbox" id="notice-poll-toggle" style="width:15px;height:15px;accent-color:var(--blue)" onchange="syncPollSectionVisibility()">
@@ -5633,7 +5639,10 @@ async function loadNotices(){
   }
   // 실모반 전용 공지는 승인된 실모반 학생/운영자/선생님만 보이도록 걸러냄(프론트 필터 — 다른 실모반
   // 콘텐츠와 동일하게 RLS는 두지 않음)
-  const data=(raw||[]).filter(n=>n.audience!=='simo'||canSeeSimoContent());
+  let data=(raw||[]).filter(n=>n.audience!=='simo'||canSeeSimoContent());
+  const pinned = data.filter(n=>n.title.startsWith('[고정] '));
+  const unpinned = data.filter(n=>!n.title.startsWith('[고정] '));
+  data = [...pinned, ...unpinned];
   if(!data.length){
     const msg='<div style="text-align:center;padding:24px;color:var(--ink-48);font-size:13px">등록된 공지사항이 없습니다</div>';
     if(dashEl)dashEl.innerHTML=msg;if(pageEl)pageEl.innerHTML=msg;
@@ -5672,10 +5681,14 @@ async function loadNotices(){
     const poll=pollsByNotice[n.id];
     const pollBadge=poll?'<span class="badge-new" style="background:#8b5cf6">투표</span>':'';
     const pollHtml=poll?renderPollBlock(poll,votesByPoll[poll.id]||[],uid):'';
-    return`<div class="notice-item">
+    const isPinned = n.title.startsWith('[고정] ');
+    const displayTitle = isPinned ? n.title.substring(5) : n.title;
+    const pinBadge = isPinned ? '<span class="badge-new" style="background:#e87820">📌 고정</span>' : '';
+    const iconStr = isPinned ? '📌' : '📢';
+    return`<div class="notice-item" ${isPinned?'style="background:rgba(0,102,204,0.03)"':''}>
       <div class="notice-item-row" onclick="toggleNotice('${uid}')">
-        <div class="notice-icon">📢</div>
-        <div class="notice-title">${escHtml(n.title)}${simoBadge}${pollBadge}${isNew?'<span class="badge-new">NEW</span>':''}</div>
+        <div class="notice-icon">${iconStr}</div>
+        <div class="notice-title">${pinBadge}${escHtml(displayTitle)}${simoBadge}${pollBadge}${isNew?'<span class="badge-new">NEW</span>':''}</div>
         <div class="notice-date">${dateStr}</div>
       </div>
       <div class="notice-content" id="notice-content-${uid}">
@@ -6140,7 +6153,8 @@ async function submitNotice(){
   // 렉이 걸린 상태에서 "게시하기"를 두 번 누르거나 두 번 탭하면 같은 공지가 두 번 게시될 수
   // 있었다 — submitPost()의 게시판 글쓰기와 동일하게 버튼을 잠가서 막는다.
   if(submitBtn.disabled)return;
-  const title=document.getElementById('notice-title-input').value.trim();
+  let title=document.getElementById('notice-title-input').value.trim();
+  if(document.getElementById('notice-pin-toggle').checked) title = '[고정] ' + title;
   const content=document.getElementById('notice-content-input').value.trim();
   const audience=isOwnerTier()?document.getElementById('notice-audience-input').value:'all';
   const errEl=document.getElementById('notice-error');

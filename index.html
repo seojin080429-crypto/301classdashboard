@@ -3500,9 +3500,9 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
               <button type="button" class="btn-primary" style="font-size:12px;padding:4px 12px;border-radius:999px;background:#e11d48;border-color:#e11d48;cursor:pointer" onclick="stopAndSendDmVoiceRecording()">전송 ✈️</button>
             </div>
             <div class="dm-thread-input-row">
-              <button class="dm-photo-btn" type="button" onclick="document.getElementById('dm-photo-input').click()" title="동영상 첨부">🎥</button>
+              <button class="dm-photo-btn" type="button" onclick="document.getElementById('dm-photo-input').click()" title="사진/동영상 첨부">📷</button>
               <button class="dm-photo-btn" id="dm-voice-btn" type="button" onclick="toggleDmVoiceRecording()" title="음성 메시지">🎙️</button>
-              <input type="file" id="dm-photo-input" accept="video/*" style="display:none" onchange="handleDmPhotoSelect(this.files[0])">
+              <input type="file" id="dm-photo-input" accept="image/*,video/*" style="display:none" onchange="handleDmPhotoSelect(this.files[0])">
               <input class="comment-input" id="dm-msg-input" placeholder="메시지 입력..." onkeydown="if(event.key==='Enter'&&!event.isComposing)sendDmMessage()">
               <button class="comment-submit" id="dm-send-btn" onclick="sendDmMessage()">전송</button>
             </div>
@@ -9621,7 +9621,7 @@ function dmMessageRowHtml(m,isGroup){
       attachHtml=`<div class="dm-msg-video-wrap" style="max-width:320px;margin-bottom:4px">
         <video class="dm-msg-video" data-path="${m.image_url}" controls playsinline preload="metadata"${known?` src="${escAttr(known)}"`:''} style="width:100%;max-height:280px;border-radius:12px;background:#000;display:block"></video>
       </div>`;
-    }else if(['jpg','jpeg','png','gif','webp','heic','bmp','svg'].includes(ext)){
+    }else if(['jpg','jpeg','png','gif','webp','heic','bmp','svg'].includes(ext) || m.image_url.includes('_photo.')){
       attachHtml=`<img class="dm-msg-img" data-path="${m.image_url}"${known?` src="${escAttr(known)}"`:''} onclick="if(this.src)openLightbox(this.src)" alt="미디어">`;
     }else{
       const fileName=m.content||m.image_url.split('/').pop()||'첨부 파일';
@@ -9824,13 +9824,15 @@ async function hydrateDmPhotoUrls(){
 
 function handleDmPhotoSelect(file){
   if(!file)return;
-  if(!file.type.startsWith('video/')){
-    toast('동영상 파일만 보낼 수 있어요');
+  const isImg = file.type.startsWith('image/');
+  const isVid = file.type.startsWith('video/');
+  if(!isImg && !isVid){
+    toast('사진 또는 동영상만 보낼 수 있어요');
     document.getElementById('dm-photo-input').value='';
     return;
   }
   if(file.size > 100*1024*1024){
-    toast('동영상 크기는 100MB 이하만 가능합니다');
+    toast('파일 크기는 100MB 이하만 가능합니다');
     document.getElementById('dm-photo-input').value='';
     return;
   }
@@ -9840,15 +9842,25 @@ function handleDmPhotoSelect(file){
   const icon=document.getElementById('dm-photo-preview-icon');
   const nameEl=document.getElementById('dm-photo-preview-name');
 
-  if(img)img.style.display='none';
   if(icon)icon.style.display='none';
-  if(vid){
-    if(vid.src?.startsWith('blob:'))URL.revokeObjectURL(vid.src);
-    vid.src=URL.createObjectURL(file);
-    vid.style.display='block';
+
+  if(isImg){
+    if(vid){ vid.src=''; vid.style.display='none'; }
+    if(img){
+      if(img.src?.startsWith('blob:'))URL.revokeObjectURL(img.src);
+      img.src=URL.createObjectURL(file);
+      img.style.display='block';
+    }
+  } else {
+    if(img){ img.src=''; img.style.display='none'; }
+    if(vid){
+      if(vid.src?.startsWith('blob:'))URL.revokeObjectURL(vid.src);
+      vid.src=URL.createObjectURL(file);
+      vid.style.display='block';
+    }
   }
   const sizeMb=(file.size/(1024*1024)).toFixed(1);
-  nameEl.textContent=`🎥 ${file.name} (${sizeMb}MB)`;
+  nameEl.textContent=`${isImg?'🖼️':'🎥'} ${file.name} (${sizeMb}MB)`;
   document.getElementById('dm-photo-preview-row').style.display='flex';
 }
 function clearDmPhoto(){
@@ -10018,19 +10030,30 @@ async function sendDmMessage(){
   sendBtn.disabled=true;
   let imagePath=null;
   if(dmPhotoFile){
+    sendBtn.disabled = true;
     let fileToUpload = dmPhotoFile;
-    if(dmPhotoFile.type.startsWith('video/') && dmPhotoFile.size > 2.5 * 1024 * 1024){
-      sendBtn.textContent = '압축 중...';
+    const isImg = dmPhotoFile.type.startsWith('image/');
+    const isVid = dmPhotoFile.type.startsWith('video/');
+
+    if(isImg){
+      sendBtn.textContent = '사진 압축 중...';
+      try {
+        fileToUpload = await shrinkImage(dmPhotoFile, 'dm');
+      } catch(e) {}
+    } else if(isVid && dmPhotoFile.size > 2.5 * 1024 * 1024){
+      sendBtn.textContent = '동영상 압축 중...';
       try {
         fileToUpload = await compressVideo(dmPhotoFile);
       } catch(e) {}
     }
+
     sendBtn.textContent = '전송 중...';
-    const ext = (fileToUpload.name.split('.').pop()||'mp4').toLowerCase();
-    const path = `${dmActiveRoomId}/${currentStudentId}_${Date.now()}_video.${ext}`;
+    const ext = (fileToUpload.name.split('.').pop()||(isImg?'jpg':'mp4')).toLowerCase();
+    const prefix = isImg ? 'photo' : 'video';
+    const path = `${dmActiveRoomId}/${currentStudentId}_${Date.now()}_${prefix}.${ext}`;
     const {error:upErr}=await sb.storage.from('dm-photos').upload(path,fileToUpload,UPLOAD_OPTS);
     if(upErr){
-      toast('동영상 업로드 실패: '+upErr.message);
+      toast('업로드 실패: '+upErr.message);
       sendBtn.disabled=false;
       sendBtn.textContent='전송';
       return;

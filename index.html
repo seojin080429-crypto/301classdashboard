@@ -1864,7 +1864,7 @@ input,textarea,select{font-family:inherit;font-size:1rem;outline:none}
 .notif-item-unread-dot{width:8px;height:8px;border-radius:50%;background:var(--blue);flex-shrink:0;margin-top:5px}
 .notif-empty{text-align:center;padding:32px 16px;color:var(--ink-48);font-size:13px}
 
-/* ── 카카오톡 인앱 브라우저 차단 전용 화면 & 브라우저 상단 알림 ── */
+/* ── 카카오톡 인앱 브라우저 차단 전용 화면 & 상단 고정 알림 (우리 앱 블루 테마 적용) ── */
 body.in-kakaotalk > *:not(#kakao-blocker-screen) {
   display: none !important;
 }
@@ -1873,14 +1873,14 @@ body.in-kakaotalk > *:not(#kakao-blocker-screen) {
   position: fixed;
   inset: 0;
   z-index: 999999;
-  background: var(--canvas, #fafafc);
+  background: var(--parchment, #f5f5f7);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 32px 18px 60px;
+  padding: 36px 18px 60px;
   box-sizing: border-box;
 }
 .kakao-blocker-wrap {
-  max-width: 540px;
+  max-width: 520px;
   margin: 0 auto;
   font-family: inherit;
   color: var(--ink, #1d1d1f);
@@ -1888,7 +1888,7 @@ body.in-kakaotalk > *:not(#kakao-blocker-screen) {
 .kakao-badge {
   display: inline-block;
   padding: 5px 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill, 9999px);
   background: rgba(0, 102, 204, 0.08);
   color: var(--blue, #0066cc);
   font-size: 12px;
@@ -1896,24 +1896,26 @@ body.in-kakaotalk > *:not(#kakao-blocker-screen) {
   margin-bottom: 14px;
 }
 .kakao-title {
-  font-size: 24px;
+  font-size: 23px;
   font-weight: 800;
   letter-spacing: -0.03em;
+  color: var(--ink, #1d1d1f);
   margin-bottom: 8px;
-  line-height: 1.3;
+  line-height: 1.35;
 }
 .kakao-sub {
-  font-size: 14px;
-  color: var(--ink-48, #666);
+  font-size: 13.5px;
+  color: var(--ink-48, #7a7a7a);
   line-height: 1.55;
-  margin-bottom: 22px;
+  margin-bottom: 24px;
 }
 .kakao-card {
-  background: #fef9e7;
-  border: 1px solid #f9e79f;
-  border-radius: 16px;
-  padding: 20px 18px;
+  background: var(--canvas, #ffffff);
+  border: 1px solid rgba(0, 102, 204, 0.18);
+  border-radius: var(--radius-lg, 18px);
+  padding: 22px 20px;
   margin-bottom: 20px;
+  box-shadow: 0 4px 20px rgba(0, 102, 204, 0.06);
 }
 .kakao-card-head {
   display: flex;
@@ -1921,39 +1923,42 @@ body.in-kakaotalk > *:not(#kakao-blocker-screen) {
   gap: 8px;
   font-size: 15px;
   font-weight: 800;
-  color: #92400e;
+  color: var(--blue, #0066cc);
   margin-bottom: 6px;
 }
 .kakao-card-desc {
-  font-size: 13.5px;
-  color: #78350f;
+  font-size: 13px;
+  color: var(--ink-80, #333333);
   line-height: 1.5;
   margin-bottom: 16px;
 }
 .kakao-open-btn {
   width: 100%;
-  padding: 14px;
-  border-radius: 12px;
-  background: #285430;
+  padding: 13px;
+  border-radius: var(--radius-md, 12px);
+  background: var(--blue, #0066cc);
   color: #fff;
   border: none;
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 700;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  box-shadow: 0 4px 14px rgba(40, 84, 48, 0.25);
-  transition: opacity 0.15s ease;
+  box-shadow: 0 4px 14px rgba(0, 102, 204, 0.28);
+  transition: background var(--t);
   margin-bottom: 14px;
 }
+.kakao-open-btn:hover {
+  background: var(--blue-focus, #0071e3);
+}
 .kakao-open-btn:active {
-  opacity: 0.85;
+  transform: scale(0.99);
 }
 .kakao-copy-guide {
   font-size: 12px;
-  color: #92400e;
+  color: var(--ink-48, #7a7a7a);
   line-height: 1.4;
   margin-bottom: 8px;
 }
@@ -1965,49 +1970,54 @@ body.in-kakaotalk > *:not(#kakao-blocker-screen) {
   flex: 1;
   min-width: 0;
   padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid #eed688;
-  background: #fff;
+  border-radius: var(--radius-sm, 8px);
+  border: 1px solid var(--hairline, #e0e0e0);
+  background: var(--parchment, #f5f5f7);
   font-size: 13px;
-  color: #333;
+  color: var(--ink, #1d1d1f);
 }
 .kakao-copy-btn {
-  padding: 10px 18px;
-  border-radius: 10px;
-  background: #285430;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm, 8px);
+  background: var(--ink, #1d1d1f);
   color: #fff;
   border: none;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   flex-shrink: 0;
+  transition: opacity var(--t);
+}
+.kakao-copy-btn:hover {
+  opacity: 0.88;
 }
 .kakao-guide-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
-@media (max-width: 600px) {
+@media (max-width: 580px) {
   .kakao-guide-grid {
     grid-template-columns: 1fr;
   }
 }
 .kakao-guide-box {
   background: var(--canvas, #fff);
-  border: 1px solid var(--hairline, #e2e8f0);
-  border-radius: 14px;
+  border: 1px solid var(--hairline, #e0e0e0);
+  border-radius: var(--radius-md, 12px);
   padding: 16px 14px;
-  font-size: 13px;
+  font-size: 12.5px;
   line-height: 1.55;
   color: var(--ink-80, #333);
 }
 .kakao-guide-title {
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 800;
   margin-bottom: 8px;
   display: flex;
   align-items: center;
   gap: 6px;
+  color: var(--ink, #1d1d1f);
 }
 .kakao-guide-steps {
   margin: 0;
@@ -2017,41 +2027,29 @@ body.in-kakaotalk > *:not(#kakao-blocker-screen) {
   margin-bottom: 4px;
 }
 
-/* 상단 브라우저 진입 안내 배너 */
+/* 상단 영구 고정 알림 배너 (닫기 불가) */
 .browser-top-banner {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 10000;
-  background: linear-gradient(135deg, #0066cc, #0052a3);
+  background: var(--blue, #0066cc);
   color: #fff;
-  padding: 11px 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
+  padding: 10px 16px;
+  box-shadow: 0 2px 14px rgba(0, 102, 204, 0.25);
   font-size: 13px;
   font-weight: 600;
   display: none;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: center;
+  text-align: center;
+  gap: 8px;
   animation: slideBannerDown 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 @keyframes slideBannerDown {
   from { transform: translateY(-100%); }
   to { transform: translateY(0); }
-}
-.browser-top-banner-close {
-  background: none;
-  border: none;
-  color: #fff;
-  font-size: 20px;
-  line-height: 1;
-  padding: 2px 6px;
-  cursor: pointer;
-  opacity: 0.85;
-}
-.browser-top-banner-close:hover {
-  opacity: 1;
 }
 
 </style>
@@ -2061,24 +2059,24 @@ body.in-kakaotalk > *:not(#kakao-blocker-screen) {
 <!-- KAKAOTALK IN-APP BROWSER BLOCKER SCREEN -->
 <div id="kakao-blocker-screen">
   <div class="kakao-blocker-wrap">
-    <div class="kakao-badge">부광고 3-1 대시보드</div>
+    <div class="kakao-badge">부광고 3-1 학급 대시보드</div>
     <div class="kakao-title">⚠️ 지금 카카오톡 안에서 보고 있어요</div>
     <div class="kakao-sub">
-      카카오톡 앱 내부에서는 로그인이 지속적으로 풀리고 <b>홈 화면 앱 설치(PWA)</b>가 불가능합니다.<br>
-      아래 단추를 눌러 <b>Safari나 Chrome 브라우저</b>로 접속해주세요.
+      카카오톡 앱 내부에서는 로그인이 지속적으로 풀리고 <b>홈 화면 앱 설치(PWA)</b>가 지원되지 않습니다.<br>
+      아래 버튼을 눌러 <b>Safari나 Chrome 브라우저</b>로 접속해주세요.
     </div>
 
-    <!-- 황색 알림 카드 (요청 스크린샷과 동일한 구성) -->
+    <!-- 우리 앱 블루 테마 카드 -->
     <div class="kakao-card">
       <div class="kakao-card-head">
-        <span>⚠️</span> 지금 카카오톡 안에서 보고 있어요
+        <span>⚠️</span> 카톡으로 접속중이십니다
       </div>
       <div class="kakao-card-desc">
-        카톡으로 접속중이십니다. 버튼을 눌러 브라우저로 접근해주세요.
+        버튼을 눌러 브라우저로 접근해주세요.
       </div>
 
       <button type="button" class="kakao-open-btn" onclick="openExternalBrowser()">
-        Safari · Chrome으로 이 안내문 열기 ↗
+        Safari · Chrome으로 열기 ↗
       </button>
 
       <div class="kakao-copy-guide">
@@ -2117,13 +2115,10 @@ body.in-kakaotalk > *:not(#kakao-blocker-screen) {
   </div>
 </div>
 
-<!-- EXTERNAL BROWSER TOP ALERT BANNER -->
+<!-- EXTERNAL BROWSER PERMANENT TOP ALERT BANNER (닫기 불가) -->
 <div id="browser-top-banner" class="browser-top-banner">
-  <div style="display:flex;align-items:center;gap:10px;min-width:0">
-    <span style="font-size:18px">🌐</span>
-    <span id="browser-top-banner-text" style="line-height:1.4">브라우저(Safari/Chrome)로 정상 접속되었습니다. <b>'홈 화면에 추가'</b>하시면 진짜 앱처럼 편하게 쓰실 수 있어요!</span>
-  </div>
-  <button type="button" class="browser-top-banner-close" onclick="closeBrowserTopBanner()" title="닫기">&times;</button>
+  <span style="font-size:16px">🌐</span>
+  <span id="browser-top-banner-text" style="line-height:1.4">브라우저로 접속되었습니다. 홈 화면에 추가하시면 진짜 앱처럼 편리하게 이용하실 수 있습니다!</span>
 </div>
 
 
@@ -16264,13 +16259,12 @@ async function autoCollectDailyIfStale(){
 }
 
 
-// ── 카카오톡 인앱 브라우저 감지 및 외부 브라우저(Safari/Chrome) 전환 ──
+// ── 카카오톡 인앱 브라우저 감지 및 브라우저 상단 영구 고정 알림 ──
 function checkKakaoAndBrowserState() {
-  const ua = (navigator.userAgent || '').toLowerCase();
   const isKakao = /kakaotalk/i.test(navigator.userAgent);
   const isKakaoTest = location.search.includes('kakao_test=1');
 
-  // (1) 카카오톡 인앱 브라우저로 접속한 경우: 다른 페이지(전용 차단 페이지)만 풀스크린 노출
+  // (1) 카카오톡 인앱 브라우저로 접속한 경우: 전용 차단 화면만 풀스크린 노출
   if (isKakao || isKakaoTest) {
     document.body.classList.add('in-kakaotalk');
     const blocker = document.getElementById('kakao-blocker-screen');
@@ -16284,34 +16278,22 @@ function checkKakaoAndBrowserState() {
     return;
   }
 
-  // (2) 사파리, 크롬 등 외부 브라우저로 열었을 경우: 상단 알림 배너 노출
-  const fromKakao = location.search.includes('from=kakao');
-  const alreadyDismissed = sessionStorage.getItem('browser_banner_closed_session');
-
-  if (!alreadyDismissed) {
-    const banner = document.getElementById('browser-top-banner');
-    const textEl = document.getElementById('browser-top-banner-text');
-    if (banner) {
-      if (fromKakao) {
-        if (textEl) {
-          textEl.innerHTML = '🎉 <b>Safari·Chrome 브라우저로 정상 연결되었습니다!</b> 이제 로그인이 안전하게 유지되며 홈 화면에 추가할 수 있습니다.';
-        }
-      } else {
-        if (textEl) {
-          textEl.innerHTML = '🌐 <b>브라우저로 접속되었습니다.</b> 홈 화면에 추가하시면 진짜 앱처럼 편리하게 이용하실 수 있습니다!';
-        }
-      }
-      banner.style.display = 'flex';
-      document.body.style.paddingTop = '46px';
-    }
-  }
-}
-
-function closeBrowserTopBanner() {
+  // (2) 사파리, 크롬 등 외부 브라우저로 열었을 경우: 상단 푸른색 알림 배너 상시 고정 (못 없앰)
   const banner = document.getElementById('browser-top-banner');
-  if (banner) banner.style.display = 'none';
-  document.body.style.paddingTop = '';
-  sessionStorage.setItem('browser_banner_closed_session', '1');
+  const textEl = document.getElementById('browser-top-banner-text');
+  if (banner) {
+    if (location.search.includes('from=kakao')) {
+      if (textEl) {
+        textEl.innerHTML = '🎉 <b>Safari·Chrome 브라우저로 연결되었습니다!</b> 홈 화면에 추가하시면 앱처럼 편리하게 이용하실 수 있습니다.';
+      }
+    } else {
+      if (textEl) {
+        textEl.innerHTML = '🌐 <b>브라우저로 접속 중입니다.</b> 홈 화면에 추가하시면 진짜 앱처럼 편리하게 이용하실 수 있습니다!';
+      }
+    }
+    banner.style.display = 'flex';
+    document.body.style.paddingTop = '42px';
+  }
 }
 
 function openExternalBrowser() {

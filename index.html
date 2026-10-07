@@ -2027,6 +2027,15 @@ body.in-kakaotalk > *:not(#kakao-blocker-screen) {
   margin-bottom: 4px;
 }
 
+/* PWA 앱 설치(독립 실행) 상태일 때는 상단 설치 유도 배너 무조건 숨김 */
+@media all and (display-mode: standalone) {
+  #browser-top-banner {
+    display: none !important;
+  }
+  body {
+    padding-top: 0 !important;
+  }
+}
 /* 상단 영구 고정 알림 배너 (닫기 불가) */
 .browser-top-banner {
   position: fixed;
@@ -4667,7 +4676,15 @@ async function doLogin(){
   // if(!/^\d{5}$/.test(id)){showAuthErr('학번은 5자리 숫자입니다.');return}
   document.getElementById('login-btn').textContent='로그인 중...';
   const {data,error}=await sb.auth.signInWithPassword({email:`${id}@bugwang3-1.app`,password:pw});
-  if(error){showAuthErr('학번 또는 비밀번호가 올바르지 않습니다.');document.getElementById('login-btn').textContent='로그인';return}
+  if(error){
+    if(error.status === 402 || (error.message && (error.message.includes('quota') || error.message.includes('restricted')))){
+      showAuthErr('⚠️ 서버 무료 트래픽 한도 초과로 일시 점검 중입니다. (10월 12일 자동 복구 예정)');
+    } else {
+      showAuthErr('학번 또는 비밀번호가 올바르지 않습니다.');
+    }
+    document.getElementById('login-btn').textContent='로그인';
+    return;
+  }
   document.getElementById('auth-error').style.display='none';
   const meta=data.user.user_metadata;
   if(!meta?.display_name){
@@ -16261,6 +16278,18 @@ async function autoCollectDailyIfStale(){
 
 // ── 카카오톡 인앱 브라우저 감지 및 브라우저 상단 영구 고정 알림 ──
 function checkKakaoAndBrowserState() {
+  // (0) 이미 PWA 앱으로 설치하여 독립 창(Standalone)에서 실행 중인 경우: 배너 완전 숨김!
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches 
+                    || window.navigator.standalone === true 
+                    || document.referrer.includes('android-app://');
+
+  if (isStandalone) {
+    const banner = document.getElementById('browser-top-banner');
+    if (banner) banner.style.display = 'none';
+    document.body.style.paddingTop = '';
+    return;
+  }
+
   const isKakao = /kakaotalk/i.test(navigator.userAgent);
   const isKakaoTest = location.search.includes('kakao_test=1');
 

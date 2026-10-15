@@ -2762,6 +2762,10 @@ body.in-kakaotalk > *:not(#kakao-blocker-screen) {
             <button class="btn-primary" id="sw-start-btn" onclick="toggleStopwatch()">시작</button>
             <button class="btn-ghost" onclick="resetStopwatch()">초기화</button>
           </div>
+          <div style="margin-top:14px;font-size:12px;color:var(--ink-48);display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap">
+            <span><kbd style="background:var(--parchment, #f0f0f2);padding:2px 7px;border-radius:4px;border:1px solid var(--hairline);font-family:inherit;font-size:11px;font-weight:600">Space</kbd> 시작 / 정지</span>
+            <span><kbd style="background:var(--parchment, #f0f0f2);padding:2px 7px;border-radius:4px;border:1px solid var(--hairline);font-family:inherit;font-size:11px;font-weight:600">R</kbd> 초기화</span>
+          </div>
         </div>
       </div>
     </div>
@@ -3483,9 +3487,13 @@ body.in-kakaotalk > *:not(#kakao-blocker-screen) {
             <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--hairline)">
               <div style="width:56px;height:56px;border-radius:50%;background:#1d1d1f;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;color:#fff;flex-shrink:0;cursor:pointer" id="mp-avatar" onclick="document.getElementById('mp-avatar-input').click()" title="클릭해서 프로필 사진 변경">?</div>
               <input type="file" id="mp-avatar-input" accept="image/*" style="display:none" onchange="uploadMyAvatar(this.files[0])">
-              <div>
+              <div style="flex:1;min-width:0">
                 <div style="font-size:17px;font-weight:600;color:var(--ink)" id="mp-name">—</div>
-                <div style="font-size:13px;color:var(--ink-48)" id="mp-id">—</div>
+                <div style="font-size:13px;color:var(--ink-48);margin-bottom:6px" id="mp-id">—</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap">
+                  <button type="button" class="btn-ghost" style="font-size:11.5px;padding:3px 9px;border-radius:8px;height:auto;line-height:1.4" onclick="document.getElementById('mp-avatar-input').click()">📷 사진 변경</button>
+                  <button type="button" class="btn-ghost" id="mp-avatar-reset-btn" style="font-size:11.5px;padding:3px 9px;border-radius:8px;height:auto;line-height:1.4;color:var(--ink-48);display:none" onclick="resetMyAvatar()">기본으로 되돌리기</button>
+                </div>
               </div>
             </div>
             <!-- 정보 리스트 -->
@@ -4860,6 +4868,7 @@ async function initApp(user,sid,name){
 
 function populateMypage(meta,name,sid){
   renderAvatarEl(document.getElementById('mp-avatar'),currentAvatarUrl,name,sid);
+  updateAvatarResetBtnVisibility();
   document.getElementById('mp-name').textContent=name||sid+'번';
   document.getElementById('mp-id').textContent=sid+'번 · 3학년 1반';
   document.getElementById('mp-kor').textContent=meta.suneung_kor||'—';
@@ -4954,6 +4963,7 @@ async function syncMyProfile(){
   const {data}=await sb.from('user_profiles').select('avatar_url').eq('student_id',currentStudentId).single();
   currentAvatarUrl=data?.avatar_url||null;
   renderAvatarEl(document.getElementById('user-avatar-txt'),currentAvatarUrl,currentName,currentStudentId);
+  updateAvatarResetBtnVisibility();
 }
 
 // ── 업로드 전 사진 줄이기 ──
@@ -5160,7 +5170,31 @@ async function uploadMyAvatar(file){
   currentAvatarUrl=avatarUrl;
   renderAvatarEl(document.getElementById('mp-avatar'),currentAvatarUrl,currentName,currentStudentId);
   renderAvatarEl(document.getElementById('user-avatar-txt'),currentAvatarUrl,currentName,currentStudentId);
+  updateAvatarResetBtnVisibility();
   toast('프로필 사진이 변경되었습니다 ✓');
+}
+
+function updateAvatarResetBtnVisibility(){
+  const btn=document.getElementById('mp-avatar-reset-btn');
+  if(btn) btn.style.display = currentAvatarUrl ? 'inline-block' : 'none';
+}
+
+async function resetMyAvatar(){
+  if(!currentAvatarUrl){
+    toast('이미 기본 프로필 사진입니다');
+    return;
+  }
+  if(!confirm('프로필 사진을 기본 이미지로 되돌릴까요?')) return;
+  toast('기본 프로필로 변경 중...');
+  const {error}=await sb.from('user_profiles').upsert({
+    student_id:currentStudentId,user_id:currentUser.id,avatar_url:null,updated_at:new Date().toISOString()
+  });
+  if(error){toast('변경 실패: '+error.message);return}
+  currentAvatarUrl=null;
+  renderAvatarEl(document.getElementById('mp-avatar'),currentAvatarUrl,currentName,currentStudentId);
+  renderAvatarEl(document.getElementById('user-avatar-txt'),currentAvatarUrl,currentName,currentStudentId);
+  updateAvatarResetBtnVisibility();
+  toast('기본 프로필 사진으로 되돌렸어요 ✓');
 }
 
 // ── MYPAGE ──
@@ -9108,6 +9142,27 @@ function resumeStopwatchIfAny(){
     document.getElementById('sw-display').textContent=fmtStopwatch(swState.elapsedMs/1000);
   }
 }
+
+// 스톱워치 키보드 단축키: 스페이스바로 시작/정지, R키로 초기화
+document.addEventListener('keydown', e => {
+  const tag = (e.target?.tagName || '').toUpperCase();
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target?.isContentEditable) return;
+  if (e.defaultPrevented || e.isComposing) return;
+
+  const timerPage = document.getElementById('page-timer');
+  const swView = document.getElementById('timer-view-stopwatch');
+  if (!timerPage || !timerPage.classList.contains('active')) return;
+  if (!swView || swView.style.display === 'none') return;
+
+  if (e.code === 'Space' || e.key === ' ') {
+    e.preventDefault();
+    toggleStopwatch();
+  } else if (e.code === 'KeyR' || e.key === 'r' || e.key === 'R' || e.key === 'ㄱ') {
+    e.preventDefault();
+    resetStopwatch();
+    toast('스톱워치를 초기화했어요 ✓');
+  }
+});
 
 // 쪽잠/모의고사/스톱워치를 앱 시작 시(로그인 직후, 새로고침 포함) 한꺼번에 복원
 function resumeMiscTimersOnLoad(){

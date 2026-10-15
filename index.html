@@ -5119,19 +5119,40 @@ async function shrinkImage(file,kind){
     return new File([blob],name,{type:'image/jpeg',lastModified:Date.now()});
   }catch(e){ return file; }
 }
+
+// ── Cloudinary Direct Media Upload (무료 25GB, Supabase 스토리지 대역폭 0B화) ──
+const CLOUDINARY_CLOUD_NAME = 'dvp5m1dk';
+const CLOUDINARY_UPLOAD_PRESET = 'class301';
+
+async function uploadToCloudinary(file) {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, {
+    method: 'POST',
+    body: fd
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || '클라우드 업로드 실패');
+  }
+  const data = await res.json();
+  return data.secure_url;
+}
+
 async function uploadMyAvatar(file){
   if(!file)return;
   if(!file.type.startsWith('image/')){toast('이미지 파일만 업로드할 수 있어요');return}
   if(file.size>5*1024*1024){toast('5MB 이하 이미지만 업로드할 수 있어요');return}
   file=await shrinkImage(file,'avatar');   // 줄이면 .jpg가 되므로 확장자는 이 뒤에 잡는다
-  const ext=(file.name.split('.').pop()||'jpg').toLowerCase();
-  const path=`${currentUser.id}/avatar.${ext}`;
-  // 파일명이 고정(아바타는 덮어쓰기)이라 URL 뒤에 ?t=가 붙어 있고, 그 덕에 1년 캐시를 걸어도
-  // 새로 올리면 즉시 반영된다.
-  const {error:upErr}=await sb.storage.from('avatars').upload(path,file,{upsert:true,cacheControl:'31536000'});
-  if(upErr){toast('업로드 실패: '+upErr.message);return}
-  const {data:urlData}=sb.storage.from('avatars').getPublicUrl(path);
-  const avatarUrl=`${urlData.publicUrl}?t=${Date.now()}`; // 캐시 무력화
+  toast('프로필 사진 업로드 중...');
+  let avatarUrl;
+  try {
+    avatarUrl = await uploadToCloudinary(file);
+  } catch(upErr) {
+    toast('업로드 실패: ' + upErr.message);
+    return;
+  }
   const {error}=await sb.from('user_profiles').upsert({
     student_id:currentStudentId,user_id:currentUser.id,avatar_url:avatarUrl,updated_at:new Date().toISOString()
   });
@@ -6736,13 +6757,14 @@ async function submitSimoMaterial(){
   if(!title||!file){errEl.textContent='제목과 파일을 모두 입력하세요.';errEl.style.display='block';return}
   const btn=document.getElementById('simo-material-submit-btn');
   btn.textContent='업로드 중...';btn.disabled=true;
-  const ext=file.name.split('.').pop();
-  const path=`${currentStudentId}_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-  const {error:upErr}=await sb.storage.from('simo-materials').upload(path,file);
-  if(upErr){errEl.textContent='업로드 실패: '+upErr.message;errEl.style.display='block';btn.textContent='업로드';btn.disabled=false;return}
-  const {data:urlData}=sb.storage.from('simo-materials').getPublicUrl(path);
+  let fileUrl;
+  try {
+    fileUrl = await uploadToCloudinary(file);
+  } catch(upErr) {
+    errEl.textContent='업로드 실패: '+upErr.message;errEl.style.display='block';btn.textContent='업로드';btn.disabled=false;return;
+  }
   const {error}=await sb.from('simo_materials').insert({
-    title,description:description||null,file_url:urlData.publicUrl,file_name:file.name,
+    title,description:description||null,file_url:fileUrl,file_name:file.name,
     author_name:currentName||currentStudentId+'번',student_id:currentStudentId
   });
   btn.textContent='업로드';btn.disabled=false;
@@ -6755,7 +6777,7 @@ async function submitSimoMaterial(){
 async function deleteSimoMaterial(id,fileUrl){
   if(!isOwnerTier()){toast('권한이 없습니다');return}
   if(!confirm('이 자료를 삭제할까요?'))return;
-  if(fileUrl){
+  if(fileUrl && fileUrl.includes('/simo-materials/')){
     const parts=fileUrl.split('/simo-materials/');
     if(parts[1])await sb.storage.from('simo-materials').remove([parts[1]]);
   }
@@ -9882,7 +9904,8 @@ function dmMessageRowHtml(m,isGroup){
   if(m.image_url){
     const ext=(m.image_url.split('.').pop()||'').toLowerCase();
     const isVoice = (m.content && m.content.startsWith('🎙️ 음성 메시지')) || m.image_url.includes('_voice.');
-    const isVideo = ['mp4','mov','webm','m4v','avi','mkv'].includes(ext) || m.image_url.includes('_video.');
+    const isVideo = !isVoice && (['mp4','mov','webm','m4v','avi','mkv'].includes(ext) || m.image_url.includes('_video.') || m.image_url.includes('/video/upload/'));
+    const isImg = !isVoice && !isVideo && (['jpg','jpeg','png','gif','webp','heic','bmp','svg'].includes(ext) || m.image_url.includes('_photo.') || m.image_url.includes('/image/upload/') || !ext);
 
     if(isVoice){
       attachHtml=`<div class="dm-msg-audio-card ${mine?'mine':'theirs'}" style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:18px;background:${mine?'var(--blue)':'var(--parchment)'};color:${mine?'#fff':'var(--ink)'};max-width:280px;margin-bottom:4px">
@@ -10053,6 +10076,8 @@ async function saveEditDmMessage(id){
 const dmSignedUrls={};   // path → {url, exp(ms)}
 const DM_SIGN_TTL=3600;  // 초
 function dmCachedSignedUrl(path){
+  if(!path) return null;
+  if(path.startsWith('http://') || path.startsWith('https://')) return path;
   const hit=dmSignedUrls[path];
   // 만료 1분 전부터는 새로 받는다(보는 도중에 끊기지 않게).
   return hit&&hit.exp-Date.now()>60000?hit.url:null;
@@ -10074,7 +10099,8 @@ async function hydrateDmPhotoUrls(){
   });
   if(!need.length)return;
   const wasNearBottom=log.scrollHeight-log.scrollTop-log.clientHeight<40;
-  const paths=[...new Set(need.map(el=>el.dataset.path))];
+  const paths=[...new Set(need.map(el=>el.dataset.path))].filter(p=>!p.startsWith('http://')&&!p.startsWith('https://'));
+  if(!paths.length)return;
   const {data,error}=await sb.storage.from('dm-photos').createSignedUrls(paths,DM_SIGN_TTL);
   if(error||!data)return;
   const urlMap={};
@@ -10259,10 +10285,10 @@ async function stopAndSendDmVoiceRecording() {
 async function sendDmVoiceFile(file, durSec) {
   if (!dmActiveRoomId) return;
   toast('음성 메시지 전송 중...');
-  const ext = (file.name.split('.').pop() || 'webm').toLowerCase();
-  const path = `${dmActiveRoomId}/${currentStudentId}_${Date.now()}_voice.${ext}`;
-  const { error: upErr } = await sb.storage.from('dm-photos').upload(path, file, UPLOAD_OPTS);
-  if (upErr) {
+  let cloudUrl;
+  try {
+    cloudUrl = await uploadToCloudinary(file);
+  } catch (upErr) {
     toast('음성 업로드 실패: ' + upErr.message);
     return;
   }
@@ -10276,7 +10302,7 @@ async function sendDmVoiceFile(file, durSec) {
     sender_user_id: currentUser.id,
     sender_name: currentName || currentStudentId + '번',
     content: content,
-    image_url: path
+    image_url: cloudUrl
   }).select().single();
 
   if (error) {
@@ -10320,17 +10346,14 @@ async function sendDmMessage(){
     }
 
     sendBtn.textContent = '전송 중...';
-    const ext = (fileToUpload.name.split('.').pop()||(isImg?'jpg':'mp4')).toLowerCase();
-    const prefix = isImg ? 'photo' : 'video';
-    const path = `${dmActiveRoomId}/${currentStudentId}_${Date.now()}_${prefix}.${ext}`;
-    const {error:upErr}=await sb.storage.from('dm-photos').upload(path,fileToUpload,UPLOAD_OPTS);
-    if(upErr){
-      toast('업로드 실패: '+upErr.message);
+    try {
+      imagePath = await uploadToCloudinary(fileToUpload);
+    } catch(upErr) {
+      toast('업로드 실패: ' + upErr.message);
       sendBtn.disabled=false;
       sendBtn.textContent='전송';
       return;
     }
-    imagePath=path;
   }
   let finalContent = content || null;
   const {data,error}=await sb.from('dm_messages').insert({
@@ -10357,7 +10380,7 @@ async function deleteDmMessage(id){
   await purgeNotifsFor('dm-message',id,'purge_dm_message_notifications',{p_message_id:id});
   const {error}=await sb.from('dm_messages').delete().eq('id',id);
   if(error){toast('삭제 실패: '+error.message);return}
-  if(msg?.image_url)await sb.storage.from('dm-photos').remove([msg.image_url]);
+  if(msg?.image_url && !msg.image_url.startsWith('http'))await sb.storage.from('dm-photos').remove([msg.image_url]);
   await loadDmMessages(dmActiveRoomId);
   await loadDmRooms();
 }
@@ -10529,12 +10552,13 @@ function renderDmReadReceipt(){
 }
 setInterval(()=>{
   // 화면이 꺼져 있거나 앱이 배경으로 밀려있으면(탭 전환 등) 폴링을 쉬어서 배터리/데이터를 아낀다.
+  // Realtime 웹소켓으로 실시간 전달되므로, 폴링은 연결 끊김 대비 보조(25초 주기)로만 동작하여 Supabase API 트래픽을 아낀다.
   if(!currentUser||document.hidden)return;
   const dmPage=document.getElementById('page-dm');
   if(!dmPage||!dmPage.classList.contains('active'))return;
   loadDmRooms();
   if(dmActiveRoomId)pollDmActiveThread();
-},2500);
+},25000);
 
 // ── DM 새 대화 시작 모달 ──
 async function loadDmRoster(){
@@ -11766,26 +11790,26 @@ async function submitPost(type){
   // 첨부는 여러 개일 수 있다. 중간에 하나라도 실패하면 이미 올라간 파일이 스토리지에
   // 쓰레기로 남으므로, 실패 시 지금까지 올린 것들을 되돌린 뒤 중단한다(공부인증과 동일).
   const files=boardPhotoFiles[type]||[];
-  const urls=[],uploadedPaths=[];
+  const urls=[];
   for(let i=0;i<files.length;i++){
     const picked=files[i];
     if(files.length>1)submitBtn.textContent=`올리는 중... (${i+1}/${files.length})`;
-    // 나중에 렌더링할 때 이미지/동영상 여부를 확장자로 추측하면 avi/wmv/mkv처럼 흔치 않은
-    // 확장자를 놓칠 수 있으므로, 업로드 시점에 브라우저가 실제로 읽은 file.type을 파일명
-    // 접두사(vid_/img_)에 새겨서 나중엔 추측 없이 파일명만 보고 판단하게 한다.
-    const mediaPrefix=picked.type.startsWith('video/')?'vid':'img';
-    // 사진은 올리기 전에 줄인다(동영상은 그대로). 줄이면 jpg가 되므로 확장자는 축소 뒤에 잡는다.
-    const file=mediaPrefix==='img'?await shrinkImage(picked,'board'):picked;
-    const ext=(file.name.split('.').pop()||'jpg');
-    const fileName=`${mediaPrefix}_${currentStudentId}_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-    const {error:upErr}=await sb.storage.from('board-photos').upload(fileName,file,UPLOAD_OPTS);
-    if(upErr){
-      if(uploadedPaths.length)await sb.storage.from('board-photos').remove(uploadedPaths);
+    const isVid=picked.type.startsWith('video/');
+    let file=picked;
+    if(!isVid){
+      file=await shrinkImage(picked,'board');
+    } else if(picked.size > 2.5 * 1024 * 1024){
+      submitBtn.textContent=`동영상 압축 중... (${i+1}/${files.length})`;
+      try{ file=await compressVideo(picked); }catch(e){}
+    }
+    submitBtn.textContent=`클라우드 전송 중... (${i+1}/${files.length})`;
+    try{
+      const cUrl=await uploadToCloudinary(file);
+      urls.push(cUrl);
+    }catch(upErr){
       toast(`첨부 업로드 실패(${i+1}번째): `+upErr.message);
       submitBtn.textContent=label;submitBtn.disabled=false;return;
     }
-    uploadedPaths.push(fileName);
-    urls.push(sb.storage.from('board-photos').getPublicUrl(fileName).data.publicUrl);
   }
   submitBtn.textContent='올리는 중...';
   // 투표는 글쓰기(마이너 갤러리)에서만 붙일 수 있다. 글이 먼저 만들어져야 post_id를 알 수
@@ -12097,14 +12121,7 @@ async function confirmSharePostToDm(roomId){
   // 사진을 옮기지 않고 안내 문구만 붙인다 — 깨진 이미지로 보이는 것보다 낫다.
   let imagePath=null;
   if(post.image_url && !isVideoAttachment){
-    try{
-      const res=await fetch(post.image_url);
-      const blob=await res.blob();
-      const ext=(post.image_url.split('.').pop()||'jpg').split('?')[0];
-      const path=`${roomId}/shared_${currentStudentId}_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-      const {error:upErr}=await sb.storage.from('dm-photos').upload(path,blob);
-      if(!upErr)imagePath=path;
-    }catch(e){/* 사진 전달에 실패해도 텍스트 공유는 계속 진행 */}
+    imagePath=post.image_url;
   }
   const videoNote=isVideoAttachment?'\n(동영상 첨부됨 — 게시판에서 확인해주세요)':'';
   const titlePart=post.title?`[${post.title}]\n`:'';
@@ -12593,6 +12610,8 @@ function renderScPhotoPreviews(){
 // 그 접두사가 없는(이 방식 도입 전에 올라간) 옛 첨부만 확장자로 추측한다.
 function isVideoUrl(u){
   if(!u)return false;
+  if(u.includes('/video/upload/'))return true;
+  if(u.includes('/image/upload/'))return false;
   if(/\/vid_[^/]*$/.test(u))return true;
   if(/\/img_[^/]*$/.test(u))return false;
   return /\.(mp4|webm|mov|m4v|ogg|ogv|avi|wmv|mkv|3gp|flv|mpeg|mpg)(\?|$)/i.test(u);
@@ -12779,22 +12798,20 @@ async function submitStudyCertPost(){
   const submitBtn=document.getElementById('sc-submit-btn');
   submitBtn.disabled=true;
   // 한 장이라도 실패하면 이미 올라간 파일은 스토리지에 쓰레기로 남으므로, 실패/중단 시엔
-  // 지금까지 올린 것들을 지우고 되돌린다.
-  const uploadedPaths=[],urls=[];
-  const bail=async(msg)=>{
-    if(uploadedPaths.length){try{await sb.storage.from('board-photos').remove(uploadedPaths)}catch(e){}}
-    errEl.textContent=msg;errEl.style.display='block';
-    submitBtn.textContent=scSubmitBtnLabel();submitBtn.disabled=false;
-  };
+  const urls=[];
   for(let i=0;i<scPhotoFiles.length;i++){
     submitBtn.textContent=scPhotoFiles.length>1?`사진 올리는 중... (${i+1}/${scPhotoFiles.length})`:'인증하는 중...';
     const file=await shrinkImage(scPhotoFiles[i],'board');
-    const ext=(file.name.split('.').pop()||'jpg');
-    const fileName=`img_${currentStudentId}_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-    const{error:upErr}=await sb.storage.from('board-photos').upload(fileName,file,UPLOAD_OPTS);
-    if(upErr){await bail(`사진 업로드 실패(${i+1}번째): `+upErr.message);return}
-    uploadedPaths.push(fileName);
-    urls.push(sb.storage.from('board-photos').getPublicUrl(fileName).data.publicUrl);
+    submitBtn.textContent=`클라우드 전송 중... (${i+1}/${scPhotoFiles.length})`;
+    try{
+      const cUrl=await uploadToCloudinary(file);
+      urls.push(cUrl);
+    }catch(upErr){
+      errEl.textContent=`사진 업로드 실패(${i+1}번째): `+upErr.message;
+      errEl.style.display='block';
+      submitBtn.textContent=scSubmitBtnLabel();submitBtn.disabled=false;
+      return;
+    }
   }
   submitBtn.textContent='인증하는 중...';
   const content=document.getElementById('sc-content').value.trim()||'오늘도 공부 완료!';
@@ -13684,11 +13701,12 @@ async function saveTextbook(){
   let coverUrl=tbCoverExisting||null;
   if(tbCoverFile){
     tbCoverFile=await shrinkImage(tbCoverFile,'cover');  // 확장자는 축소 뒤에
-    const ext=(tbCoverFile.name.split('.').pop()||'jpg');
-    const fileName=`book_${currentStudentId}_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-    const {error:upErr}=await sb.storage.from('board-photos').upload(fileName,tbCoverFile,UPLOAD_OPTS);
-    if(upErr){btn.textContent=label;btn.disabled=false;return fail('표지 업로드 실패: '+upErr.message)}
-    coverUrl=sb.storage.from('board-photos').getPublicUrl(fileName).data.publicUrl;
+    try{
+      coverUrl=await uploadToCloudinary(tbCoverFile);
+    }catch(upErr){
+      btn.textContent=label;btn.disabled=false;
+      return fail('표지 업로드 실패: '+upErr.message);
+    }
   }
   row.cover_url=coverUrl;
   let error;

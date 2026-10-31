@@ -4695,13 +4695,20 @@ async function doLogin(){
   }
   document.getElementById('auth-error').style.display='none';
   const meta=data.user.user_metadata;
-  if(!meta?.display_name){
+  let finalName = meta?.display_name;
+  if(finalName){
+    try{
+      const {data:prof}=await sb.from('user_profiles').select('display_name').eq('student_id',id).single();
+      if(prof?.display_name) finalName = prof.display_name;
+    }catch(e){}
+  }
+  if(!finalName){
     currentUser=data.user;currentStudentId=id;
     const {data:roleRow}=await sb.from('user_roles').select('is_teacher').eq('student_id',id).single();
     pendingIsTeacher=!!roleRow?.is_teacher;
     showNameSetupScreen();
   }
-  else initApp(data.user,id,meta.display_name);
+  else initApp(data.user,id,finalName);
 }
 function showNameSetupScreen(){
   document.getElementById('auth-screen').style.display='none';
@@ -4773,13 +4780,20 @@ async function restoreSession(){
   if(session?.user){
     const meta=session.user.user_metadata;
     const sid=meta?.student_id||session.user.email.split('@')[0];
-    if(!meta?.display_name){
+    let finalName = meta?.display_name;
+    if(finalName){
+      try{
+        const {data:prof}=await sb.from('user_profiles').select('display_name').eq('student_id',sid).single();
+        if(prof?.display_name) finalName = prof.display_name;
+      }catch(e){}
+    }
+    if(!finalName){
       currentUser=session.user;currentStudentId=sid;
       const {data:roleRow}=await sb.from('user_roles').select('is_teacher').eq('student_id',sid).single();
       pendingIsTeacher=!!roleRow?.is_teacher;
       showNameSetupScreen();
     }
-    else initApp(session.user,sid,meta.display_name);
+    else initApp(session.user,sid,finalName);
   }
 }
 
@@ -4959,10 +4973,23 @@ function renderAvatarEl(el,avatarUrl,name,sid){
 // 이름을 학급 전체가 볼 수 있는 곳(user_profiles)에도 동기화하고, 저장된 프로필 사진을 불러온다.
 // 친구 랭킹 등에서 학번 대신 실명/사진을 보여주려면 이 테이블이 항상 최신 이름을 갖고 있어야 한다.
 async function syncMyProfile(){
-  await sb.from('user_profiles').upsert({student_id:currentStudentId,user_id:currentUser.id,display_name:currentName});
-  const {data}=await sb.from('user_profiles').select('avatar_url').eq('student_id',currentStudentId).single();
+  const {data}=await sb.from('user_profiles').select('display_name,avatar_url').eq('student_id',currentStudentId).single();
+  if(data?.display_name && data.display_name !== currentName){
+    currentName = data.display_name;
+    const userDisplayEl = document.getElementById('user-display-name');
+    if(userDisplayEl) userDisplayEl.textContent = currentName;
+    const mpNameEl = document.getElementById('mp-name');
+    if(mpNameEl) mpNameEl.textContent = currentName;
+    const h = new Date().getHours();
+    const g = h < 12 ? '좋은 아침이에요' : h < 18 ? '안녕하세요' : '수고하세요';
+    const dashGreetEl = document.getElementById('dash-greeting');
+    if(dashGreetEl) dashGreetEl.textContent = `${g}, ${currentName||currentStudentId+'번'}!`;
+  } else if(!data?.display_name && currentName) {
+    await sb.from('user_profiles').upsert({student_id:currentStudentId,user_id:currentUser.id,display_name:currentName});
+  }
   currentAvatarUrl=data?.avatar_url||null;
   renderAvatarEl(document.getElementById('user-avatar-txt'),currentAvatarUrl,currentName,currentStudentId);
+  renderAvatarEl(document.getElementById('mp-avatar'),currentAvatarUrl,currentName,currentStudentId);
   updateAvatarResetBtnVisibility();
 }
 
@@ -5948,7 +5975,7 @@ function updateDday(){
 
 // ── TIMETABLE ──
 // A: 생명과학Ⅱ/화학Ⅱ (301, 이동없음) — 2026학년도 2학기 시간표(사용자 제공 캡처 기준, 2026-08-24 갱신)
-const TT_A={0:[{s:'자율학습',t:'10:00–12:00'}],1:[{s:'심화영어Ⅰ',t:'08:50–09:40'},{s:'심화영어Ⅰ',t:'09:50–10:40'},{s:'수학과제탐구',t:'10:50–11:40'},{s:'세계문제미래사회',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'생명과학Ⅱ',t:'13:40–14:30',m:true},{s:'기하',t:'14:40–15:30'}],2:[{s:'수학과제탐구',t:'08:50–09:40'},{s:'화학Ⅱ',t:'09:50–10:40',m:true},{s:'생명과학Ⅱ',t:'10:50–11:40',m:true},{s:'인공지능기초',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'물리학Ⅱ',t:'13:40–14:30'}],3:[{s:'진로활동',t:'08:50–09:40'},{s:'독서',t:'09:50–10:40'},{s:'수학과제탐구',t:'10:50–11:40'},{s:'스포츠생활',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'독서',t:'13:40–14:30'},{s:'기하',t:'14:40–15:30'}],4:[{s:'세계문제미래사회',t:'08:50–09:40'},{s:'물리학Ⅱ',t:'09:50–10:40'},{s:'독서',t:'10:50–11:40'},{s:'생명과학Ⅱ',t:'11:50–12:40',m:true},{s:'점심',t:'12:40–13:40',lunch:true},{s:'독서',t:'13:40–14:30'},{s:'화학Ⅱ',t:'14:40–15:30',m:true}],5:[{s:'화학Ⅱ',t:'08:50–09:40',m:true},{s:'심화영어Ⅰ',t:'09:50–10:40'},{s:'물리학Ⅱ',t:'10:50–11:40'},{s:'수학과제탐구',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'심화영어Ⅰ',t:'13:40–14:30'}],6:[{s:'자율학습',t:'10:00–16:00'}]}; const TT_B={0:[{s:'자율학습',t:'10:00–12:00'}],1:[{s:'심화영어Ⅰ',t:'08:50–09:40'},{s:'심화영어Ⅰ',t:'09:50–10:40'},{s:'수학과제탐구',t:'10:50–11:40'},{s:'세계문제미래사회',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'화학Ⅱ',t:'13:40–14:30',m:true},{s:'기하',t:'14:40–15:30'}],2:[{s:'수학과제탐구',t:'08:50–09:40'},{s:'생명과학Ⅱ',t:'09:50–10:40',m:true},{s:'화학Ⅱ',t:'10:50–11:40',m:true},{s:'인공지능기초',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'물리학Ⅱ',t:'13:40–14:30'}],3:[{s:'진로활동',t:'08:50–09:40'},{s:'독서',t:'09:50–10:40'},{s:'수학과제탐구',t:'10:50–11:40'},{s:'스포츠생활',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'독서',t:'13:40–14:30'},{s:'기하',t:'14:40–15:30'}],4:[{s:'세계문제미래사회',t:'08:50–09:40'},{s:'물리학Ⅱ',t:'09:50–10:40'},{s:'독서',t:'10:50–11:40'},{s:'화학Ⅱ',t:'11:50–12:40',m:true},{s:'점심',t:'12:40–13:40',lunch:true},{s:'독서',t:'13:40–14:30'},{s:'생명과학Ⅱ',t:'14:40–15:30',m:true}],5:[{s:'생명과학Ⅱ',t:'08:50–09:40',m:true},{s:'심화영어Ⅰ',t:'09:50–10:40'},{s:'물리학Ⅱ',t:'10:50–11:40'},{s:'수학과제탐구',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'심화영어Ⅰ',t:'13:40–14:30'}],6:[{s:'자율학습',t:'10:00–16:00'}]}; const TT_C={0:[{s:'자율학습',t:'10:00–12:00'}],1:[{s:'심화영어Ⅰ',t:'08:50–09:40'},{s:'심화영어Ⅰ',t:'09:50–10:40'},{s:'수학과제탐구',t:'10:50–11:40'},{s:'세계문제미래사회',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'지구과학Ⅱ',t:'13:40–14:30',m:true},{s:'기하',t:'14:40–15:30'}],2:[{s:'수학과제탐구',t:'08:50–09:40'},{s:'화학Ⅱ',t:'09:50–10:40',m:true},{s:'지구과학Ⅱ',t:'10:50–11:40',m:true},{s:'인공지능기초',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'물리학Ⅱ',t:'13:40–14:30'}],3:[{s:'진로활동',t:'08:50–09:40'},{s:'독서',t:'09:50–10:40'},{s:'수학과제탐구',t:'10:50–11:40'},{s:'스포츠생활',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'독서',t:'13:40–14:30'},{s:'기하',t:'14:40–15:30'}],4:[{s:'세계문제미래사회',t:'08:50–09:40'},{s:'물리학Ⅱ',t:'09:50–10:40'},{s:'독서',t:'10:50–11:40'},{s:'지구과학Ⅱ',t:'11:50–12:40',m:true},{s:'점심',t:'12:40–13:40',lunch:true},{s:'독서',t:'13:40–14:30'},{s:'화학Ⅱ',t:'14:40–15:30',m:true}],5:[{s:'화학Ⅱ',t:'08:50–09:40',m:true},{s:'심화영어Ⅰ',t:'09:50–10:40'},{s:'물리학Ⅱ',t:'10:50–11:40'},{s:'수학과제탐구',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'심화영어Ⅰ',t:'13:40–14:30'}],6:[{s:'자율학습',t:'10:00–16:00'}]}; const STUDENT_GROUP={'고다윤':'A','김민건':'A','김민찬':'C','김서진':'C','김서한':'A','김찬혁':'A','김태우':'A','민건희':'A','민정우':'A','박범준':'A','박상진':'B','박지섭':'A','신현우':'C','유현우':'A','이서후':'A','이승빈':'B','이주신':'B','이준섭':'A','이지환':'A','이현서':'C','이형석':'C','정서진':'B','정의성':'C','정현빈':'B','조동준':'A','조용혁':'B','차지수':'A','최산':'B'}; function getTT(){const g=STUDENT_GROUP[currentName];if(g==='B')return TT_B;if(g==='C')return TT_C;return TT_A;} // 요일별 시간표 각 항목이 이미 자기 시간(t, 예: '08:50–09:40')을 갖고 있으므로, 그 문자열을
+const TT_A={0:[{s:'자율학습',t:'10:00–12:00'}],1:[{s:'심화영어Ⅰ',t:'08:50–09:40'},{s:'심화영어Ⅰ',t:'09:50–10:40'},{s:'수학과제탐구',t:'10:50–11:40'},{s:'세계문제미래사회',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'생명과학Ⅱ',t:'13:40–14:30',m:true},{s:'기하',t:'14:40–15:30'}],2:[{s:'수학과제탐구',t:'08:50–09:40'},{s:'화학Ⅱ',t:'09:50–10:40',m:true},{s:'생명과학Ⅱ',t:'10:50–11:40',m:true},{s:'인공지능기초',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'물리학Ⅱ',t:'13:40–14:30'}],3:[{s:'진로활동',t:'08:50–09:40'},{s:'독서',t:'09:50–10:40'},{s:'수학과제탐구',t:'10:50–11:40'},{s:'스포츠생활',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'독서',t:'13:40–14:30'},{s:'기하',t:'14:40–15:30'}],4:[{s:'세계문제미래사회',t:'08:50–09:40'},{s:'물리학Ⅱ',t:'09:50–10:40'},{s:'독서',t:'10:50–11:40'},{s:'생명과학Ⅱ',t:'11:50–12:40',m:true},{s:'점심',t:'12:40–13:40',lunch:true},{s:'독서',t:'13:40–14:30'},{s:'화학Ⅱ',t:'14:40–15:30',m:true}],5:[{s:'화학Ⅱ',t:'08:50–09:40',m:true},{s:'심화영어Ⅰ',t:'09:50–10:40'},{s:'물리학Ⅱ',t:'10:50–11:40'},{s:'수학과제탐구',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'심화영어Ⅰ',t:'13:40–14:30'}],6:[{s:'자율학습',t:'10:00–16:00'}]}; const TT_B={0:[{s:'자율학습',t:'10:00–12:00'}],1:[{s:'심화영어Ⅰ',t:'08:50–09:40'},{s:'심화영어Ⅰ',t:'09:50–10:40'},{s:'수학과제탐구',t:'10:50–11:40'},{s:'세계문제미래사회',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'화학Ⅱ',t:'13:40–14:30',m:true},{s:'기하',t:'14:40–15:30'}],2:[{s:'수학과제탐구',t:'08:50–09:40'},{s:'생명과학Ⅱ',t:'09:50–10:40',m:true},{s:'화학Ⅱ',t:'10:50–11:40',m:true},{s:'인공지능기초',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'물리학Ⅱ',t:'13:40–14:30'}],3:[{s:'진로활동',t:'08:50–09:40'},{s:'독서',t:'09:50–10:40'},{s:'수학과제탐구',t:'10:50–11:40'},{s:'스포츠생활',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'독서',t:'13:40–14:30'},{s:'기하',t:'14:40–15:30'}],4:[{s:'세계문제미래사회',t:'08:50–09:40'},{s:'물리학Ⅱ',t:'09:50–10:40'},{s:'독서',t:'10:50–11:40'},{s:'화학Ⅱ',t:'11:50–12:40',m:true},{s:'점심',t:'12:40–13:40',lunch:true},{s:'독서',t:'13:40–14:30'},{s:'생명과학Ⅱ',t:'14:40–15:30',m:true}],5:[{s:'생명과학Ⅱ',t:'08:50–09:40',m:true},{s:'심화영어Ⅰ',t:'09:50–10:40'},{s:'물리학Ⅱ',t:'10:50–11:40'},{s:'수학과제탐구',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'심화영어Ⅰ',t:'13:40–14:30'}],6:[{s:'자율학습',t:'10:00–16:00'}]}; const TT_C={0:[{s:'자율학습',t:'10:00–12:00'}],1:[{s:'심화영어Ⅰ',t:'08:50–09:40'},{s:'심화영어Ⅰ',t:'09:50–10:40'},{s:'수학과제탐구',t:'10:50–11:40'},{s:'세계문제미래사회',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'지구과학Ⅱ',t:'13:40–14:30',m:true},{s:'기하',t:'14:40–15:30'}],2:[{s:'수학과제탐구',t:'08:50–09:40'},{s:'화학Ⅱ',t:'09:50–10:40',m:true},{s:'지구과학Ⅱ',t:'10:50–11:40',m:true},{s:'인공지능기초',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'물리학Ⅱ',t:'13:40–14:30'}],3:[{s:'진로활동',t:'08:50–09:40'},{s:'독서',t:'09:50–10:40'},{s:'수학과제탐구',t:'10:50–11:40'},{s:'스포츠생활',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'독서',t:'13:40–14:30'},{s:'기하',t:'14:40–15:30'}],4:[{s:'세계문제미래사회',t:'08:50–09:40'},{s:'물리학Ⅱ',t:'09:50–10:40'},{s:'독서',t:'10:50–11:40'},{s:'지구과학Ⅱ',t:'11:50–12:40',m:true},{s:'점심',t:'12:40–13:40',lunch:true},{s:'독서',t:'13:40–14:30'},{s:'화학Ⅱ',t:'14:40–15:30',m:true}],5:[{s:'화학Ⅱ',t:'08:50–09:40',m:true},{s:'심화영어Ⅰ',t:'09:50–10:40'},{s:'물리학Ⅱ',t:'10:50–11:40'},{s:'수학과제탐구',t:'11:50–12:40'},{s:'점심',t:'12:40–13:40',lunch:true},{s:'심화영어Ⅰ',t:'13:40–14:30'}],6:[{s:'자율학습',t:'10:00–16:00'}]}; const STUDENT_GROUP={'고다윤':'A','김민건':'A','김민찬':'C','김서진':'C','김서한':'A','김찬혁':'A','김태우':'A','민건희':'A','민정우':'A','박범준':'A','박상진':'B','박지섭':'A','신현우':'C','유현우':'A','이서후':'A','이승빈':'B','이주신':'B','이준섭':'A','이지환':'A','이현서':'C','이형석':'C','정서진':'B','정의성':'C','정현빈':'B','조동준':'A','조용혁':'B','차지수':'A','최산':'B'}; const SID_GROUP={'30101':'A','30102':'A','30103':'C','30104':'C','30105':'A','30106':'A','30107':'A','30108':'A','30109':'A','30110':'A','30111':'B','30112':'A','30113':'A','30114':'A','30115':'A','30116':'B','30117':'B','30118':'A','30119':'A','30120':'C','30121':'C','30122':'B','30123':'C','30124':'B','30125':'A','30126':'B','30127':'A','30128':'B'}; function getTT(){const g=STUDENT_GROUP[currentName]||SID_GROUP[currentStudentId];if(g==='B')return TT_B;if(g==='C')return TT_C;return TT_A;} // 요일별 시간표 각 항목이 이미 자기 시간(t, 예: '08:50–09:40')을 갖고 있으므로, 그 문자열을
 // 그대로 파싱해서 "지금 몇 번째 항목인지"를 구한다. 예전에는 별도의 전역 PT 배열(교시 배열
 // 인덱스별 시각)을 따로 두고 배열 위치(i)로만 대조했는데, 주말 자율학습(10:00–16:00처럼
 // 평일 교시와 전혀 다른 시간대)은 배열 위치가 항상 0이라 PT[0](1교시 시간대)과 비교되면서
